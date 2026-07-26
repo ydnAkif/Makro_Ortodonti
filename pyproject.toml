@@ -1,0 +1,34 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short -q"
+pythonpath = ["."]
+markers = ["e2e: real browser end-to-end and accessibility tests"]
+filterwarnings = [
+    "error::ResourceWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
+    # GC-finalized fd-based temp files/pipes and subprocess handles from
+    # third-party libs (playwright driver etc.) get attributed to whichever
+    # test happens to be running (flaky on CI; wording differs per Python
+    # version). Only fd-numbered names / Popen finalizers are ignored;
+    # path-named file leaks in our own code stay fatal.
+    'ignore:unclosed file <_io\.TextIOWrapper name=\d+:ResourceWarning',
+    'ignore:subprocess \d+ is still running:ResourceWarning',
+    'ignore:Exception ignored while finalizing file <_io\.FileIO name=\d+:pytest.PytestUnraisableExceptionWarning',
+    'ignore:Exception ignored while finalizing file <_io\.TextIOWrapper name=\d+:pytest.PytestUnraisableExceptionWarning',
+    'ignore:Exception ignored in. <function Popen\.__del__:pytest.PytestUnraisableExceptionWarning',
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

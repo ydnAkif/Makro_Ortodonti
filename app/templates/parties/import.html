@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Doktor İçe Aktar - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div><span class="page-eyebrow">Toplu işlem</span><h1>Doktorları içe aktar</h1><p class="page-description">Mevcut müşteri listenizi Excel dosyasından tek seferde ekleyin.</p></div>
+    <a href="{{ url_for('parties.list_parties') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Geri
+    </a>
+</header>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Dosya Formatı</h6>
+                    <p class="mb-2">Excel dosyası aşağıdaki sütun sırasına uygun olmalıdır:</p>
+                    <table class="table table-sm table-bordered mb-2" style="max-width:500px">
+                        <thead class="table-light">
+                            <tr><th>Sütun</th><th>Alan</th><th>Açıklama</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A</td><td><strong>Ad Soyad / Klinik Adı</strong></td><td>Zorunlu</td></tr>
+                            <tr><td>B</td><td>Telefon</td><td>WhatsApp gönderimi için önerilir (örn. +905xxxxxxxxx)</td></tr>
+                            <tr><td>C</td><td>E-posta</td><td>Opsiyonel</td></tr>
+                            <tr><td>D</td><td>Adres</td><td>Opsiyonel</td></tr>
+                            <tr><td>E</td><td>Vergi / TC No</td><td>Opsiyonel</td></tr>
+                            <tr><td>F</td><td>Not</td><td>Opsiyonel</td></tr>
+                        </tbody>
+                    </table>
+                    <small class="text-muted">İlk satır başlık satırı olarak atlanır. Aynı ada veya telefona sahip mevcut doktor bulunursa bilgileri güncellenir, mükerrer kayıt oluşmaz.</small>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Excel Dosyası Seçin</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('parties.list_parties') }}" class="btn btn-outline-secondary">İptal</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> İçe Aktar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

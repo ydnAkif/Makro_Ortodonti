@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+{% block title %}{% if work_order %}İş Emri Düzenle{% else %}Yeni İş Emri{% endif %} - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('parties.list_parties') }}">Doktorlar</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('parties.detail_party', party_id=party.id) }}">{{ party.display_name }}</a></li>
+            <li class="breadcrumb-item active">{% if work_order %}İş Emri Düzenle{% else %}Yeni İş Emri{% endif %}</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-clipboard2-plus"></i>
+                    {% if work_order %}İş Emri Düzenle{% else %}Yeni İş Emri Ekle{% endif %}
+                    <small class="text-muted ms-2">{{ party.display_name }}</small>
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('parties.edit_work_order', party_id=party.id, wo_id=work_order.id) if work_order else url_for('parties.add_work_order', party_id=party.id) }}">
+                    {% if request.args.get('return_to') %}
+                    <input type="hidden" name="return_to" value="{{ request.args.get('return_to') }}">
+                    <input type="hidden" name="return_view" value="{{ request.args.get('return_view', 'day') }}">
+                    <input type="hidden" name="return_date" value="{{ request.args.get('return_date', '') }}">
+                    <input type="hidden" name="return_year" value="{{ request.args.get('return_year', '') }}">
+                    <input type="hidden" name="return_month" value="{{ request.args.get('return_month', '') }}">
+                    <input type="hidden" name="return_search" value="{{ request.args.get('return_search', '') }}">
+                    {% endif %}
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="work_date" class="form-label">Tarih <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="work_date" name="work_date" value="{{ work_order.work_date.isoformat() if work_order else today }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="patient_name" class="form-label">Hasta Adı Soyadı <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="patient_name" name="patient_name" value="{{ work_order.patient_name|default('', true) }}" required placeholder="Hasta adı soyadı">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Aparey Türü <span class="text-danger">*</span></label>
+                            <div id="apparatus-component" class="treatment-picker">
+                                <div class="treatment-picker__search">
+                                    <i class="bi bi-search" aria-hidden="true"></i>
+                                    <input type="text" class="form-control" id="apparatus-search"
+                                           placeholder="Aparey ara" autocomplete="off" role="combobox"
+                                           aria-autocomplete="list" aria-controls="apparatus-dropdown" aria-expanded="false">
+                                    <div class="typeahead-list treatment-picker__menu list-group" id="apparatus-dropdown" role="listbox" style="display:none;"></div>
+                                </div>
+                                <div id="apparatus-tags" class="treatment-picker__selection" aria-live="polite"></div>
+                                <input type="hidden" id="apparatus_type" name="apparatus_type" value="{{ work_order.apparatus_type|default('', true) }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-12">
+                            <label class="form-label">Ekstra Eklentiler</label>
+                            <div id="extra-addons-component" class="treatment-picker">
+                                <div class="treatment-picker__search">
+                                    <i class="bi bi-search" aria-hidden="true"></i>
+                                    <input type="text" class="form-control" id="extra-addons-search"
+                                           placeholder="Ekstra işlem ara" autocomplete="off" role="combobox"
+                                           aria-autocomplete="list" aria-controls="extra-addons-dropdown" aria-expanded="false">
+                                    <div class="typeahead-list treatment-picker__menu list-group" id="extra-addons-dropdown" role="listbox" style="display:none;"></div>
+                                </div>
+                                <div id="extra-addons-tags" class="treatment-picker__selection" aria-live="polite"></div>
+                                <input type="hidden" id="extra_addons" name="extra_addons" value="{{ work_order.extra_addons|default('', true) }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <label for="apparatus_price" class="form-label">Aparey Fiyatı (₺) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="apparatus_price" name="apparatus_price" value="{{ '{:.2f}'.format(work_order.apparatus_price) if work_order else '0.00' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="extra_price" class="form-label">Ekstra Eklenti Fiyatı (₺)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="extra_price" name="extra_price" value="{{ '{:.2f}'.format(work_order.extra_price) if work_order else '0.00' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Toplam Fiyat (₺)</label>
+                            <input type="text" class="form-control fw-bold" id="total_display" value="{{ '{:.2f}'.format(work_order.total_price) if work_order else '0.00' }}" readonly>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-12">
+                            <small class="text-muted" id="rate-info"></small>
+                            <input type="hidden" id="exchange_rate_applied" name="exchange_rate_applied" value="{{ work_order.exchange_rate_applied if work_order and work_order.exchange_rate_applied else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notlar</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2">{{ work_order.notes|default('', true) }}</textarea>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        {% if request.args.get('return_to') == 'party_detail' %}
+                        <a href="{{ url_for('parties.detail_party', party_id=party.id, view=request.args.get('return_view', 'month'), year=request.args.get('return_year'), month=request.args.get('return_month'), search=request.args.get('return_search')) }}" class="btn btn-outline-secondary">
+                        {% elif request.args.get('return_to') == 'work_orders' %}
+                        {% if request.args.get('return_view') == 'month' %}
+                        <a href="{{ url_for('parties.list_work_orders', view='month', year=request.args.get('return_year'), month=request.args.get('return_month'), search=request.args.get('return_search')) }}" class="btn btn-outline-secondary">
+                        {% else %}
+                        <a href="{{ url_for('parties.list_work_orders', view='day', date=request.args.get('return_date'), search=request.args.get('return_search')) }}" class="btn btn-outline-secondary">
+                        {% endif %}
+                        {% else %}
+                        <a href="{{ url_for('parties.detail_party', party_id=party.id) }}" class="btn btn-outline-secondary">
+                        {% endif %}
+                            <i class="bi bi-arrow-left"></i> İptal
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {% if work_order %}Güncelle{% else %}Kaydet{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let EUR_TO_TRY = {{ eur_to_try }};
+    let USD_TO_TRY = {{ usd_to_try }};
+    const apparatusPrice = document.getElementById('apparatus_price');
+    const extraPrice = document.getElementById('extra_price');
+    const totalDisplay = document.getElementById('total_display');
+    const rateInfo = document.getElementById('rate-info');
+    const rateAppliedField = document.getElementById('exchange_rate_applied');
+    const workDateInput = document.getElementById('work_date');
+
+    function toTL(price, currency) {
+        if (currency === 'EUR') return Math.round(price * EUR_TO_TRY * 100) / 100;
+        if (currency === 'USD') {
+            if (USD_TO_TRY > 0) return Math.round(price * USD_TO_TRY * 100) / 100;
+            return price;
+        }
+        return price;
+    }
+
+    function syncRateApplied() {
+        const usesEur = selectedApparatus.some(i => i.currency === 'EUR') || selectedExtras.some(i => i.currency === 'EUR');
+        const usesUsd = selectedApparatus.some(i => i.currency === 'USD') || selectedExtras.some(i => i.currency === 'USD');
+        if (usesEur) {
+            rateAppliedField.value = EUR_TO_TRY;
+        } else if (usesUsd && USD_TO_TRY > 0) {
+            rateAppliedField.value = USD_TO_TRY;
+        } else {
+            rateAppliedField.value = '';
+        }
+    }
+
+    function fetchRateForDate(dateStr) {
+        if (!dateStr) return;
+        fetch('{{ url_for("makbuzlar.get_exchange_rate_for_date") }}?date=' + encodeURIComponent(dateStr))
+            .then(function(resp) { return resp.ok ? resp.json() : null; })
+            .then(function(data) {
+                if (!data || data.error) {
+                    rateInfo.textContent = 'Bu tarih için kur bulunamadı, en güncel kur kullanılıyor.';
+                    return;
+                }
+                EUR_TO_TRY = data.rate;
+                if (data.usd_rate) USD_TO_TRY = data.usd_rate;
+                rateInfo.textContent = 'Kur (' + data.display_date + '): 1 EUR = ' + data.rate.toFixed(4) + ' ₺' + (data.usd_rate ? ', 1 USD = ' + data.usd_rate.toFixed(4) + ' ₺' : '');
+                if (selectedApparatus.length) renderApparatusTags();
+                if (selectedExtras.length) renderExtraTags();
+                syncRateApplied();
+            })
+            .catch(function() {
+                rateInfo.textContent = 'Kur bilgisi alınamadı, en güncel kur kullanılıyor.';
+            });
+    }
+
+    function updateTotal() {
+        const a = parseFloat(apparatusPrice.value) || 0;
+        const e = parseFloat(extraPrice.value) || 0;
+        totalDisplay.value = (a + e).toFixed(2);
+    }
+
+    apparatusPrice.addEventListener('input', updateTotal);
+    extraPrice.addEventListener('input', updateTotal);
+    workDateInput.addEventListener('change', function() { fetchRateForDate(this.value); });
+
+    const anaTreatments = {{ ana_islemler_treatments|tojson|safe }};
+    const ekstraTreatments = {{ ekstra_islemler_treatments|tojson|safe }};
+
+    let selectedApparatus = [];
+    let selectedExtras = [];
+    let apparatusBlurTimer = null;
+    let extraBlurTimer = null;
+
+    function normalizeText(value) {
+        return (value || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function formatPrice(price, currency) {
+        var sym = currency === 'EUR' ? '\u20AC' : currency === 'USD' ? '\u0024' : '\u20BA';
+        return new Intl.NumberFormat('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(price) + ' ' + sym;
+    }
+
+    function renderApparatusTags() {
+        const container = document.getElementById('apparatus-tags');
+        container.innerHTML = '';
+        let totalTL = 0;
+        selectedApparatus.forEach(function(item, index) {
+            var tl = toTL(item.price, item.currency);
+            totalTL += tl;
+            const tag = document.createElement('span');
+            tag.className = 'treatment-token';
+            const name = document.createElement('strong');
+            name.textContent = item.name;
+            const price = document.createElement('small');
+            price.textContent = formatPrice(item.price, item.currency);
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'treatment-token__remove';
+            removeBtn.innerHTML = '<i class="bi bi-x" aria-hidden="true"></i>';
+            removeBtn.setAttribute('aria-label', item.name + ' seçimini kaldır');
+            removeBtn.addEventListener('click', function() {
+                selectedApparatus.splice(index, 1);
+                renderApparatusTags();
+                syncApparatusHidden();
+            });
+            tag.appendChild(name);
+            tag.appendChild(price);
+            tag.appendChild(removeBtn);
+            container.appendChild(tag);
+        });
+        apparatusPrice.value = totalTL.toFixed(2);
+        updateTotal();
+        syncRateApplied();
+    }
+
+    function syncApparatusHidden() {
+        document.getElementById('apparatus_type').value = JSON.stringify(selectedApparatus);
+    }
+
+    function renderApparatusDropdown(query) {
+        const dropdown = document.getElementById('apparatus-dropdown');
+        const search = document.getElementById('apparatus-search');
+        const nq = normalizeText(query);
+        const matches = anaTreatments.filter(function(t) {
+            return !nq || normalizeText(t.name).indexOf(nq) !== -1;
+        }).slice(0, 30);
+
+        dropdown.innerHTML = '';
+        if (!matches.length) { dropdown.style.display = 'none'; search.setAttribute('aria-expanded', 'false'); return; }
+        matches.forEach(function(t) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action treatment-picker__option';
+            btn.setAttribute('role', 'option');
+            const name = document.createElement('span');
+            name.textContent = t.name;
+            const price = document.createElement('small');
+            price.textContent = formatPrice(t.price, t.currency);
+            btn.appendChild(name);
+            btn.appendChild(price);
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                clearTimeout(apparatusBlurTimer);
+                selectedApparatus.push({id: t.id, name: t.name, price: t.price, currency: t.currency});
+                renderApparatusTags();
+                syncApparatusHidden();
+                search.value = '';
+                search.focus();
+                renderApparatusDropdown('');
+            });
+            dropdown.appendChild(btn);
+        });
+        dropdown.style.display = 'block';
+        search.setAttribute('aria-expanded', 'true');
+    }
+
+    document.getElementById('apparatus-search').addEventListener('input', function() { renderApparatusDropdown(this.value); });
+    document.getElementById('apparatus-search').addEventListener('focus', function() { renderApparatusDropdown(this.value); });
+    document.getElementById('apparatus-search').addEventListener('blur', function() {
+        apparatusBlurTimer = setTimeout(function() {
+            document.getElementById('apparatus-dropdown').style.display = 'none';
+            document.getElementById('apparatus-search').setAttribute('aria-expanded', 'false');
+        }, 250);
+    });
+
+    function renderExtraTags() {
+        const container = document.getElementById('extra-addons-tags');
+        container.innerHTML = '';
+        let totalTL = 0;
+        selectedExtras.forEach(function(item, index) {
+            var tl = toTL(item.price, item.currency);
+            totalTL += tl;
+            const tag = document.createElement('span');
+            tag.className = 'treatment-token treatment-token--extra';
+            const name = document.createElement('strong');
+            name.textContent = item.name;
+            const price = document.createElement('small');
+            price.textContent = formatPrice(item.price, item.currency);
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'treatment-token__remove';
+            removeBtn.innerHTML = '<i class="bi bi-x" aria-hidden="true"></i>';
+            removeBtn.setAttribute('aria-label', item.name + ' seçimini kaldır');
+            removeBtn.addEventListener('click', function() {
+                selectedExtras.splice(index, 1);
+                renderExtraTags();
+                syncExtrasHidden();
+            });
+            tag.appendChild(name);
+            tag.appendChild(price);
+            tag.appendChild(removeBtn);
+            container.appendChild(tag);
+        });
+        extraPrice.value = totalTL.toFixed(2);
+        updateTotal();
+        syncRateApplied();
+    }
+
+    function syncExtrasHidden() {
+        document.getElementById('extra_addons').value = JSON.stringify(selectedExtras);
+    }
+
+    function renderExtraDropdown(query) {
+        const dropdown = document.getElementById('extra-addons-dropdown');
+        const search = document.getElementById('extra-addons-search');
+        const nq = normalizeText(query);
+        const matches = ekstraTreatments.filter(function(t) {
+            return !nq || normalizeText(t.name).indexOf(nq) !== -1;
+        }).slice(0, 30);
+
+        dropdown.innerHTML = '';
+        if (!matches.length) { dropdown.style.display = 'none'; search.setAttribute('aria-expanded', 'false'); return; }
+        matches.forEach(function(t) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action treatment-picker__option';
+            btn.setAttribute('role', 'option');
+            const name = document.createElement('span');
+            name.textContent = t.name;
+            const price = document.createElement('small');
+            price.textContent = formatPrice(t.price, t.currency);
+            btn.appendChild(name);
+            btn.appendChild(price);
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                clearTimeout(extraBlurTimer);
+                selectedExtras.push({id: t.id, name: t.name, price: t.price, currency: t.currency});
+                renderExtraTags();
+                syncExtrasHidden();
+                search.value = '';
+                search.focus();
+                renderExtraDropdown('');
+            });
+            dropdown.appendChild(btn);
+        });
+        dropdown.style.display = 'block';
+        search.setAttribute('aria-expanded', 'true');
+    }
+
+    document.getElementById('extra-addons-search').addEventListener('input', function() { renderExtraDropdown(this.value); });
+    document.getElementById('extra-addons-search').addEventListener('focus', function() { renderExtraDropdown(this.value); });
+    document.getElementById('extra-addons-search').addEventListener('blur', function() {
+        extraBlurTimer = setTimeout(function() {
+            document.getElementById('extra-addons-dropdown').style.display = 'none';
+            document.getElementById('extra-addons-search').setAttribute('aria-expanded', 'false');
+        }, 250);
+    });
+
+    function loadExistingItems(existingStr, treatments) {
+        if (!existingStr) return [];
+        try {
+            var parsed = JSON.parse(existingStr);
+            if (Array.isArray(parsed)) return parsed;
+        } catch(e) {}
+        var trimmed = existingStr.trim();
+        if (!trimmed) return [];
+        var match = treatments.find(function(t) { return t.name === trimmed; });
+        if (match) return [{id: match.id, name: match.name, price: match.price, currency: match.currency}];
+        return [{id: 0, name: trimmed, price: 0, currency: 'TL'}];
+    }
+
+    var existingApparatus = '{{ work_order.apparatus_type|safe if work_order and work_order.apparatus_type else "" }}';
+    selectedApparatus = loadExistingItems(existingApparatus, anaTreatments);
+    if (selectedApparatus.length) { renderApparatusTags(); syncApparatusHidden(); }
+
+    var existingExtra = '{{ work_order.extra_addons|safe if work_order and work_order.extra_addons else "" }}';
+    selectedExtras = loadExistingItems(existingExtra, ekstraTreatments);
+    if (selectedExtras.length) { renderExtraTags(); syncExtrasHidden(); }
+
+    // Seçili kalemleri, iş emri tarihine ait güncel kurla yeniden hesaplayarak çiz.
+    fetchRateForDate(workDateInput.value);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Raporlar - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+    <div>
+        <h1>Muhasebe Raporları</h1>
+        <p>Doktor bazlı iş emirleri, devreden borçlar, KDV özeti, tahsilat ve açık alacak takibi.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.period_pdf', period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="btn btn-outline-secondary btn-sm" target="_blank">
+            <i class="bi bi-file-earmark-pdf"></i> Dönem PDF
+        </a>
+    </div>
+</header>
+
+{# ——— Dönem Seçimi ——— #}
+<form method="GET" class="toolbar-panel report-toolbar" aria-label="Rapor dönemi">
+    <div>
+        <label class="form-label" for="period">Dönem</label>
+        <select class="form-select" id="period" name="period">
+            <option value="daily" {% if selected_period == 'daily' %}selected{% endif %}>Bugün</option>
+            <option value="this_month" {% if selected_period == 'this_month' %}selected{% endif %}>Bu ay</option>
+            <option value="last_30" {% if selected_period == 'last_30' %}selected{% endif %}>Son 30 gün</option>
+            <option value="this_year" {% if selected_period == 'this_year' %}selected{% endif %}>Bu yıl</option>
+            <option value="last_year" {% if selected_period == 'last_year' %}selected{% endif %}>Geçen yıl</option>
+            <option value="custom" {% if selected_period == 'custom' %}selected{% endif %}>Özel tarih</option>
+        </select>
+    </div>
+    <div><label class="form-label" for="start_date">Başlangıç</label><input class="form-control" type="date" id="start_date" name="start_date" value="{{ start_date.isoformat() }}"></div>
+    <div><label class="form-label" for="end_date">Bitiş</label><input class="form-control" type="date" id="end_date" name="end_date" value="{{ end_date.isoformat() }}"></div>
+    <button class="btn btn-primary" type="submit">Güncelle</button>
+</form>
+
+{# ——— KPI Kartları ——— #}
+<div class="summary-line summary-line--four" aria-label="Dönem özeti">
+    <div><span>Faturalanan (₺)</span><strong>₺{{ "{:,.2f}".format(overview.issued_try) }}</strong><small>{{ overview.work_order_count }} iş emri · {{ overview.makbuz_count }} makbuz</small></div>
+    <div><span>Tahsil edilen (₺)</span><strong>₺{{ "{:,.2f}".format(overview.collected_try) }}</strong><small>{{ overview.payment_count }} ödeme hareketi</small></div>
+    <div><span>Açık bakiye (₺)</span><strong>₺{{ "{:,.2f}".format(overview.outstanding_try) }}</strong><small>{{ aging|map(attribute='count')|sum }} açık makbuz</small></div>
+    <div><span>Tahsilat oranı</span><strong>%{{ "{:.1f}".format(overview.collection_ratio) }}</strong><small>{% if current_rate %}EUR/TRY ₺{{ "{:,.4f}".format(current_rate.eur_to_try) }}{% endif %}</small></div>
+</div>
+
+{# ——— Sekmeli İçerik ——— #}
+<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Genel Bakış</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-doctors" type="button">Doktorlar</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-daily" type="button">Günlük</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-aging" type="button">Devreden & Açık Borçlar</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vat" type="button">KDV Özeti</button></li>
+</ul>
+
+<div class="tab-content">
+
+{# ——— Genel Bakış Sekmesi ——— #}
+<div class="tab-pane fade show active" id="tab-overview">
+
+    {# Trend #}
+    <section class="work-panel mb-4" aria-labelledby="trend-title">
+        <div class="work-panel__header">
+            <div><h2 id="trend-title">Aylık / Haftalık Trend</h2><p>{{ start_date.strftime('%d.%m.%Y') }} – {{ end_date.strftime('%d.%m.%Y') }}</p></div>
+            <div class="report-legend"><span><i class="issued"></i>Fatura</span><span><i class="collected"></i>Tahsilat</span></div>
+        </div>
+        <div class="card-body">
+            {% for row in trend_rows %}
+            <div class="report-trend-row">
+                <span class="report-trend-label">{{ row.label }}</span>
+                <div class="report-trend-bars">
+                    <div title="Fatura: ₺{{ '{:,.0f}'.format(row.issued) }}"><span class="issued" style="width: {{ (row.issued / max_trend * 100)|round(1) }}%"></span></div>
+                    <div title="Tahsilat: ₺{{ '{:,.0f}'.format(row.collected) }}"><span class="collected" style="width: {{ (row.collected / max_trend * 100)|round(1) }}%"></span></div>
+                </div>
+                <span class="report-trend-value">₺{{ "{:,.0f}".format(row.collected) }}</span>
+            </div>
+            {% else %}<div class="empty-state">Bu dönemde finans hareketi yok.</div>{% endfor %}
+        </div>
+    </section>
+
+    {# İşlem ve Kategori #}
+    <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+            <section class="work-panel h-100" aria-labelledby="treatment-title">
+                <div class="work-panel__header"><div><h2 id="treatment-title">En çok üretilen işlemler</h2><p>Dönem içi üretim dağılımı (₺)</p></div></div>
+                <div class="table-responsive"><table class="table table-hover"><thead><tr><th>İşlem</th><th>Kategori</th><th class="text-end">Adet</th><th class="text-end">Tutar (₺)</th></tr></thead><tbody>
+                    {% for stat in treatment_stats %}<tr><td><strong>{{ stat.name }}</strong></td><td>{{ category_labels.get(stat.category, stat.category) }}</td><td class="text-end">{{ stat.count }}</td><td class="text-end fw-bold">₺{{ "{:,.2f}".format(stat.amount_try) }}</td></tr>
+                    {% else %}<tr><td colspan="4" class="empty-state">Bu dönemde üretilmiş işlem yok.</td></tr>{% endfor %}
+                </tbody></table></div>
+            </section>
+        </div>
+        <div class="col-xl-5">
+            <section class="work-panel h-100" aria-labelledby="category-title">
+                <div class="work-panel__header"><div><h2 id="category-title">Kategori dağılımı</h2><p>Toplam tutara göre (₺)</p></div></div>
+                <div class="card-body">
+                    {% for stat in category_stats %}<div class="report-category-row"><div><span>{{ category_labels.get(stat.category, stat.category) }}</span><strong>₺{{ "{:,.2f}".format(stat.amount_try) }}</strong></div><div class="progress"><span style="width: {{ (stat.amount_try / max_category * 100)|round(1) }}%"></span></div><small>{{ stat.count }} kalem</small></div>
+                    {% else %}<div class="empty-state">Kategori verisi yok.</div>{% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+{# ——— Doktorlar Sekmesi ——— #}
+<div class="tab-pane fade" id="tab-doctors">
+    <section class="work-panel mb-4" aria-labelledby="doctor-summary-title">
+        <div class="work-panel__header">
+            <div><h2 id="doctor-summary-title">Doktor Bazlı Özet</h2><p>{{ doctor_summaries|length }} doktor — dönem内 toplam iş emri ve makbuz</p></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead><tr>
+                    <th>Doktor</th>
+                    <th class="text-center">İş Emri</th>
+                    <th class="text-end">Toplam (₺)</th>
+                    <th class="text-end">Tahsil (₺)</th>
+                    <th class="text-end">Kalan (₺)</th>
+                    <th class="text-end">Devreden Borç</th>
+                    <th class="text-center">İşlem</th>
+                </tr></thead>
+                <tbody>
+                    {% for d in doctor_summaries %}
+                    <tr>
+                        <td><a href="{{ url_for('reports.doctor_detail', party_id=d.party_id, period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="text-decoration-none fw-bold text-dark-emphasis">{{ d.doctor_name }}</a></td>
+                        <td class="text-center">{{ d.work_order_count }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(d.total_try) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(d.collected_try) }}</td>
+                        <td class="text-end {% if d.outstanding_try > 0 %}text-danger{% endif %}">₺{{ "{:,.2f}".format(d.outstanding_try) }}</td>
+                        <td class="text-end {% if d.previous_debt > 0 %}text-warning{% endif %}">₺{{ "{:,.2f}".format(d.previous_debt) }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('reports.doctor_detail', party_id=d.party_id, period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="btn btn-outline-primary btn-sm">Detay</a>
+                            <a href="{{ url_for('reports.doctor_pdf', party_id=d.party_id, period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="btn btn-outline-secondary btn-sm" target="_blank" title="PDF İndir"><i class="bi bi-file-earmark-pdf"></i></a>
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="7" class="empty-state">Bu dönemde doktor verisi yok.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+{# ——— Günlük Sekmesi ——— #}
+<div class="tab-pane fade" id="tab-daily">
+    <section class="work-panel mb-4" aria-labelledby="daily-title">
+        <div class="work-panel__header">
+            <div><h2 id="daily-title">Günlük Hareket Dökümü</h2><p>{{ start_date.strftime('%d.%m.%Y') }} – {{ end_date.strftime('%d.%m.%Y') }}</p></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead><tr>
+                    <th>Tarih</th>
+                    <th class="text-center">İş Emri</th>
+                    <th class="text-end">Faturalanan (₺)</th>
+                    <th class="text-end">Tahsil (₺)</th>
+                </tr></thead>
+                <tbody>
+                    {% for row in daily_rows %}
+                    <tr>
+                        <td>{{ row.date.strftime('%d.%m.%Y') }}</td>
+                        <td class="text-center">{{ row.work_order_count }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(row.issued_try) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(row.collected_try) }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="4" class="empty-state">Bu dönemde günlük veri yok.</td></tr>{% endfor %}
+                </tbody>
+                {% if daily_rows %}
+                <tfoot>
+                    <tr class="table-active fw-bold">
+                        <td>Toplam</td>
+                        <td class="text-center">{{ daily_rows|map(attribute='work_order_count')|sum }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(daily_rows|map(attribute='issued_try')|sum) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(daily_rows|map(attribute='collected_try')|sum) }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </section>
+</div>
+
+{# ——— Alacak Yaşlandırma Sekmesi ——— #}
+<div class="tab-pane fade" id="tab-aging">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <section class="work-panel h-100" aria-labelledby="aging-title">
+                <div class="work-panel__header"><div><h2 id="aging-title">Devreden & Vadesi Geçen Borçlar</h2><p>Toplam açık bakiye: ₺{{ "{:,.2f}".format(aging|map(attribute='amount')|sum) }}</p></div></div>
+                <div class="card-body">
+                    {% for row in aging %}
+                    <div class="aging-row">
+                        <div><span>{{ row.label }}</span><small>{{ row.count }} makbuz</small></div>
+                        <strong>₺{{ "{:,.2f}".format(row.amount) }}</strong>
+                        <div class="aging-bar"><span style="width: {{ (row.amount / max_aging * 100)|round(1) }}%"></span></div>
+                    </div>
+                    {% else %}<div class="empty-state">Açık alacak yok.</div>{% endfor %}
+                </div>
+            </section>
+        </div>
+        <div class="col-lg-5">
+            <section class="work-panel h-100" aria-labelledby="rate-title">
+                <div class="work-panel__header"><div><h2 id="rate-title">Kur Bilgisi</h2><p>{% if current_rate %}Son kur: ₺{{ "{:,.4f}".format(current_rate.eur_to_try) }} ({{ current_rate.rate_date.strftime('%d.%m.%Y') }}){% else %}Kur bulunamadı{% endif %}</p></div></div>
+                <div class="card-body">
+                    <div class="status-count-row"><span>Toplam makbuz</span><strong>{{ aging|map(attribute='count')|sum }}</strong></div>
+                    <div class="status-count-row"><span>Toplam açık</span><strong>₺{{ "{:,.2f}".format(aging|map(attribute='amount')|sum) }}</strong></div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+{# ——— KDV Özeti Sekmesi ——— #}
+<div class="tab-pane fade" id="tab-vat">
+    <section class="work-panel mb-4" aria-labelledby="vat-title">
+        <div class="work-panel__header">
+            <div><h2 id="vat-title">KDV Özeti</h2><p>Dönem içindeki makbuzlara göre KDV kırılımı</p></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead><tr>
+                    <th>KDV Oranı</th>
+                    <th class="text-end">Brüt Tutar (₺)</th>
+                    <th class="text-end">KDV Tutarı (₺)</th>
+                    <th class="text-end">Net Tutar (₺)</th>
+                </tr></thead>
+                <tbody>
+                    {% for v in vat_summary %}
+                    <tr>
+                        <td><strong>{{ v.label }}</strong></td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(v.gross) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(v.vat_amount) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(v.net) }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="4" class="empty-state">Bu dönemde KDV verisi yok.</td></tr>{% endfor %}
+                </tbody>
+                {% if vat_summary %}
+                <tfoot>
+                    <tr class="table-active fw-bold">
+                        <td>Toplam</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(vat_summary|map(attribute='gross')|sum) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(vat_summary|map(attribute='vat_amount')|sum) }}</td>
+                        <td class="text-end">₺{{ "{:,.2f}".format(vat_summary|map(attribute='net')|sum) }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </section>
+</div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('period').addEventListener('change', function() {
+    if (this.value !== 'custom') {
+        document.getElementById('start_date').value = '';
+        document.getElementById('end_date').value = '';
+        this.form.submit();
+    }
+});
+document.querySelectorAll('#start_date, #end_date').forEach(function(input) {
+    input.addEventListener('change', function() {
+        document.getElementById('period').value = 'custom';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{# Diş hekimi sonuç tablosu. Hem tam sayfada hem de canlı arama (partial=1)
+isteğinde tek başına render edilir; bu yüzden base.html'i genişletmez. #}
+<div class="work-panel">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 party-table">
+      <thead class="table-light">
+        <tr>
+          <th>Ad / Ünvan</th>
+          <th class="text-end">İş Toplamı</th>
+          <th class="text-end">KDV</th>
+          <th class="text-end">Ödeme Toplamı</th>
+          <th class="text-end">Bakiye</th>
+          <th>Telefon</th>
+          <th>Vergi No / TC</th>
+          <th class="text-end">Eylem</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in parties %} {% set finance = kasa_by_party.get(p.id) %}
+        <tr class="party-row">
+          <td class="party-name-cell">
+            <a
+              href="{{ url_for('parties.detail_party', party_id=p.id) }}"
+              class="text-decoration-none fw-bold"
+            >
+              {{ p.display_name }}
+            </a>
+          </td>
+          <td class="text-end" data-label="İş Toplamı">
+            ₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}
+          </td>
+          <td class="text-end" data-label="KDV">
+            {% if finance and finance.vat_total is not none %}₺{{
+            "{:,.2f}".format(finance.vat_total) }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end text-success" data-label="Ödeme Toplamı">
+            ₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}
+          </td>
+          <td
+            class="text-end fw-bold {% if finance and finance.balance > 0 %}text-warning{% else %}text-success{% endif %}"
+            data-label="Bakiye"
+          >
+            ₺{{ "{:,.2f}".format(finance.balance if finance else 0) }}
+          </td>
+          <td class="party-phone-cell" data-label="Telefon">
+            {% if p.phone %}<a
+              href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}"
+              title="{{ p.display_name }} için WhatsApp mesajı hazırla"
+              aria-label="{{ p.display_name }} adlı doktora WhatsApp mesajı gönder"
+              >{{ p.phone|phone_display }}</a
+            >{% else %}-{% endif %}
+          </td>
+          <td class="party-tax-cell" data-label="Vergi No / TC">
+            {% if p.tax_id %}<span
+              class="font-monospace text-muted"
+              style="font-size: 0.82rem"
+              >{{ p.tax_id }}</span
+            >{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-end party-actions-cell" data-label="İşlem">
+            <a
+              href="{{ url_for('parties.add_work_order', party_id=p.id) }}"
+              class="btn btn-sm btn-primary"
+              title="İş Emri Gir"
+              aria-label="{{ p.display_name }} için iş emri gir"
+            >
+              <i class="bi bi-clipboard2-plus" aria-hidden="true"></i> İş Emri
+            </a>
+            <a
+              href="{{ url_for('parties.detail_party', party_id=p.id) }}"
+              class="btn btn-sm btn-outline-secondary"
+              aria-label="{{ p.display_name }} ayrıntılarını aç"
+              >Detay</a
+            >
+          </td>
+        </tr>
+        {% else %}
+        <tr class="party-empty-row">
+          <td colspan="8">
+            <div class="empty-state-card">
+              <div class="empty-state-icon"><i class="bi bi-person-x"></i></div>
+              <h5>
+                {% if search %}"{{ search }}" için sonuç bulunamadı{% else
+                %}Henüz Doktor Eklenmemiş{% endif %}
+              </h5>
+              <p>
+                {% if search %}Farklı bir arama terimi deneyin.{% else %}Doktor
+                kayıtlarını oluşturarak başlayın.{% endif %}
+              </p>
+              {% if not search and current_user.is_authenticated %}<a
+                href="{{ url_for('parties.add_party') }}"
+                class="btn btn-primary btn-sm"
+                ><i class="bi bi-plus-lg me-1"></i>İlk Kaydı Ekle</a
+              >{% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if parties %}
+      <tfoot>
+        <tr class="table-active fw-bold">
+          <td>Toplam (sayfa)</td>
+          <td class="text-end">
+            ₺{{ "{:,.2f}".format(kasa_page_total_work) }}
+          </td>
+          <td class="text-end">-</td>
+          <td class="text-end text-success">
+            ₺{{ "{:,.2f}".format(kasa_page_total_payment) }}
+          </td>
+          <td class="text-end text-warning">
+            ₺{{ "{:,.2f}".format(kasa_page_total_balance) }}
+          </td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% include "components/pagination.html" %}

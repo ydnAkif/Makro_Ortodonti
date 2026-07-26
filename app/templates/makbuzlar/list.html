@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Makbuzlar - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+    <div><h1>Makbuzlar</h1><p>Günlük, aylık veya yıllık iş emirlerini kontrol edin ve makbuzları yönetin.</p></div>
+    <div class="workspace-actions">
+        <a href="{{ url_for('makbuzlar.export_makbuzlar_pdf', view=view, date=selected_date.isoformat() if selected_date else '', year=year, month=month, status_filter=status_filter) }}" class="btn btn-outline-secondary btn-sm me-1" target="_blank">
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Dönem PDF
+        </a>
+    </div>
+</header>
+
+<div class="workorder-period-bar">
+    <nav class="period-switch" aria-label="Makbuz dönemi">
+        <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=today.isoformat(), status_filter=status_filter) }}" class="{% if view == 'day' %}active{% endif %}">Gün</a>
+        <a href="{{ url_for('makbuzlar.list_makbuzlar', view='month', year=today.year, month=today.month, status_filter=status_filter) }}" class="{% if view == 'month' %}active{% endif %}">Ay</a>
+        <a href="{{ url_for('makbuzlar.list_makbuzlar', view='year', year=today.year, status_filter=status_filter) }}" class="{% if view == 'year' %}active{% endif %}">Yıl</a>
+        <a href="{{ url_for('makbuzlar.list_makbuzlar', view='all', status_filter=status_filter) }}" class="{% if view == 'all' %}active{% endif %}">Tümü</a>
+    </nav>
+
+    <form method="GET" action="{{ url_for('makbuzlar.list_makbuzlar') }}" class="workorder-period-form">
+        <input type="hidden" name="view" value="{{ view }}">
+        <input type="hidden" name="status_filter" value="{{ status_filter }}">
+
+        {% if view == 'day' %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=previous_date, status_filter=status_filter) }}" class="btn-stepper" title="Önceki Gün"><i class="bi bi-chevron-left"></i></a>
+            <input class="form-control stepper-control" type="date" id="makbuz-date" name="date" value="{{ selected_date.isoformat() }}" onchange="this.form.submit()">
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=next_date, status_filter=status_filter) }}" class="btn-stepper" title="Sonraki Gün"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% elif view == 'year' %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='year', year=previous_year, status_filter=status_filter) }}" class="btn-stepper" title="Önceki Yıl"><i class="bi bi-chevron-left"></i></a>
+            <select class="form-select stepper-control" id="makbuz-year" name="year" onchange="this.form.submit()">
+                {% for option_year in years %}<option value="{{ option_year }}" {% if option_year == year %}selected{% endif %}>{{ option_year }}</option>{% endfor %}
+            </select>
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='year', year=next_year, status_filter=status_filter) }}" class="btn-stepper" title="Sonraki Yıl"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% elif view == 'all' %}
+        <div class="period-stepper-group">
+            <span class="px-3 text-muted fw-semibold" style="font-size: 13px;">Tüm Zamanlar</span>
+        </div>
+        {% else %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='month', year=previous_year, month=previous_month, status_filter=status_filter) }}" class="btn-stepper" title="Önceki Ay"><i class="bi bi-chevron-left"></i></a>
+            <select class="form-select stepper-control" id="makbuz-month" name="month" onchange="this.form.submit()">
+                {% for month_number, month_name in months %}<option value="{{ month_number }}" {% if month_number == month %}selected{% endif %}>{{ month_name }}</option>{% endfor %}
+            </select>
+            <div class="stepper-divider"></div>
+            <select class="form-select stepper-control" id="makbuz-year" name="year" onchange="this.form.submit()">
+                {% for option_year in years %}<option value="{{ option_year }}" {% if option_year == year %}selected{% endif %}>{{ option_year }}</option>{% endfor %}
+            </select>
+            <a href="{{ url_for('makbuzlar.list_makbuzlar', view='month', year=next_year, month=next_month, status_filter=status_filter) }}" class="btn-stepper" title="Sonraki Ay"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Status Filter Pills -->
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <span class="small text-muted me-1 font-weight-bold">Durum Filtresi:</span>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='all') }}" class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Tümü ({{ doctors|length }})</a>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='draft') }}" class="btn btn-sm {% if status_filter == 'draft' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Taslaklar ({{ draft_count }})</a>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='sent') }}" class="btn btn-sm {% if status_filter == 'sent' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Tahsilat Bekleyenler ({{ awaiting_payment_count }})</a>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='paid') }}" class="btn btn-sm {% if status_filter == 'paid' %}btn-success{% else %}btn-outline-secondary{% endif %}">Ödenenler ({{ paid_count }})</a>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='unprepared') }}" class="btn btn-sm {% if status_filter == 'unprepared' %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">Taslağı Oluşmayanlar</a>
+</div>
+
+<div class="summary-line summary-line--four">
+    <div><span><i class="bi bi-clipboard2-check text-primary me-1" aria-hidden="true"></i>İş emri</span><strong>{{ grand_total_count }}</strong></div>
+    <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Dönem toplamı</span><strong>₺{{ "{:,.2f}".format(grand_total_price) }}</strong></div>
+    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Taslak</span><strong>{{ draft_count }} makbuz</strong></div>
+    <div><span><i class="bi bi-clock-history text-warning me-1" aria-hidden="true"></i>Tahsilat bekliyor</span><strong>{{ awaiting_payment_count }} makbuz</strong></div>
+</div>
+
+{% if sending %}
+<div class="notice-strip mb-3" id="makbuz-send-progress" role="status">
+    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+    <span>Seçilen makbuzlar gönderiliyor. İşlem tamamlandığında liste yenilenecek.</span>
+</div>
+{% endif %}
+
+<!-- Doctor List -->
+<form method="POST" action="{{ url_for('makbuzlar.bulk_generate_drafts') }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="work-panel">
+        <div class="work-panel__header">
+            <div><h2>{{ period_label }}</h2><p>Doktor bazlı makbuz durumu</p></div>
+            <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                <span class="small text-muted" id="makbuz-selected-count">0 doktor seçildi</span>
+                {% if preparation_count %}
+                <button type="submit" class="btn btn-primary btn-sm" id="bulk-generate-button" disabled>
+                    <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> Seçilenler için taslak oluştur
+                </button>
+                {% endif %}
+                {% if draft_count %}
+                <button type="submit" class="btn btn-success btn-sm" id="bulk-send-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_send_makbuzlar') }}" data-confirm="Seçili taslaklar WhatsApp üzerinden gönderilsin mi?" disabled>
+                    <i class="bi bi-whatsapp" aria-hidden="true"></i> Seçilenleri WhatsApp'tan gönder
+                </button>
+                <button type="submit" class="btn btn-danger btn-sm" id="bulk-delete-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_delete_makbuzlar') }}" data-confirm="Seçili taslak makbuzlar kalıcı olarak silinecek. Emin misiniz?" disabled>
+                    <i class="bi bi-trash" aria-hidden="true"></i> Seçilenleri sil
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:2.5rem;">
+                                <input type="checkbox" class="form-check-input" id="select-all-parties" title="Tümünü seç" aria-label="Tüm doktorları seç">
+                            </th>
+                            <th>Doktor</th>
+                            <th class="text-center">İş Emri</th>
+                            <th class="text-end">Toplam (₺)</th>
+                            <th>Gönderim</th>
+                            <th>KDV</th>
+                            <th class="text-end">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in doctors %}
+                        {% set m = d.makbuz %}
+                        <tr>
+                            <td>
+                                {% if not m or m.status == 'draft' %}
+                                <input type="checkbox" class="form-check-input" name="party_ids" value="{{ d.party_id }}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                                        <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="fw-bold text-decoration-none">{{ d.party.name if d.party else '-' }}</a>
+                                        {% if d.party and d.party.phone %}<br><small class="text-muted">{{ d.party.phone|phone_display }}</small>{% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center"><span class="badge bg-primary">{{ d.count }}</span></td>
+                            <td class="text-end fw-bold">₺{{ "{:,.2f}".format((m.grand_total if m else d.total_price)) }}</td>
+                            <td>
+                                {% if not m %}
+                                <span class="badge bg-light text-muted border">Gönderilmedi</span>
+                                <small class="d-block text-muted mt-1">Taslak oluşturulmadı</small>
+                                {% elif m.status == 'draft' %}
+                                <span class="badge bg-secondary">Gönderilmedi</span>
+                                <small class="d-block text-muted mt-1">Taslak hazır</small>
+                                {% else %}
+                                <span class="badge bg-success">Gönderildi</span>
+                                <small class="d-block text-muted mt-1">{{ 'Ödendi' if m.status == 'paid' else 'Tahsilat bekliyor' }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not m or m.status == 'draft' %}
+                                {% set saved_vat_rate = m.vat_rate if m and m.vat_applied else 20 %}
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="vat_{{ d.party_id }}_vat_applied" id="vat-{{ d.party_id }}" {% if m and m.vat_applied %}checked{% endif %}>
+                                    <label class="form-check-label small" for="vat-{{ d.party_id }}">%{{ '{:g}'.format(saved_vat_rate) }}</label>
+                                    <input type="hidden" name="vat_{{ d.party_id }}_vat_rate" value="{{ '{:.2f}'.format(saved_vat_rate) }}">
+                                </div>
+                                {% elif m.vat_applied %}
+                                <small class="text-muted">%{{ '{:.2f}'.format(m.vat_rate) }}</small>
+                                {% else %}
+                                <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if m %}
+                                <a href="{{ url_for('makbuzlar.pdf_makbuz', makbuz_id=m.id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" title="PDF Önizle">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Detay
+                                </a>
+                                {% if m and m.status == 'sent' %}
+                                <a href="{{ url_for('payments.mark_paid', makbuz_id=m.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-cash-coin"></i> Tahsilat kaydet
+                                </a>
+                                {% elif m and m.status == 'paid' %}
+                                <a href="{{ url_for('payments.list_payments', search=d.party.display_name, year=year, tab='paid') }}" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-check-circle"></i> Tahsilatlarda gör
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state-card">
+                                    <div class="empty-state-icon"><i class="bi bi-receipt-cutoff"></i></div>
+                                    <h5>Bu Ay Makbuz Bulunmuyor</h5>
+                                    <p>Bu dönem için iş emri girilmedi.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if doctors %}
+                    <tfoot class="table-light">
+                        <tr>
+                            <td></td>
+                            <td class="fw-bold">TOPLAM</td>
+                            <td class="text-center fw-bold">{{ grand_total_count }}</td>
+                            <td class="text-end fw-bold fs-5">₺{{ "{:,.2f}".format(grand_total_price) }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+<script>
+(function () {
+    var selectAll = document.getElementById("select-all-parties");
+    if (!selectAll) return;
+    var boxes = function () {
+        return document.querySelectorAll('input[name="party_ids"]');
+    };
+    var updateSelection = function () {
+        var all = Array.prototype.slice.call(boxes());
+        var selected = all.filter(function (box) { return box.checked; });
+        var count = document.getElementById("makbuz-selected-count");
+        var generateButton = document.getElementById("bulk-generate-button");
+        var sendButton = document.getElementById("bulk-send-button");
+        var deleteButton = document.getElementById("bulk-delete-button");
+        if (count) count.textContent = selected.length + " doktor seçildi";
+        if (generateButton) generateButton.disabled = selected.length === 0;
+        if (sendButton) sendButton.disabled = selected.length === 0;
+        if (deleteButton) deleteButton.disabled = selected.length === 0;
+        selectAll.checked = all.length > 0 && selected.length === all.length;
+        selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+    };
+    selectAll.addEventListener("change", function () {
+        boxes().forEach(function (box) { box.checked = selectAll.checked; });
+        updateSelection();
+    });
+    document.addEventListener("change", function (event) {
+        if (event.target.name !== "party_ids") return;
+        updateSelection();
+    });
+    updateSelection();
+})();
+</script>
+{% if sending %}
+<script>
+(function () {
+    var progress = document.getElementById("makbuz-send-progress");
+    var timer = window.setInterval(function () {
+        fetch("{{ url_for('makbuzlar.send_status') }}", {headers: {"Accept": "application/json"}})
+            .then(function (response) { return response.json(); })
+            .then(function (payload) {
+                var job = payload.send_job;
+                if (job && job.running) {
+                    progress.querySelector("span").textContent = "Makbuzlar gönderiliyor: " + job.done + "/" + job.total + " tamamlandı.";
+                    return;
+                }
+                window.clearInterval(timer);
+                var target = new URL(window.location.href);
+                target.searchParams.delete("sending");
+                window.location.replace(target.toString());
+            });
+    }, 1200);
+})();
+</script>
+{% endif %}
+{% endblock %}

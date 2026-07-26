@@ -1,0 +1,601 @@
+{% extends "base.html" %} {% block title %}{{ party.display_name }} - {{
+clinic_name }}{% endblock %} {% block content %}
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('parties.list_parties') }}">Doktorlar</a>
+      </li>
+      <li class="breadcrumb-item active">{{ party.display_name }}</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <!-- Diş Hekimi Kartı -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          Diş Hekimi Bilgileri
+        </h5>
+        <div class="d-flex gap-2 align-items-center">
+          <a
+            href="{{ url_for('parties.edit_party', party_id=party.id) }}"
+            class="btn btn-sm btn-outline-secondary"
+            aria-label="Diş hekimi bilgilerini düzenle"
+          >
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form
+            method="POST"
+            action="{{ url_for('parties.delete_party', party_id=party.id) }}"
+            class="d-inline"
+            data-confirm="Bu diş hekimini silmek istediğinize emin misiniz?"
+          >
+            <button
+              type="submit"
+              class="btn btn-sm btn-outline-danger"
+              aria-label="Diş hekimi kaydını sil"
+            >
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="card-body">
+        <h5 class="fw-bold mb-1">{{ party.display_name }}</h5>
+        <span class="badge badge-soft-aqua mb-2">Diş Hekimi</span>
+        <hr class="my-2" />
+        {% if party.phone %}
+        <p class="text-muted mb-2 small">
+          <i class="bi bi-telephone me-1"></i> {{ party.phone|phone_display }}
+        </p>
+        {% endif %} {% if party.email %}
+        <p class="text-muted mb-2 small">
+          <i class="bi bi-envelope me-1"></i> {{ party.email }}
+        </p>
+        {% endif %} {% if party.address %}
+        <p class="text-muted mb-2 small">
+          <i class="bi bi-geo-alt me-1"></i> {{ party.address }}
+        </p>
+        {% endif %} {% if party.tax_id %}
+        <p class="text-muted mb-2 small">
+          <i class="bi bi-card-text me-1"></i> {{ party.tax_id }}
+        </p>
+        {% endif %} {% if party.notes %}
+        <hr class="my-2" />
+        <p class="text-muted small mb-0">
+          <i class="bi bi-journal-text me-1"></i> {{ party.notes }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Özet Kartı -->
+    {% if period_work_order_count > 0 or devreden_total > 0 %}
+    <div
+      class="card border-0 shadow-sm mt-3 border-start border-primary border-4"
+    >
+      <div class="card-body">
+        <h6 class="text-primary fw-bold mb-3">
+          <i class="bi bi-calculator me-1"></i> {{ period_label }} Özeti
+        </h6>
+        {% if view == 'month' %}
+        <div
+          class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom"
+        >
+          <span class="small text-muted"
+            >{{ period_work_order_count }} iş emri</span
+          >
+          {% if period_makbuz %}<span class="badge badge-soft-aqua"
+            >{{ period_makbuz_status }} makbuz</span
+          >{% endif %}
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Aparey:</span>
+          <span>₺{{ "{:,.2f}".format(total_apparatus) }}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Ekstra:</span>
+          <span>₺{{ "{:,.2f}".format(total_extra) }}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Matrah:</span>
+          <span>₺{{ "{:,.2f}".format(total_overall) }}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-2">
+          <span class="text-muted">KDV (makbuzlar):</span>
+          <span>₺{{ "{:,.2f}".format(total_vat) }}</span>
+        </div>
+
+        <div class="d-flex justify-content-between small mb-2 pt-2 border-top">
+            <span class="text-muted">Önceki Dönemlerden Devreden:</span>
+            <span>₺{{ "{:,.2f}".format(devreden_total) }}</span>
+        </div>
+
+        <div
+          class="pt-2 border-top d-flex justify-content-between align-items-baseline"
+        >
+          <span class="fw-bold">Genel Toplam:</span>
+          <h4 class="mb-0 fw-bold">₺{{ "{:,.2f}".format(total_with_vat + devreden_total) }}</h4>
+        </div>
+        
+        {% if False and devreden_total > 0 %}
+        <div class="mt-3 p-2 rounded bg-light border">
+          {% if previous_periods_debt > 0 %}
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Önceki Dönemler Borcu:</span>
+            <span>₺{{ "{:,.2f}".format(previous_periods_debt) }}</span>
+          </div>
+          {% endif %} {% if party.previous_balance > 0 %}
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Önceden Devreden Borç:</span>
+            <span>₺{{ "{:,.2f}".format(party.previous_balance) }}</span>
+          </div>
+          {% endif %}
+          <div
+            class="d-flex justify-content-between align-items-center pt-1 border-top mt-1"
+          >
+            <span class="small fw-bold">Genel Toplam (devreden dahil):</span>
+            <strong class="fs-6"
+              >₺{{ "{:,.2f}".format(total_with_vat + devreden_total) }}</strong
+            >
+          </div>
+        </div>
+        {% endif %} {% else %}
+        <p class="small text-muted mb-2">{{ year_work_order_count }} iş emri</p>
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Ay</th>
+              <th class="text-end">İşlem</th>
+              <th class="text-end">Tutar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mt in monthly_totals %}
+            <tr>
+              <td>{{ mt.month_name }}</td>
+              <td class="text-end">{{ mt.count }}</td>
+              <td class="text-end">₺{{ "{:,.2f}".format(mt.grand_total) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold">
+              <td>Yıl Toplamı</td>
+              <td class="text-end">{{ year_work_order_count }}</td>
+              <td class="text-end">
+                ₺{{ "{:,.2f}".format(year_total_overall) }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+        {% if devreden_total > 0 %}
+        <div class="mt-3 p-2 rounded bg-light border">
+          {% if previous_periods_debt > 0 %}
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Önceki Dönemler Borcu:</span>
+            <span>₺{{ "{:,.2f}".format(previous_periods_debt) }}</span>
+          </div>
+          {% endif %} {% if party.previous_balance > 0 %}
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Önceden Devreden Borç:</span>
+            <span>₺{{ "{:,.2f}".format(party.previous_balance) }}</span>
+          </div>
+          {% endif %}
+          <div
+            class="d-flex justify-content-between align-items-center pt-1 border-top mt-1"
+          >
+            <span class="small fw-bold">Genel Toplam (devreden dahil):</span>
+            <strong class="fs-6"
+              >₺{{ "{:,.2f}".format(year_total_overall + devreden_total)
+              }}</strong
+            >
+          </div>
+        </div>
+        {% endif %} {% endif %}
+      </div>
+    </div>
+    {% endif %} {% if view == 'month' %}
+    <div class="card border-0 shadow-sm mt-3 border-start border-info border-4">
+      <div class="card-body">
+        <h6 class="text-info fw-bold mb-2">
+          <i class="bi bi-calendar3 me-1"></i> {{ year }} Yılı Özeti
+        </h6>
+        <p class="small text-muted mb-2">{{ year_work_order_count }} iş emri</p>
+        <div class="d-flex justify-content-between small mb-1">
+          <span class="text-muted">Aparey:</span>
+          <span>₺{{ "{:,.2f}".format(year_total_apparatus) }}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-2">
+          <span class="text-muted">Ekstra:</span>
+          <span>₺{{ "{:,.2f}".format(year_total_extra) }}</span>
+        </div>
+        <div
+          class="pt-2 border-top d-flex justify-content-between align-items-baseline"
+        >
+          <span class="fw-bold">Toplam:</span>
+          <h5 class="mb-0 fw-bold">
+            ₺{{ "{:,.2f}".format(year_total_overall) }}
+          </h5>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div
+        class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+      >
+        <div>
+          <h5 class="mb-0 fw-bold">
+            <i class="bi bi-clipboard2-check me-1"></i> İş Emirleri
+          </h5>
+          <small class="text-muted"
+            >{{ period_label }} · {{ work_orders|length }} iş emri{% if view ==
+            'month' and period_makbuz %} · {{ period_makbuz_status }} makbuz{%
+            endif %}</small
+          >
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <a
+            href="{{ url_for('parties.export_party_summary_pdf', party_id=party.id, view='month', year=year, month=month or 1) }}"
+            class="btn btn-sm btn-outline-secondary"
+            target="_blank"
+            aria-label="Aylık özeti PDF olarak aç"
+          >
+            <i class="bi bi-file-earmark-pdf me-1"></i> Aylık PDF
+          </a>
+          <a
+            href="{{ url_for('parties.export_party_summary_pdf', party_id=party.id, view='year', year=year) }}"
+            class="btn btn-sm btn-outline-secondary"
+            target="_blank"
+            aria-label="Yıllık özeti PDF olarak aç"
+          >
+            <i class="bi bi-file-earmark-pdf me-1"></i> Yıllık PDF
+          </a>
+          <a
+            href="{{ url_for('parties.add_work_order', party_id=party.id) }}"
+            class="btn btn-sm btn-primary px-3"
+          >
+            <i class="bi bi-plus-lg me-1"></i> Yeni İş Emri
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <form
+          method="GET"
+          action="{{ url_for('parties.detail_party', party_id=party.id) }}"
+          class="doctor-workorder-toolbar"
+        >
+          <nav class="period-switch" aria-label="Görünüm">
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view='month', year=year, month=1, search=search) }}"
+              class="{% if view == 'month' %}active{% endif %}"
+              >Ay</a
+            >
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view='year', year=year, search=search) }}"
+              class="{% if view == 'year' %}active{% endif %}"
+              >Yıl</a
+            >
+          </nav>
+          <div class="period-stepper-group">
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view=view, year=previous_year, month=previous_month, search=search) }}"
+              class="btn-stepper"
+              title="Önceki dönem"
+              aria-label="Önceki dönem"
+              ><i class="bi bi-chevron-left" aria-hidden="true"></i
+            ></a>
+            <div class="stepper-divider"></div>
+            {% if view == 'month' %}
+            <div>
+              <label class="visually-hidden" for="doctor-workorder-month"
+                >Ay</label
+              >
+              <select
+                class="form-select form-select-sm"
+                id="doctor-workorder-month"
+                name="month"
+                onchange="this.form.submit()"
+              >
+                {% for month_number, month_name in months %}
+                <option
+                  value="{{ month_number }}"
+                  {% if month_number == month %}selected{% endif %}
+                >
+                  {{ month_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div>
+              <label class="visually-hidden" for="doctor-workorder-year"
+                >Yıl</label
+              >
+              <select
+                class="form-select form-select-sm"
+                id="doctor-workorder-year"
+                name="year"
+                onchange="this.form.submit()"
+              >
+                {% for option_year in years %}
+                <option
+                  value="{{ option_year }}"
+                  {% if option_year == year %}selected{% endif %}
+                >
+                  {{ option_year }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="stepper-divider"></div>
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view=view, year=next_year, month=next_month, search=search) }}"
+              class="btn-stepper"
+              title="Sonraki dönem"
+              aria-label="Sonraki dönem"
+              ><i class="bi bi-chevron-right" aria-hidden="true"></i
+            ></a>
+          </div>
+          <input type="hidden" name="view" value="{{ view }}" />
+          <div class="doctor-workorder-search ms-auto">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <label class="visually-hidden" for="doctor-workorder-query"
+              >İş emirlerinde ara</label
+            >
+            <input
+              type="search"
+              class="form-control form-control-sm"
+              id="doctor-workorder-query"
+              name="search"
+              value="{{ search }}"
+              placeholder="Hasta veya aparey ara..."
+              autocomplete="off"
+            />
+            {% if search %}
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view=view, year=year, month=month or 1) }}"
+              class="search-clear-btn"
+              title="Aramayı Temizle"
+              aria-label="Temizle"
+              ><i class="bi bi-x-lg"></i
+            ></a>
+            {% endif %}
+          </div>
+        </form>
+
+        <!-- Desktop Table View -->
+        <div class="table-responsive d-none d-md-block">
+          <table
+            class="table table-hover align-middle mb-0"
+            id="work-orders-table"
+          >
+            <thead class="table-light">
+              <tr>
+                <th>Tarih</th>
+                <th>Hasta</th>
+                <th>Aparey Türü</th>
+                <th class="text-end">Aparey (₺)</th>
+                <th class="text-end">Ekstra (₺)</th>
+                <th class="text-end">Toplam (₺)</th>
+                <th class="text-end pe-3">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wo in work_orders %}
+              <tr
+                class="wo-row"
+                data-wo-id="{{ wo.id }}"
+                style="cursor: pointer"
+              >
+                <td class="text-nowrap">
+                  {{ wo.work_date.strftime('%d.%m.%Y') }}
+                </td>
+                <td class="fw-semibold">{{ wo.patient_name }}</td>
+                <td>
+                  {% set items = wo.apparatus_type|fromjson %} {% if items is
+                  iterable and items is not string and items|length > 0 %} {%
+                  for item in items %}
+                  <span class="badge badge-soft-aqua me-1"
+                    >{{ item.name if item is mapping else item }}</span
+                  >
+                  {% endfor %} {% else %}
+                  <span class="apparatus-display badge badge-soft-aqua"
+                    >{{ wo.apparatus_type }}</span
+                  >
+                  {% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                  ₺{{ "{:,.2f}".format(wo.apparatus_price) }}
+                </td>
+                <td class="text-end text-nowrap">
+                  ₺{{ "{:,.2f}".format(wo.extra_price) }}
+                </td>
+                <td class="text-end text-nowrap fw-bold text-dark">
+                  ₺{{ "{:,.2f}".format(wo.total_price) }}
+                </td>
+                <td class="text-end pe-3">
+                  <div class="btn-group btn-group-sm">
+                    <a
+                      href="{{ url_for('parties.edit_work_order', party_id=party.id, wo_id=wo.id, return_to='party_detail', return_view=view, return_year=year, return_month=month or 1, return_search=search) }}"
+                      class="btn btn-outline-secondary"
+                      onclick="event.stopPropagation()"
+                      title="Düzenle"
+                      aria-label="Düzenle"
+                    >
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <form
+                      method="POST"
+                      action="{{ url_for('parties.delete_work_order', party_id=party.id, wo_id=wo.id) }}"
+                      class="d-inline"
+                      data-confirm="Bu iş emrini silmek istediğinize emin misiniz?"
+                      onclick="event.stopPropagation()"
+                    >
+                      <input
+                        type="hidden"
+                        name="return_to"
+                        value="party_detail"
+                      />
+                      <input
+                        type="hidden"
+                        name="return_view"
+                        value="{{ view }}"
+                      />
+                      <input
+                        type="hidden"
+                        name="return_year"
+                        value="{{ year }}"
+                      />
+                      <input
+                        type="hidden"
+                        name="return_month"
+                        value="{{ month or 1 }}"
+                      />
+                      <input
+                        type="hidden"
+                        name="return_search"
+                        value="{{ search }}"
+                      />
+                      <button
+                        type="submit"
+                        class="btn btn-outline-danger"
+                        title="Sil"
+                        aria-label="Sil"
+                      >
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              <tr class="wo-detail d-none" id="wo-detail-{{ wo.id }}">
+                <td colspan="7" class="bg-light">
+                  <div class="p-3">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <strong
+                          ><i class="bi bi-person me-1"></i> Hasta:</strong
+                        >
+                        {{ wo.patient_name }}<br />
+                        <strong
+                          ><i class="bi bi-calendar me-1"></i> Tarih:</strong
+                        >
+                        {{ wo.work_date.strftime('%d.%m.%Y') }}<br />
+                        <strong
+                          ><i class="bi bi-tools me-1"></i> Aparey:</strong
+                        >
+                        {% set items = wo.apparatus_type|fromjson %} {% if items
+                        is iterable and items is not string and items|length > 0
+                        %} {% for item in items %}
+                        <span class="badge badge-soft-aqua me-1"
+                          >{{ item.name if item is mapping else item }}</span
+                        >
+                        {% endfor %} {% else %}
+                        <span class="badge badge-soft-aqua"
+                          >{{ wo.apparatus_type }}</span
+                        >
+                        {% endif %}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Aparey Fiyatı:</strong> ₺{{
+                        "{:,.2f}".format(wo.apparatus_price) }}<br />
+                        <strong>Ekstra Fiyatı:</strong> ₺{{
+                        "{:,.2f}".format(wo.extra_price) }}<br />
+                        <strong class="text-primary">Toplam:</strong>
+                        <span class="text-primary fw-bold"
+                          >₺{{ "{:,.2f}".format(wo.total_price) }}</span
+                        >
+                      </div>
+                    </div>
+                    {% set extra_value = wo.extra_addons|clean_optional %} {% if
+                    extra_value %}
+                    <div class="mt-2">
+                      <strong>Ekstra Eklentiler:</strong>
+                      <div class="mt-1">
+                        {% set extras = extra_value|fromjson %} {% if extras is
+                        iterable and extras is not string and extras | length >
+                        0 %} {% for ex in extras %}
+                        <span class="badge badge-soft-aqua me-1"
+                          >{{ ex.name if ex is mapping else ex }}</span
+                        >
+                        {% endfor %} {% else %}
+                        <span class="text-muted">{{ extra_value }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    {% endif %} {% set note_value = wo.notes|clean_optional %}
+                    {% if note_value %}
+                    <div class="mt-2">
+                      <strong>Notlar:</strong>
+                      <span class="text-muted">{{ note_value }}</span>
+                    </div>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="empty-state">
+                  {% if search %}"{{ search }}" için {{ period_label }}
+                  döneminde iş emri bulunamadı.{% else %}{{ period_label }}
+                  döneminde iş emri yok.{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const rows = document.querySelectorAll(".wo-row");
+    rows.forEach(function (row) {
+      row.addEventListener("click", function () {
+        const woId = row.dataset.woId;
+        const detail = document.getElementById("wo-detail-" + woId);
+        if (detail) {
+          const isHidden = detail.classList.contains("d-none");
+          document.querySelectorAll(".wo-detail").forEach(function (d) {
+            d.classList.add("d-none");
+          });
+          if (isHidden) {
+            detail.classList.remove("d-none");
+          }
+        }
+      });
+    });
+
+    document.querySelectorAll(".apparatus-display").forEach(function (el) {
+      const text = el.textContent.trim();
+      if (text.startsWith("[")) {
+        try {
+          const arr = JSON.parse(text);
+          if (Array.isArray(arr)) {
+            el.innerHTML = arr
+              .map(function (item) {
+                return (
+                  '<span class="badge badge-soft-aqua me-1">' +
+                  (item.name || item) +
+                  "</span>"
+                );
+              })
+              .join(" ");
+          }
+        } catch (e) {}
+      }
+    });
+  });
+</script>
+{% endblock %}

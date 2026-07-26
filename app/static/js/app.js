@@ -1,0 +1,326 @@
+document.addEventListener('DOMContentLoaded', function() {
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+    if (csrfToken) {
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(form) {
+            if (!form.querySelector('input[name="csrf_token"]')) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = csrfToken;
+                form.appendChild(input);
+            }
+        });
+    }
+
+    function normalizeText(value) {
+        // NFD \u015f/\u011f/\u00fc/\u00f6/\u00e7'yi ayr\u0131\u015ft\u0131r\u0131r; noktas\u0131z "\u0131" ayr\u0131\u015fmad\u0131\u011f\u0131 i\u00e7in ayr\u0131ca
+        // "i"ye indirgenir ki "pinar" aramas\u0131 "P\u0131nar"\u0131 bulsun.
+        return (value || '')
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\u0131/g, 'i');
+    }
+
+    // Typeahead for selects with many options
+    document.querySelectorAll('select.js-searchable-select').forEach(function(select) {
+        if (select.dataset.searchReady === '1') {
+            return;
+        }
+
+        var placeholder = select.dataset.searchPlaceholder || 'Yazarak ara...';
+        var options = Array.from(select.options).filter(function(opt) {
+            return opt.value;
+        });
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'typeahead-wrapper';
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control mb-2';
+        input.placeholder = placeholder;
+        input.autocomplete = 'off';
+
+        var list = document.createElement('div');
+        list.className = 'typeahead-list list-group shadow-sm';
+
+        // Set initial value in input
+        if (select.value) {
+            var selectedOption = options.find(function(opt) { return opt.value === select.value; });
+            if (selectedOption) {
+                input.value = selectedOption.textContent.trim();
+            }
+        }
+
+        // Hide the original select (but keep id, name, and option elements intact!)
+        select.classList.add('d-none');
+
+        // Insert wrapper before select
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(input);
+        wrapper.appendChild(list);
+        wrapper.appendChild(select); // move select inside wrapper for tidy hierarchy
+
+        function renderList(query) {
+            var nq = normalizeText(query);
+            var matches = options.filter(function(opt) {
+                return !nq || normalizeText(opt.textContent).indexOf(nq) !== -1;
+            }).slice(0, 100);
+
+            list.innerHTML = '';
+            if (!matches.length) {
+                list.style.display = 'none';
+                return;
+            }
+
+            matches.forEach(function(opt) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = opt.textContent.trim();
+                btn.addEventListener('mousedown', function() {
+                    select.value = opt.value;
+                    input.value = opt.textContent.trim();
+                    list.style.display = 'none';
+                    // Dispatch change event on the original select so page scripts trigger
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                list.appendChild(btn);
+            });
+
+            list.style.display = 'block';
+        }
+
+        input.addEventListener('input', function() {
+            select.value = ''; // clear select until an item is explicitly clicked
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            renderList(input.value);
+        });
+
+        input.addEventListener('focus', function() {
+            renderList(input.value);
+        });
+
+        input.addEventListener('blur', function() {
+            window.setTimeout(function() {
+                list.style.display = 'none';
+                // If user blurs without picking an item and has typed something that doesn't match, or cleared it
+                if (!select.value) {
+                    input.value = '';
+                } else {
+                    var selectedOption = options.find(function(opt) { return opt.value === select.value; });
+                    if (selectedOption) {
+                        input.value = selectedOption.textContent.trim();
+                    }
+                }
+            }, 120);
+        });
+
+        select.dataset.searchReady = '1';
+    });
+
+    // Live server-side search for paginated lists — no page reload.
+    // A client-only row filter can only see the current page's rows, so
+    // typing "ö" would never reveal matches on other pages. Instead we fetch
+    // just the results fragment (Turkish-aware search across the whole table)
+    // and swap it in, keeping the input, focus and scroll position intact.
+    document.querySelectorAll('input.js-live-search').forEach(function(input) {
+        var form = input.closest('form');
+        var results = document.querySelector(input.getAttribute('data-results') || '');
+        if (!form || !results || !window.fetch || !window.DOMParser) {
+            return; // no JS support: the form still submits normally
+        }
+
+        var delay = parseInt(input.getAttribute('data-search-delay'), 10) || 250;
+        var timer = null;
+        var controller = null;
+
+        function swapResults(html) {
+            var parsed = new DOMParser().parseFromString(html, 'text/html');
+            var nodes = Array.prototype.slice.call(parsed.body.childNodes);
+            results.replaceChildren();
+            nodes.forEach(function(node) {
+                results.appendChild(document.importNode(node, true));
+            });
+        }
+
+        function runSearch() {
+            var params = new URLSearchParams(new FormData(form));
+            params.set('partial', '1');
+
+            if (controller) {
+                controller.abort(); // drop the in-flight, now-stale request
+            }
+            controller = new AbortController();
+            results.setAttribute('aria-busy', 'true');
+
+            fetch(form.action + '?' + params.toString(), {
+                signal: controller.signal,
+                headers: { 'X-Requested-With': 'fetch' },
+                credentials: 'same-origin'
+            })
+                .then(function(response) { return response.text(); })
+                .then(function(html) {
+                    swapResults(html);
+                    results.removeAttribute('aria-busy');
+                    // Keep the address bar in sync so refresh/bookmark works,
+                    // without pushing a history entry per keystroke.
+                    params.delete('partial');
+                    var query = params.toString();
+                    window.history.replaceState({}, '', form.action + (query ? '?' + query : ''));
+                })
+                .catch(function(error) {
+                    if (error.name !== 'AbortError') {
+                        results.removeAttribute('aria-busy');
+                    }
+                });
+        }
+
+        input.addEventListener('input', function() {
+            clearTimeout(timer);
+            timer = setTimeout(runSearch, delay);
+        });
+
+        // Enter would reload the page; results are already live.
+        input.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                clearTimeout(timer);
+                runSearch();
+            }
+        });
+    });
+
+    // Generic checkbox list filter
+    document.querySelectorAll('input.js-checkbox-filter').forEach(function(input) {
+        var targetSelector = input.getAttribute('data-target');
+        if (!targetSelector) {
+            return;
+        }
+
+        var items = document.querySelectorAll(targetSelector);
+        input.addEventListener('input', function() {
+            var q = normalizeText(input.value.trim());
+            items.forEach(function(item) {
+                var text = normalizeText(item.textContent || '');
+                item.style.display = !q || text.indexOf(q) !== -1 ? '' : 'none';
+            });
+        });
+    });
+
+    // Auto-dismiss alerts after 5 seconds
+    document.querySelectorAll('.alert-dismissible').forEach(function(alert) {
+        setTimeout(function() {
+            var bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+
+    // ── Dark mode toggle ──────────────────────────────────────
+    var themeToggle = document.querySelector('.theme-toggle');
+    var storedTheme = localStorage.getItem('makro-theme');
+    if (storedTheme === 'dark') {
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        if (themeToggle) themeToggle.querySelector('i').className = 'bi bi-sun';
+    }
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            var icon = themeToggle.querySelector('i');
+            if (isDark) {
+                document.documentElement.removeAttribute('data-bs-theme');
+                localStorage.setItem('makro-theme', 'light');
+                icon.className = 'bi bi-moon-stars';
+            } else {
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+                localStorage.setItem('makro-theme', 'dark');
+                icon.className = 'bi bi-sun';
+            }
+        });
+    }
+
+    // ── Confirm modal (replaces browser native confirm()) ─────
+    var deleteModalEl = document.getElementById('confirmDeleteModal');
+    if (deleteModalEl) {
+        var deleteModal = new bootstrap.Modal(deleteModalEl);
+        var pendingForm = null;
+        var pendingSubmitter = null;
+        var deleteMessage = document.getElementById('confirmDeleteMessage');
+
+        document.querySelectorAll('form[data-confirm], [data-confirm]').forEach(function(el) {
+            if (el.tagName === 'FORM') {
+                el.addEventListener('submit', function(e) {
+                    if (el.dataset.confirmed === 'true') {
+                        el.dataset.confirmed = 'false';
+                        return;
+                    }
+                    e.preventDefault();
+                    pendingForm = el;
+                    pendingSubmitter = null;
+                    var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
+                    if (deleteMessage) deleteMessage.textContent = msg;
+                    deleteModal.show();
+                });
+            } else if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'INPUT') {
+                el.addEventListener('click', function(e) {
+                    if (el.dataset.confirmed === 'true') {
+                        el.dataset.confirmed = 'false';
+                        return;
+                    }
+                    e.preventDefault();
+                    pendingForm = el.form || null;
+                    pendingSubmitter = el;
+                    var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
+                    if (deleteMessage) deleteMessage.textContent = msg;
+                    deleteModal.show();
+                });
+            }
+        });
+
+        var confirmBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                if (pendingSubmitter && pendingSubmitter.tagName === 'A' && pendingSubmitter.href) {
+                    window.location.href = pendingSubmitter.href;
+                } else if (pendingSubmitter && pendingForm) {
+                    pendingSubmitter.dataset.confirmed = 'true';
+                    pendingSubmitter.click();
+                } else if (pendingForm) {
+                    pendingForm.dataset.confirmed = 'true';
+                    pendingForm.submit();
+                }
+                deleteModal.hide();
+            });
+        }
+    }
+
+    // ── Currency input mask ───────────────────────────────────
+    document.querySelectorAll('input[data-currency-mask]').forEach(function(input) {
+        input.setAttribute('inputmode', 'decimal');
+        input.setAttribute('pattern', '[0-9]*[.,]?[0-9]*');
+        input.addEventListener('input', function() {
+            var val = input.value.replace(/[^\d.,]/g, '');
+            // Normalize comma to dot for consistency
+            var parts = val.split(/[.,]/);
+            if (parts.length > 2) {
+                val = parts[0] + '.' + parts.slice(1).join('');
+            }
+            input.value = val;
+        });
+    });
+
+    // ── Inline form validation feedback ──────────────────────
+    document.querySelectorAll('form.needs-validation').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+    });
+});

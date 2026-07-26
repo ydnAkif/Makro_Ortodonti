@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.doctor.doctor_name }} Raporu - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+    <div>
+        <div class="page-eyebrow">Doktor Raporu</div>
+        <h1>{{ detail.doctor.doctor_name }}</h1>
+        <p>{{ start_date.strftime('%d.%m.%Y') }} – {{ end_date.strftime('%d.%m.%Y') }} dönemi detaylı muhasebe raporu.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.index', period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Raporlara Dön
+        </a>
+        <a href="{{ url_for('reports.doctor_pdf', party_id=detail.doctor.party_id, period=selected_period, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" class="btn btn-primary btn-sm" target="_blank">
+            <i class="bi bi-file-earmark-pdf"></i> PDF İndir
+        </a>
+    </div>
+</header>
+
+{# ——— KPI Kartları ——— #}
+<div class="summary-line summary-line--four" aria-label="Doktor özeti">
+    <div><span>İş Emri</span><strong>{{ detail.doctor.work_order_count }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.total_try) }}</small></div>
+    <div><span>Makbuz</span><strong>{{ detail.doctor.makbuz_count }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.makbuz_total_try) }}</small></div>
+    <div><span>Tahsil Edilen</span><strong>₺{{ "{:,.2f}".format(detail.doctor.collected_try) }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.outstanding_try) }} açık</small></div>
+    <div><span>Devreden Borç</span><strong>₺{{ "{:,.2f}".format(detail.previous_debt) }}</strong><small>{% if detail.previous_debt > 0 %}Önceki dönemlerden{% else %}Borç yok{% endif %}</small></div>
+</div>
+
+{# ——— İş Emirleri ——— #}
+<section class="work-panel mb-4" aria-labelledby="wo-title">
+    <div class="work-panel__header">
+        <div><h2 id="wo-title">İş Emirleri</h2><p>{{ detail.work_orders|length }} iş emri</p></div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead><tr>
+                <th>Tarih</th>
+                <th>Hasta</th>
+                <th>İşlem</th>
+                <th class="text-end">Aparey (₺)</th>
+                <th class="text-end">Ekstra (₺)</th>
+                <th class="text-end">Toplam (₺)</th>
+                <th class="text-end">EUR</th>
+            </tr></thead>
+            <tbody>
+                {% for item in detail.work_orders %}
+                {% set wo = item.work_order %}
+                <tr>
+                    <td>{{ wo.work_date.strftime('%d.%m.%Y') }}</td>
+                    <td><strong>{{ wo.patient_name }}</strong></td>
+                    <td>{{ (wo.apparatus_type or '')|truncate(50) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(wo.apparatus_price) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(wo.extra_price) }}</td>
+                    <td class="text-end fw-bold">{{ "{:,.2f}".format(wo.total_price) }}</td>
+                    <td class="text-end">€{{ "{:,.2f}".format(item.total_eur) }}</td>
+                </tr>
+                {% else %}<tr><td colspan="7" class="empty-state">Bu dönemde iş emri yok.</td></tr>{% endfor %}
+            </tbody>
+            {% if detail.work_orders %}
+            <tfoot>
+                <tr class="table-active fw-bold">
+                    <td colspan="3">Toplam</td>
+                    <td class="text-end">{{ "{:,.2f}".format(detail.work_orders|map(attribute='work_order')|map(attribute='apparatus_price')|sum) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(detail.work_orders|map(attribute='work_order')|map(attribute='extra_price')|sum) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(detail.doctor.total_try) }}</td>
+                    <td class="text-end">€{{ "{:,.2f}".format(detail.doctor.total_eur) }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</section>
+
+<div class="row g-4 mb-4">
+    {# ——— Makbuzlar ——— #}
+    <div class="col-xl-7">
+        <section class="work-panel h-100" aria-labelledby="makbuz-title">
+            <div class="work-panel__header">
+                <div><h2 id="makbuz-title">Makbuzlar</h2><p>Dönem içindeki makbuz durumları</p></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr>
+                        <th>Dönem</th>
+                        <th>Durum</th>
+                        <th class="text-end">Toplam (₺)</th>
+                        <th class="text-end">Tahsil (₺)</th>
+                        <th class="text-end">Kalan (₺)</th>
+                    </tr></thead>
+                    <tbody>
+                        {% for item in detail.makbuzlar %}
+                        {% set m = item.makbuz %}
+                        <tr>
+                            <td><strong>{{ month_names[m.month] }} {{ m.year }}</strong></td>
+                            <td>
+                                {% if m.status == 'paid' %}<span class="badge bg-success">Ödendi</span>
+                                {% elif m.status == 'sent' %}<span class="badge bg-warning text-dark">Gönderildi</span>
+                                {% else %}<span class="badge bg-secondary">Taslak</span>{% endif %}
+                            </td>
+                            <td class="text-end">{{ "{:,.2f}".format(m.grand_total) }}</td>
+                            <td class="text-end">{{ "{:,.2f}".format(item.collected) }}</td>
+                            <td class="text-end {% if item.outstanding > 0 %}text-danger{% endif %}">{{ "{:,.2f}".format(item.outstanding) }}</td>
+                        </tr>
+                        {% else %}<tr><td colspan="5" class="empty-state">Makbuz yok.</td></tr>{% endfor %}
+                    </tbody>
+                    {% if detail.makbuzlar %}
+                    <tfoot>
+                        <tr class="table-active fw-bold">
+                            <td>Toplam</td>
+                            <td></td>
+                            <td class="text-end">{{ "{:,.2f}".format(detail.makbuzlar|map(attribute='makbuz')|map(attribute='grand_total')|sum) }}</td>
+                            <td class="text-end">{{ "{:,.2f}".format(detail.makbuzlar|map(attribute='collected')|sum) }}</td>
+                            <td class="text-end">{{ "{:,.2f}".format(detail.makbuzlar|map(attribute='outstanding')|sum) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+    </div>
+
+    {# ——— KDV + Aging ——— #}
+    <div class="col-xl-5">
+        <section class="work-panel mb-4" aria-labelledby="vat-detail-title">
+            <div class="work-panel__header"><div><h2 id="vat-detail-title">KDV Özeti</h2></div></div>
+            <div class="card-body">
+                {% for v in vat_summary %}
+                <div class="status-count-row"><span>{{ v.label }}</span><strong>₺{{ "{:,.2f}".format(v.vat_amount) }}</strong></div>
+                {% else %}<div class="empty-state">KDV verisi yok.</div>{% endfor %}
+            </div>
+        </section>
+
+        <section class="work-panel" aria-labelledby="aging-detail-title">
+            <div class="work-panel__header"><div><h2 id="aging-detail-title">Devreden & Vadesi Geçen Borçlar</h2><p>Toplam: ₺{{ "{:,.2f}".format(detail.total_outstanding) }}</p></div></div>
+            <div class="card-body">
+                {% for b in detail.aging %}
+                {% if b.amount > 0 %}
+                <div class="aging-row">
+                    <div><span>{{ b.label }}</span><small>{{ b.count }} makbuz</small></div>
+                    <strong>₺{{ "{:,.2f}".format(b.amount) }}</strong>
+                </div>
+                {% endif %}
+                {% else %}<div class="empty-state">Açık alacak yok.</div>{% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Tahsilatlar - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header"><div><h1>Tahsilatlar</h1><p>Bekleyen ödemeleri kaydedin ve doktor bakiyelerini izleyin.</p></div></header>
+<div class="summary-line">
+    <div><span>Faturalanan</span><strong>₺{{ "{:,.2f}".format(grand_billed) }}</strong></div>
+    <div><span>Tahsil edilen</span><strong>₺{{ "{:,.2f}".format(grand_paid) }}</strong></div>
+    <div><span>Bekleyen bakiye</span><strong>₺{{ "{:,.2f}".format(grand_outstanding) }}</strong></div>
+</div>
+
+<!-- Section Tabs -->
+<ul class="nav nav-tabs mb-4" id="paymentsTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if active_tab == 'pending' %}active{% endif %} fw-bold py-2 px-3" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'pending' else 'false' }}">
+            <i class="bi bi-clock-history text-warning me-1"></i> Ödeme Bekleyen Makbuzlar
+            <span class="badge bg-warning text-dark ms-1">{{ pending_makbuzlar|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if active_tab == 'paid' %}active{% endif %} fw-bold py-2 px-3" id="paid-tab" data-bs-toggle="tab" data-bs-target="#paid-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'paid' else 'false' }}">
+            <i class="bi bi-check-circle me-1"></i> Tahsil edilenler
+            <span class="badge bg-success ms-1">{{ payment_entries|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if active_tab == 'summary' %}active{% endif %} fw-bold py-2 px-3" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'summary' else 'false' }}">
+            <i class="bi bi-people me-1"></i> Doktor Bazlı Özet
+            <span class="badge bg-primary ms-1">{{ rows|length }}</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="paymentsTabContent">
+    <!-- Pending Makbuzlar Tab Pane -->
+    <div class="tab-pane fade {% if active_tab == 'pending' %}show active{% endif %}" id="pending-pane" role="tabpanel">
+        <div class="work-panel">
+            <div class="work-panel__header">
+                <div><h2>Ödeme bekleyenler</h2><p>Ödemeyi aldığınızda kaydı tamamlayın.</p></div>
+            </div>
+            <div class="card-body {% if pending_makbuzlar %}p-0{% endif %}">
+                {% if pending_makbuzlar %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Doktor</th>
+                                <th>Dönem</th>
+                                <th>Gönderim Tarihi</th>
+                                <th class="text-end">Makbuz</th>
+                                <th class="text-end">Tahsil edilen</th>
+                                <th class="text-end">Kalan</th>
+                                <th class="text-end">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in pending_makbuzlar %}
+                            <tr>
+                                <td class="fw-bold">{{ m.party.name if m.party else '-' }}</td>
+                                <td>{{ m.month }}/{{ m.year }}</td>
+                                <td>{{ m.sent_at.strftime('%d.%m.%Y') if m.sent_at else '-' }}</td>
+                                <td class="text-end">₺{{ "{:,.2f}".format(m.grand_total) }}</td>
+                                <td class="text-end text-success">₺{{ "{:,.2f}".format(m.collected_amount) }}</td>
+                                <td class="text-end fw-bold text-danger">
+                                    ₺{{ "{:,.2f}".format(m._effective_outstanding if m._effective_outstanding is defined else m.outstanding_amount) }}
+                                    {% if m.is_partially_paid %}<span class="badge bg-warning text-dark ms-1">Kısmi ödendi</span>{% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('payments.mark_paid', makbuz_id=m.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Ödeme Kaydet
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state-card">
+                    <div class="empty-state-icon"><i class="bi bi-wallet2"></i></div>
+                    <h5>Tahsilat Bulunmuyor</h5>
+                    <p>Ödeme bekleyen makbuz bulunmamaktadır.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade {% if active_tab == 'paid' %}show active{% endif %}" id="paid-pane" role="tabpanel">
+        <div class="work-panel">
+            <div class="work-panel__header">
+                <div><h2>Tahsilat hareketleri</h2><p>Her ödemeyi tarih ve kaynak makbuzuyla birlikte izleyin.</p></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th>Doktor</th><th>Kaynak dönem</th><th>Ödeme tarihi</th><th>Yöntem</th><th>Referans / Not</th><th class="text-end">Tahsil edilen</th><th class="text-end">İşlem</th></tr></thead>
+                    <tbody>
+                        {% for entry in payment_entries %}
+                        {% set m = entry.makbuz %}
+                        <tr>
+                            <td><strong>{{ m.party.display_name if m.party else '-' }}</strong></td>
+                            <td>{{ '%02d'|format(m.month) }}/{{ m.year }}</td>
+                            <td>{{ entry.payment_date.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ method_labels.get(entry.method, entry.method) }}</td>
+                            <td>{{ entry.reference or entry.notes or '-' }}</td>
+                            <td class="text-end fw-bold text-success">₺{{ "{:,.2f}".format(entry.amount) }}</td>
+                            <td class="text-end text-nowrap">
+                                <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=entry.id) }}" class="d-inline" data-confirm="Bu tahsilat hareketi silinsin mi? Kalan borç yeniden hesaplanacaktır.">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Sil</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('payments.unmark_paid', makbuz_id=m.id) }}" class="d-none">
+                                    <button type="submit">Tümünü geri al</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7">
+                            <div class="empty-state-card">
+                                <div class="empty-state-icon"><i class="bi bi-wallet2"></i></div>
+                                <h5>Tahsilat Kaydı Yok</h5>
+                                <p>Bu filtrelerde tahsilat hareketi bulunmuyor.</p>
+                            </div>
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doctor Summary Tab Pane -->
+    <div class="tab-pane fade {% if active_tab == 'summary' %}show active{% endif %}" id="history-pane" role="tabpanel">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('payments.list_payments') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Doktor Ara</label>
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Doktor adı...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Yıl</label>
+                        <select name="year" class="form-select">
+                            <option value="">Tüm Yıllar</option>
+                            {% for y in years %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Ara</button>
+                    </div>
+                    {% if search or year %}
+                    <div class="col-md-2 d-flex align-items-end">
+                        <a href="{{ url_for('payments.list_payments') }}" class="btn btn-outline-secondary w-100">Temizle</a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Doktor</th>
+                                <th class="text-center">Makbuz Sayısı</th>
+                                <th class="text-end">Faturalanan (₺)</th>
+                                <th class="text-end">Tahsil Edilen (₺)</th>
+                                <th class="text-end">Bakiye (₺)</th>
+                                <th class="text-end">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in rows %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle me-2 bg-success bg-opacity-10 text-success fw-bold rounded-circle d-flex align-items-center justify-content-center" style="width:38px;height:38px;font-size:0.85rem;">
+                                            {{ (r.party.name[:2])|upper }}
+                                        </div>
+                                        <div>
+                                            <a href="{{ url_for('parties.detail_party', party_id=r.party.id) }}" class="fw-bold text-decoration-none d-block">{{ r.party.name }}</a>
+                                            {% if r.previous_balance > 0 %}
+                                            <small class="text-muted" style="font-size:0.75rem;"><i class="bi bi-clock-history me-1"></i>Devreden borç: ₺{{ "{:,.2f}".format(r.previous_balance) }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ r.makbuz_count }}</span></td>
+                                <td class="text-end">₺{{ "{:,.2f}".format(r.billed) }}</td>
+                                <td class="text-end text-success">₺{{ "{:,.2f}".format(r.paid) }}</td>
+                                <td class="text-end fw-bold {% if r.outstanding > 0 %}text-danger{% endif %}">₺{{ "{:,.2f}".format(r.outstanding) }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('parties.detail_party', party_id=r.party.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> Detay
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state-card">
+                                        <div class="empty-state-icon"><i class="bi bi-people"></i></div>
+                                        <h5>Doktor Bulunamadı</h5>
+                                        <p>Kriterlere uyan doktor kaydı bulunmuyor.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if rows %}
+                        <tfoot class="table-light">
+                            <tr>
+                                <td class="fw-bold">TOPLAM</td>
+                                <td></td>
+                                <td class="text-end fw-bold">₺{{ "{:,.2f}".format(grand_billed) }}</td>
+                                <td class="text-end fw-bold">₺{{ "{:,.2f}".format(grand_paid) }}</td>
+                                <td class="text-end fw-bold fs-5">₺{{ "{:,.2f}".format(grand_outstanding) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

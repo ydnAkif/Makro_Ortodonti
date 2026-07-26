@@ -1,0 +1,14 @@
+{% macro render_empty_state(icon='bi-inbox', title='Kayıt Bulunamadı', description='Henüz gösterilecek bir veri bulunmuyor.', action_url=None, action_text=None) %}
+<div class="empty-state-card text-center py-5 px-3">
+    <div class="empty-state-icon mx-auto mb-3">
+        <i class="bi {{ icon }}" aria-hidden="true"></i>
+    </div>
+    <h5 class="fw-semibold">{{ title }}</h5>
+    <p class="text-muted small mx-auto mb-3" style="max-width: 400px;">{{ description }}</p>
+    {% if action_url and action_text %}
+    <a href="{{ action_url }}" class="btn btn-primary btn-sm mt-1">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> {{ action_text }}
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}

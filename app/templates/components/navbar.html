@@ -1,0 +1,49 @@
+<nav class="navbar fixed-top" aria-label="Üst menü">
+    <div class="container-fluid">
+        {% if current_user.is_authenticated %}
+        <button class="mobile-menu-trigger me-2 d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Menüyü aç">
+            <i class="bi bi-list fs-5" aria-hidden="true"></i>
+        </button>
+        {% endif %}
+
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard.index') }}" aria-label="{{ clinic_name }} ana sayfa">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-copy"><span>{{ clinic_name }}</span></span>
+        </a>
+
+        <ul class="navbar-nav ms-auto flex-row align-items-center gap-2">
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                    <button class="theme-toggle" type="button" aria-label="Tema değiştir" title="Açık/Koyu tema">
+                        <i class="bi bi-moon-stars" aria-hidden="true"></i>
+                    </button>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle user-menu" href="#" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ current_user.full_name }} kullanıcı menüsü">
+                        <span class="user-avatar" aria-hidden="true">{{ current_user.full_name[:2]|upper }}</span>
+                        <span class="user-name">{{ current_user.full_name }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if current_user.role == 'admin' %}<li><a class="dropdown-item" href="{{ url_for('settings.index') }}"><i class="bi bi-sliders me-2"></i>Ayarlar</a></li><li><hr class="dropdown-divider"></li>{% endif %}
+                        <li><form method="POST" action="{{ url_for('auth.logout') }}"><button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>Çıkış yap</button></form></li>
+                    </ul>
+                </li>
+                {% endif %}
+        </ul>
+    </div>
+</nav>
+
+{% if current_user.is_authenticated %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="mobileSidebarLabel">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span>{{ clinic_name }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Menüyü kapat"></button>
+    </div>
+    <div class="offcanvas-body">
+        {% include 'components/sidebar.html' %}
+    </div>
+</div>
+{% endif %}

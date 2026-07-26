@@ -1,0 +1,210 @@
+{% extends "base.html" %} {% block title %}Genel Bakış - {{ clinic_name }}{%
+endblock %} {% block content %} {% if whatsapp_state != 'connected' %}
+<div
+  id="wa-connect-banner"
+  class="notice-strip notice-strip--warning mb-3"
+  role="status"
+>
+  <i class="bi bi-whatsapp" aria-hidden="true"></i
+  ><span
+    ><strong>WhatsApp bağlı değil.</strong> Makbuz göndermek için bağlantıyı
+    kurun.</span
+  >
+  <a
+    href="{{ url_for('whatsapp.index') }}"
+    class="btn btn-sm btn-outline-secondary ms-auto"
+    >Bağlan</a
+  >
+</div>
+{% endif %}
+<header class="workspace-header">
+  <div>
+    <h1>Genel bakış</h1>
+    <p>Bugünkü klinik akışı</p>
+  </div>
+  <div class="workspace-actions">
+    <a href="{{ url_for('parties.list_parties') }}" class="btn btn-primary"
+      ><i class="bi bi-clipboard2-plus" aria-hidden="true"></i>İş emri gir</a
+    >
+    <a
+      href="{{ url_for('parties.add_party') }}"
+      class="btn btn-outline-secondary"
+      ><i class="bi bi-person-plus" aria-hidden="true"></i>Doktor ekle</a
+    >
+  </div>
+</header>
+<nav class="workflow-strip" aria-label="Klinik iş akışı">
+  <a href="{{ url_for('parties.list_parties') }}"
+    ><span class="workflow-step">1</span
+    ><span
+      ><small>Doktorlar</small
+      ><strong>{{ total_patients }} aktif kayıt</strong></span
+    ></a
+  >
+  <a href="{{ url_for('parties.list_work_orders', view='month') }}"
+    ><span class="workflow-step">2</span
+    ><span
+      ><small>Bu ayki iş emirleri</small
+      ><strong
+        >{{ monthly_work_orders }} iş · ₺{{ "{:,.2f}".format(monthly_total_try)
+        }}</strong
+      ></span
+    ></a
+  >
+  <a href="{{ url_for('makbuzlar.list_makbuzlar') }}"
+    ><span class="workflow-step">3</span
+    ><span
+      ><small>Makbuzlar</small
+      ><strong>{{ monthly_drafts }} taslak</strong></span
+    ></a
+  >
+  <a href="{{ url_for('payments.list_payments') }}"
+    ><span class="workflow-step">4</span
+    ><span
+      ><small>Tahsilat</small
+      ><strong>{{ awaiting_payment }} ödeme bekliyor</strong></span
+    ></a
+  >
+</nav>
+{% if current_rate %}
+<div class="rate-line">
+  <i class="bi bi-currency-exchange" aria-hidden="true"></i
+  ><span>Güncel kur</span
+  ><strong>1 EUR = ₺{{ "{:,.4f}".format(current_rate.eur_to_try) }}</strong
+  ><strong
+    >1 USD = {% if current_usd_rate %}₺{{ "{:,.4f}".format(current_usd_rate)
+    }}{% else %}—{% endif %}</strong
+  ><small>{{ current_rate.rate_date.strftime('%d.%m.%Y') }}</small>
+</div>
+{% endif %}
+<section class="work-panel" aria-labelledby="recent-workorders-title">
+  <div class="work-panel__header">
+    <div>
+      <h2 id="recent-workorders-title">Son iş emirleri</h2>
+      <p>En son eklenen beş kayıt</p>
+    </div>
+    <a
+      href="{{ url_for('parties.list_work_orders', view='month') }}"
+      class="text-link"
+      >Tüm iş emirleri <i class="bi bi-arrow-right" aria-hidden="true"></i
+    ></a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle compact-table">
+      <thead>
+        <tr>
+          <th>Tarih</th>
+          <th>Doktor</th>
+          <th>Hasta</th>
+          <th>İşlem</th>
+          <th class="text-end">Tutar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wo in recent_work_orders %}
+        <tr>
+          <td>{{ wo.work_date.strftime('%d.%m.%Y') }}</td>
+          <td>
+            <a
+              href="{{ url_for('parties.detail_party', party_id=wo.party_id) }}"
+              >{{ wo.party.name if wo.party else '-' }}</a
+            >
+          </td>
+          <td>{{ wo.patient_name }}</td>
+          <td>
+            {% set items = wo.apparatus_type|fromjson %}{% if items is iterable
+            and items is not string and items|length > 0 %}{{ items[0].name if
+            items[0] is mapping else items[0] }}{% if items|length > 1 %} +{{
+            items|length - 1 }}{% endif %}{% else %}{{ wo.apparatus_type }}{%
+            endif %}
+          </td>
+          <td class="text-end">
+            <strong>₺{{ "{:,.2f}".format(wo.total_price) }}</strong>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="empty-state">
+            <strong>Henüz iş emri yok.</strong><br /><a
+              href="{{ url_for('parties.list_parties') }}"
+              >İlk iş emrini girin</a
+            >
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="work-panel mt-4" aria-labelledby="kasa-title">
+  <div class="work-panel__header">
+    <div>
+      <h2 id="kasa-title">Kasa</h2>
+      <p>Bu ay doktor bazlı tahsilat ve bakiye özeti</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('payments.list_payments') }}" class="text-link"
+        >Tahsilat ekranı <i class="bi bi-arrow-right" aria-hidden="true"></i
+      ></a>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle compact-table">
+      <thead>
+        <tr>
+          <th>Doktor adı</th>
+          <th class="text-end">İş toplamı</th>
+          <th class="text-end">KDV</th>
+          <th class="text-end">Ödeme toplamı</th>
+          <th class="text-end">Bakiye</th>
+          <th>Telefon</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in kasa_rows %}
+        <tr>
+          <td><strong>{{ row.doctor_name }}</strong></td>
+          <td class="text-end">₺{{ "{:,.2f}".format(row.work_total) }}</td>
+          <td class="text-end">
+            {% if row.vat_total is not none %}₺{{
+            "{:,.2f}".format(row.vat_total) }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end text-success fw-bold">
+            ₺{{ "{:,.2f}".format(row.payment_total) }}
+          </td>
+          <td
+            class="text-end fw-bold {% if row.balance > 0 %}text-warning{% else %}text-success{% endif %}"
+          >
+            ₺{{ "{:,.2f}".format(row.balance) }}
+          </td>
+          <td>{{ row.phone or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="empty-state">
+            Bu ay için makbuz özeti bulunmuyor.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if kasa_rows %}
+      <tfoot>
+        <tr class="table-active fw-bold">
+          <td>Toplam</td>
+          <td class="text-end">₺{{ "{:,.2f}".format(kasa_total_work) }}</td>
+          <td class="text-end">-</td>
+          <td class="text-end text-success">
+            ₺{{ "{:,.2f}".format(kasa_total_payment) }}
+          </td>
+          <td class="text-end text-warning">
+            ₺{{ "{:,.2f}".format(kasa_total_balance) }}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</section>
+{% endblock %}

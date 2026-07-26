@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}İşlemler - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+    <div><h1>İşlem kataloğu</h1><p>İşlem adları, kategoriler ve fiyatlar.</p></div>
+    <div class="workspace-actions">
+        <a href="{{ url_for('treatments.import_treatments') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-upload"></i> İçe aktar
+        </a>
+        <a href="{{ url_for('treatments.add_treatment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Yeni işlem
+        </a>
+    </div>
+</header>
+
+<div class="toolbar-panel catalog-toolbar">
+        <form method="GET" action="{{ url_for('treatments.list_treatments') }}" class="d-flex gap-2">
+                <div class="catalog-toolbar__category">
+                    <label class="visually-hidden" for="catalog-category">Kategori</label>
+                    <select id="catalog-category" name="category" class="form-select" onchange="this.form.submit()">
+                        <option value="">Tüm Kategoriler</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ category_labels.get(cat, cat) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="catalog-toolbar__search flex-grow-1">
+                    <label class="visually-hidden" for="catalog-search">İşlem ara</label>
+                    <input id="catalog-search" type="text" class="form-control" name="search" value="{{ search }}" placeholder="İşlem adıyla ara" autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-outline-secondary">Ara</button>
+        </form>
+</div>
+
+<div class="work-panel">
+    <div class="work-panel__header"><div><h2>Fiyat listesi</h2><p>Ad, kategori ve fiyatı satır üzerinden güncelleyebilirsiniz.</p></div></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 catalog-table" id="treatmentsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:30%">İşlem</th>
+                        <th style="width:15%">Kategori</th>
+                        <th style="width:20%" class="text-end">Fiyat</th>
+                        <th style="width:20%" class="text-end">Eylem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for treatment in treatments %}
+                    <tr data-id="{{ treatment.id }}">
+                        <td class="fw-bold editable" data-field="name" contenteditable="true">{{ treatment.name }}</td>
+                        <td>
+                            <select class="form-select form-select-sm editable-select catalog-category-control" data-field="category">
+                                {% for cat in categories %}
+                                <option value="{{ cat }}" {% if treatment.category == cat %}selected{% endif %}>{{ category_labels.get(cat, cat) }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex align-items-center justify-content-end gap-1 catalog-price-group">
+                                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end editable-input catalog-price-control" data-field="price_eur" value="{{ treatment.price_eur }}">
+                                <select class="form-select form-select-sm editable-select catalog-currency-control" data-field="currency">
+                                    <option value="TL" {% if treatment.currency == 'TL' %}selected{% endif %}>₺</option>
+                                    <option value="EUR" {% if treatment.currency == 'EUR' %}selected{% endif %}>€</option>
+                                    <option value="USD" {% if treatment.currency == 'USD' %}selected{% endif %}>$</option>
+                                </select>
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-success save-row d-none" title="Kaydet" aria-label="Satırdaki değişiklikleri kaydet">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                            <a href="{{ url_for('treatments.edit_treatment', treatment_id=treatment.id) }}" class="btn btn-sm btn-outline-secondary" title="Ayrıntılı düzenle" aria-label="{{ treatment.name }} ayrıntılarını düzenle">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('treatments.delete_treatment', treatment_id=treatment.id) }}" class="d-inline" data-confirm="Bu işlemi silmek istediğinize emin misiniz?">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Sil" aria-label="{{ treatment.name }} işlemini sil">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">
+                        <div class="empty-state-card">
+                            <div class="empty-state-icon"><i class="bi bi-journal-text"></i></div>
+                            <h5>İşlem Kataloğu Boş</h5>
+                            <p>İşlem ekleyerek veya içe aktararak başlayın.</p>
+                            {% if current_user.is_authenticated %}<a href="{{ url_for('treatments.add_treatment') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>İlk Kaydı Ekle</a>{% endif %}
+                        </div>
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+</div>
+{% include "components/pagination.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('treatmentsTable');
+    if (!table) return;
+
+    const categoryLabels = {{ category_labels | tojson }};
+
+    table.addEventListener('input', function(e) {
+        const target = e.target;
+        if (target.classList.contains('editable') || target.classList.contains('editable-input') || target.classList.contains('editable-select')) {
+            const row = target.closest('tr');
+            const saveBtn = row.querySelector('.save-row');
+            if (saveBtn) saveBtn.classList.remove('d-none');
+        }
+    });
+
+    table.addEventListener('change', function(e) {
+        const target = e.target;
+        if (target.classList.contains('editable-select')) {
+            const row = target.closest('tr');
+            const saveBtn = row.querySelector('.save-row');
+            if (saveBtn) saveBtn.classList.remove('d-none');
+        }
+    });
+
+    table.addEventListener('click', function(e) {
+        const saveBtn = e.target.closest('.save-row');
+        if (!saveBtn) return;
+
+        const row = saveBtn.closest('tr');
+        const id = row.dataset.id;
+        const payload = { id: parseInt(id) };
+
+        row.querySelectorAll('[data-field]').forEach(el => {
+            const field = el.dataset.field;
+            if (el.tagName === 'SELECT') {
+                payload[field] = el.value;
+            } else if (el.tagName === 'INPUT') {
+                payload[field] = field === 'price_eur' ? parseFloat(el.value) || 0 : el.value.trim();
+            } else {
+                payload[field] = el.textContent.trim();
+            }
+        });
+
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        saveBtn.disabled = true;
+
+        fetch("{{ url_for('treatments.api_update_treatment') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                saveBtn.classList.add('d-none');
+                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                saveBtn.disabled = false;
+
+                row.querySelector('[data-field="name"]').textContent = data.treatment.name;
+                row.querySelector('[data-field="price_eur"]').value = data.treatment.price_eur;
+                row.querySelector('[data-field="category"]').value = data.treatment.category;
+                row.querySelector('[data-field="currency"]').value = data.treatment.currency;
+            } else {
+                alert('Hata: ' + (data.error || 'Bilinmeyen hata'));
+                saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                saveBtn.disabled = false;
+            }
+        })
+        .catch(() => {
+            alert('Bağlantı hatası');
+            saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+            saveBtn.disabled = false;
+        });
+    });
+
+    // Save on Enter in editable cells
+    table.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.target.classList.contains('editable') || e.target.classList.contains('editable-input'))) {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            const saveBtn = row.querySelector('.save-row');
+            if (saveBtn && !saveBtn.classList.contains('d-none')) saveBtn.click();
+        }
+    });
+});
+</script>
+{% endblock %}

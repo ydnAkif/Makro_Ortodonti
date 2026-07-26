@@ -1,0 +1,48 @@
+{% extends "base.html" %} {% block title %}Doktorlar - {{ clinic_name }}{%
+endblock %} {% block content %}
+<header class="workspace-header">
+  <div>
+    <h1>Doktorlar</h1>
+    <p>Doktor kayıtlarını bulun ve yönetin.</p>
+  </div>
+</header>
+<div class="toolbar-panel">
+  <form method="GET" action="{{ url_for('parties.list_parties') }}">
+    <div class="input-group">
+      <span class="input-group-text"
+        ><i class="bi bi-search" aria-hidden="true"></i
+      ></span>
+      <input
+        type="text"
+        class="form-control js-live-search"
+        name="search"
+        value="{{ search }}"
+        data-results="#parties-results"
+        placeholder="Doktor adı, telefonu veya vergi no"
+        aria-label="Diş hekimlerinde ara"
+        autocomplete="off"
+      />
+      <button type="submit" class="btn btn-outline-secondary">Ara</button>
+      {% if search %}
+      <a
+        href="{{ url_for('parties.list_parties') }}"
+        class="btn btn-outline-secondary"
+        >Temizle</a
+      >
+      {% endif %}
+    </div>
+  </form>
+  <a
+    href="{{ url_for('parties.import_parties') }}"
+    class="btn btn-outline-secondary"
+    ><i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>İçe aktar</a
+  >
+  <a href="{{ url_for('parties.add_party') }}" class="btn btn-primary"
+    ><i class="bi bi-plus-lg" aria-hidden="true"></i>Doktor ekle</a
+  >
+</div>
+
+<div id="parties-results" aria-live="polite">
+  {% include "parties/_results.html" %}
+</div>
+{% endblock %}

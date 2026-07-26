@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}İş Emirleri - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+    <div><h1>İş emirleri</h1><p>Günlük, aylık, yıllık veya tüm laboratuvar hareketlerini tek yerden yönetin.</p></div>
+    <div class="workspace-actions">
+        <a href="{{ url_for('parties.export_work_orders_pdf', view=view, date=selected_date.isoformat() if selected_date else '', year=year, month=month, search=search) }}" class="btn btn-outline-secondary btn-sm me-1" target="_blank">
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>PDF İndir
+        </a>
+        <a href="{{ url_for('parties.list_parties') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Yeni iş emri</a>
+    </div>
+</header>
+
+<div class="workorder-period-bar">
+    <nav class="period-switch" aria-label="İş emri dönemi">
+        <a href="{{ url_for('parties.list_work_orders', view='day', date=today.isoformat(), search=search) }}" class="{% if view == 'day' %}active{% endif %}">Gün</a>
+        <a href="{{ url_for('parties.list_work_orders', view='month', year=today.year, month=today.month, search=search) }}" class="{% if view == 'month' %}active{% endif %}">Ay</a>
+        <a href="{{ url_for('parties.list_work_orders', view='year', year=today.year, search=search) }}" class="{% if view == 'year' %}active{% endif %}">Yıl</a>
+        <a href="{{ url_for('parties.list_work_orders', view='all', search=search) }}" class="{% if view == 'all' %}active{% endif %}">Tümü</a>
+    </nav>
+
+    <form method="GET" action="{{ url_for('parties.list_work_orders') }}" class="workorder-period-form">
+        <input type="hidden" name="view" value="{{ view }}">
+
+        {% if view == 'day' %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('parties.list_work_orders', view='day', date=previous_date, search=search) }}" class="btn-stepper" title="Önceki Gün"><i class="bi bi-chevron-left"></i></a>
+            <input class="form-control stepper-control" type="date" id="workorder-date" name="date" value="{{ selected_date.isoformat() }}" onchange="this.form.submit()">
+            <a href="{{ url_for('parties.list_work_orders', view='day', date=next_date, search=search) }}" class="btn-stepper" title="Sonraki Gün"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% elif view == 'year' %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('parties.list_work_orders', view='year', year=previous_year, search=search) }}" class="btn-stepper" title="Önceki Yıl"><i class="bi bi-chevron-left"></i></a>
+            <select class="form-select stepper-control" id="workorder-year" name="year" onchange="this.form.submit()">
+                {% for option_year in years %}<option value="{{ option_year }}" {% if option_year == year %}selected{% endif %}>{{ option_year }}</option>{% endfor %}
+            </select>
+            <a href="{{ url_for('parties.list_work_orders', view='year', year=next_year, search=search) }}" class="btn-stepper" title="Sonraki Yıl"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% elif view == 'all' %}
+        <div class="period-stepper-group">
+            <span class="px-3 text-muted fw-semibold" style="font-size: 13px;">Tüm Zamanlar</span>
+        </div>
+        {% else %}
+        <div class="period-stepper-group">
+            <a href="{{ url_for('parties.list_work_orders', view='month', year=previous_year, month=previous_month, search=search) }}" class="btn-stepper" title="Önceki Ay"><i class="bi bi-chevron-left"></i></a>
+            <select class="form-select stepper-control" id="workorder-month" name="month" onchange="this.form.submit()">
+                {% for month_number, month_name in months %}<option value="{{ month_number }}" {% if month_number == month %}selected{% endif %}>{{ month_name }}</option>{% endfor %}
+            </select>
+            <div class="stepper-divider"></div>
+            <select class="form-select stepper-control" id="workorder-year" name="year" onchange="this.form.submit()">
+                {% for option_year in years %}<option value="{{ option_year }}" {% if option_year == year %}selected{% endif %}>{{ option_year }}</option>{% endfor %}
+            </select>
+            <a href="{{ url_for('parties.list_work_orders', view='month', year=next_year, month=next_month, search=search) }}" class="btn-stepper" title="Sonraki Ay"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% endif %}
+
+        <div class="workorder-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <label class="visually-hidden" for="workorder-search">İş emirlerinde ara</label>
+            <input class="form-control" type="search" id="workorder-search" name="search" value="{{ search }}" placeholder="Doktor, hasta veya işlem ara">
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Ara</button>
+        {% if search %}<a href="{{ url_for('parties.list_work_orders', view=view, date=selected_date.isoformat() if selected_date else '', year=year, month=month) }}" class="btn btn-sm btn-outline-secondary">Temizle</a>{% endif %}
+    </form>
+</div>
+
+<div class="summary-line workorder-summary" aria-label="{{ period_label }} özeti">
+    <div><span><i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>Dönem</span><strong>{{ period_label }}</strong></div>
+    <div><span><i class="bi bi-clipboard2-check text-secondary me-1" aria-hidden="true"></i>İş emri</span><strong>{{ work_orders|length }}</strong></div>
+    <div><span><i class="bi bi-person-badge text-info me-1" aria-hidden="true"></i>Doktor</span><strong>{{ doctor_count }}</strong></div>
+    <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Toplam</span><strong>₺{{ "{:,.2f}".format(period_total) }}</strong></div>
+</div>
+
+<section class="work-panel" aria-labelledby="workorder-ledger-title">
+    <div class="work-panel__header">
+        <div><h2 id="workorder-ledger-title">{{ period_label }}</h2><p>{{ 'Günlük' if view == 'day' else ('Yıllık' if view == 'year' else ('Tüm zamanlar' if view == 'all' else 'Aylık')) }} iş emri defteri{% if search %} · “{{ search }}” için {{ work_orders|length }} sonuç{% endif %}</p></div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle workorder-ledger">
+            <thead><tr><th>Tarih</th><th>Doktor</th><th>Hasta</th><th>İşlem detayı</th><th class="text-end">Tutar dökümü</th><th class="text-end">İşlem</th></tr></thead>
+            <tbody>
+                {% for wo in work_orders %}
+                <tr>
+                    <td><time class="workorder-date" datetime="{{ wo.work_date.isoformat() }}">{{ wo.work_date.strftime('%d.%m.%Y') }}</time></td>
+                    <td>
+                        <a href="{{ url_for('parties.detail_party', party_id=wo.party_id) }}">{{ wo.party.display_name if wo.party else '—' }}</a>
+                        {% if wo.party and wo.party.phone %}<small class="workorder-doctor-phone">{{ wo.party.phone|phone_display }}</small>{% endif %}
+                    </td>
+                    <td>{{ wo.patient_name }}</td>
+                    <td class="workorder-detail-cell">
+                        {% set items = wo.apparatus_type|fromjson %}
+                        <div class="workorder-line-group">
+                            <span class="workorder-line-label">Aparey</span>
+                            <div class="workorder-line-list">
+                        {% if items is iterable and items is not string and items|length > 0 %}
+                                {% for item in items %}
+                                <div class="workorder-line-item">
+                                    <strong>{{ item.name if item is mapping else item }}</strong>
+                                    {% if item is mapping %}<small>{{ "{:,.2f}".format(item.price|float) }} {{ item.currency|currency_symbol }}</small>{% endif %}
+                                </div>
+                                {% endfor %}
+                        {% else %}<div class="workorder-line-item"><strong>{{ wo.apparatus_type }}</strong></div>{% endif %}
+                            </div>
+                        </div>
+                        {% set extra_value = wo.extra_addons|clean_optional %}
+                        {% set extras = extra_value|fromjson %}
+                        <div class="workorder-line-group workorder-line-group--extra">
+                            <span class="workorder-line-label">Ekstra</span>
+                            <div class="workorder-line-list">
+                                {% if extras is iterable and extras is not string and extras|length > 0 %}
+                                    {% for extra in extras %}
+                                    <div class="workorder-line-item">
+                                        <strong>{{ extra.name if extra is mapping else extra }}</strong>
+                                        {% if extra is mapping %}<small>{{ "{:,.2f}".format(extra.price|float) }} {{ extra.currency|currency_symbol }}</small>{% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% elif extra_value %}<div class="workorder-line-item"><strong>{{ extra_value }}</strong></div>
+                                {% else %}<div class="workorder-line-item workorder-line-item--empty"><strong>-</strong></div>{% endif %}
+                            </div>
+                        </div>
+                        {% set note_value = wo.notes|clean_optional %}
+                        {% if note_value %}<div class="workorder-note"><i class="bi bi-journal-text" aria-hidden="true"></i><span>{{ note_value }}</span></div>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="workorder-amounts">
+                            <span><small>Aparey</small><b>₺{{ "{:,.2f}".format(wo.apparatus_price) }}</b></span>
+                            <span><small>Ekstra</small><b>₺{{ "{:,.2f}".format(wo.extra_price) }}</b></span>
+                            <strong><small>Toplam</small>₺{{ "{:,.2f}".format(wo.total_price) }}</strong>
+                        </div>
+                    </td>
+                    <td class="text-end workorder-row-actions">
+                        <a href="{{ url_for('parties.edit_work_order', party_id=wo.party_id, wo_id=wo.id, return_to='work_orders', return_view=view, return_date=(selected_date.isoformat() if selected_date else none), return_year=(year if view == 'month' else none), return_month=(month if view == 'month' else none), return_search=search) }}" class="btn btn-sm btn-outline-secondary" title="İş emrini düzenle" aria-label="{{ wo.patient_name }} iş emrini düzenle"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                        <form method="POST" action="{{ url_for('parties.delete_work_order', party_id=wo.party_id, wo_id=wo.id) }}" class="d-inline" data-confirm="Bu iş emrini silmek istediğinize emin misiniz?">
+                            <input type="hidden" name="return_to" value="work_orders">
+                            <input type="hidden" name="return_view" value="{{ view }}">
+                            <input type="hidden" name="return_search" value="{{ search }}">
+                            {% if view == 'day' %}<input type="hidden" name="return_date" value="{{ selected_date.isoformat() }}">{% else %}<input type="hidden" name="return_year" value="{{ year }}"><input type="hidden" name="return_month" value="{{ month }}">{% endif %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="İş emrini sil" aria-label="{{ wo.patient_name }} iş emrini sil"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">
+                    <div class="empty-state-card">
+                        <div class="empty-state-icon"><i class="bi bi-clipboard-x"></i></div>
+                        <h5>{% if search %}"{{ search }}" için sonuç bulunamadı{% else %}Bu Dönemde İş Emri Yok{% endif %}</h5>
+                        <p>{% if search %}Farklı bir arama terimi deneyin.{% else %}Doktor seçerek ilk iş emrini girin.{% endif %}</p>
+                        {% if not search and current_user.is_authenticated %}<a href="{{ url_for('parties.list_parties') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>İlk Kaydı Ekle</a>{% endif %}
+                    </div>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

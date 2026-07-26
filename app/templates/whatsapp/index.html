@@ -1,0 +1,732 @@
+{% extends "base.html" %} {% block title %}WhatsApp - {{ clinic_name }}{%
+endblock %} {% block content %}
+<header class="workspace-header">
+  <div>
+    <h1>WhatsApp</h1>
+    <p>Bağlantıyı kontrol edin ve aylık makbuzları gönderin.</p>
+  </div>
+</header>
+
+<div class="row g-3">
+  <!-- Connection Status -->
+  <div class="col-lg-4">
+    <div class="work-panel h-100">
+      <div class="work-panel__header">
+        <div><h2>Bağlantı</h2><p>WhatsApp Web oturumu</p></div>
+      </div>
+      <div class="card-body">
+        {% if status.connected %}
+        <div class="connection-state mb-3">
+          <span class="connection-dot connection-dot--online" aria-hidden="true"></span>
+          <div><strong>Bağlı</strong>
+          {% if status.phone_number %}
+          <span class="text-muted d-block">{{ status.phone_number }}</span>
+          {% endif %} {% if status.connected_at %}
+          <small class="text-muted">{{ status.connected_at.strftime('%d.%m.%Y %H:%M') }}</small>
+          {% endif %}
+          </div>
+        </div>
+        <form method="POST" action="{{ url_for('whatsapp.disconnect') }}">
+          <button type="submit" class="btn btn-outline-danger w-100">
+            <i class="bi bi-x-circle"></i> Bağlantıyı Kes
+          </button>
+        </form>
+        {% else %}
+        <div class="connection-state mb-3">
+          <span id="wa-idle-icon" class="connection-dot" aria-hidden="true"></span>
+          <strong id="wa-status-title">{% if status.connecting %}Bağlanıyor...{% else %}Bağlı değil{% endif %}</strong>
+        </div>
+        <div id="wa-qr-area" class="text-center mb-3 d-none">
+          <img
+            id="wa-qr-image"
+            src=""
+            alt="WhatsApp QR kodu"
+            class="img-fluid border rounded"
+            style="max-width: 240px"
+          />
+          <p class="text-muted small mt-2 mb-0">
+            Telefonunuzda WhatsApp &gt; Bağlı Cihazlar &gt; Cihaz Bağla
+            menüsünden bu QR kodu tarayın.
+          </p>
+        </div>
+        <div id="wa-pair-area" class="text-center mb-3 d-none">
+          <p class="text-muted small mb-1">
+            Telefonunuzda WhatsApp &gt; Bağlı Cihazlar &gt; Cihaz Bağla &gt;
+            Telefon numarasıyla bağla adımında bu kodu girin:
+          </p>
+          <div id="wa-pair-code" class="fs-3 fw-bold font-monospace"></div>
+        </div>
+        <form method="POST" action="{{ url_for('whatsapp.connect') }}">
+          <div class="mb-3">
+            <label class="form-label">Telefon Numarası (pair code için)</label>
+            <input
+              type="tel"
+              class="form-control"
+              name="phone_number"
+              placeholder="+90 5XX XXX XX XX"
+            />
+            <small class="text-muted"
+              >Boş bırakırsanız QR kod ile bağlanırsınız.</small
+            >
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-whatsapp"></i> Bağlan
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Makbuz Sending -->
+  <div class="col-lg-8">
+    <div class="work-panel h-100">
+      <div
+        class="work-panel__header"
+      >
+        <div><h2>Makbuz Gönderimi</h2><p>{{ months[month - 1][1] }} {{ year }}</p></div>
+        <form method="GET" action="{{ url_for('whatsapp.index') }}" class="d-flex gap-2">
+          <select name="month" class="form-select form-select-sm" aria-label="Ay">
+            {% for num, name in months %}
+            <option value="{{ num }}" {% if num == month %}selected{% endif %}>
+              {{ name }}
+            </option>
+            {% endfor %}
+          </select>
+          <select name="year" class="form-select form-select-sm" aria-label="Yıl">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-search"></i> Getir
+          </button>
+        </form>
+      </div>
+      <div class="card-body">
+        {% if not status.connected %}
+        <div class="notice-strip notice-strip--warning mb-3">
+          <i class="bi bi-exclamation-triangle"></i>
+          <div>
+            Makbuz göndermek için önce bağlantıyı kurun.
+          </div>
+        </div>
+        {% endif %}
+
+        {% if missing_makbuz_count > 0 %}
+        <div class="notice-strip mb-3">
+          <div>
+            <i class="bi bi-info-circle"></i>
+            Bu dönemde iş emri olan
+            <strong>{{ missing_makbuz_count }} doktorun</strong> makbuzu henüz
+            oluşturulmamış.
+          </div>
+          <a
+            href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}"
+            class="btn btn-sm btn-outline-primary text-nowrap"
+            >Makbuz Oluştur</a
+          >
+        </div>
+        {% endif %}
+
+        <!-- Live batch progress -->
+        <div
+          id="wa-job"
+          class="{% if not send_job %}d-none{% endif %} mb-3"
+          data-running="{{ 'true' if send_job and send_job.running else 'false' }}"
+        >
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong id="wa-job-title">
+              {% if send_job and send_job.running %}Gönderim sürüyor...{% else %}Son gönderim{% endif %}
+            </strong>
+            <span id="wa-job-counts" class="small text-muted">
+              {% if send_job %}{{ send_job.done }}/{{ send_job.total }} tamamlandı
+              &middot; {{ send_job.sent }} başarılı &middot;
+              {{ send_job.failed }} başarısız{% endif %}
+            </span>
+          </div>
+          <div class="progress mb-2" style="height: 8px" aria-hidden="true">
+            <div
+              id="wa-job-bar"
+              class="progress-bar bg-success"
+              style="width: {{ (send_job.done * 100 / send_job.total)|round|int if send_job and send_job.total else 0 }}%"
+            ></div>
+          </div>
+          <ul id="wa-job-items" class="list-unstyled small mb-0">
+            {% if send_job %} {% for item in send_job['items'] %}
+            <li>
+              {% if item.status == 'sent' %}
+              <i class="bi bi-check-circle-fill text-success"></i>
+              {% elif item.status == 'failed' %}
+              <i class="bi bi-x-circle-fill text-danger"></i>
+              {% elif item.status == 'sending' %}
+              <i class="bi bi-arrow-repeat text-primary"></i>
+              {% else %}
+              <i class="bi bi-hourglass text-muted"></i>
+              {% endif %}
+              {{ item.doctor }}
+              {% if item.message and item.status == 'failed' %}
+              <span class="text-danger">— {{ item.message }}</span>
+              {% endif %}
+            </li>
+            {% endfor %} {% endif %}
+          </ul>
+        </div>
+
+        {% if candidates %}
+        <form
+          method="POST"
+          action="{{ url_for('whatsapp.send_makbuz_batch') }}"
+          data-confirm="Seçili makbuzlar WhatsApp üzerinden gönderilecek. Emin misiniz?"
+        >
+          <input type="hidden" name="year" value="{{ year }}" />
+          <input type="hidden" name="month" value="{{ month }}" />
+
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <button
+              type="button"
+              id="wa-select-unsent"
+              class="btn btn-sm btn-outline-secondary"
+            >
+              Gönderilmemişleri Seç
+            </button>
+            <button
+              type="button"
+              id="wa-select-none"
+              class="btn btn-sm btn-outline-secondary"
+            >
+              Temizle
+            </button>
+            <span id="wa-selected-count" class="small text-muted ms-auto"
+              >0 makbuz seçildi</span
+            >
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-2">
+              <thead>
+                <tr>
+                  <th style="width: 2rem">
+                    <input
+                      type="checkbox"
+                      id="wa-select-all"
+                      class="form-check-input"
+                      aria-label="Tümünü seç"
+                    />
+                  </th>
+                  <th>Doktor</th>
+                  <th class="text-end">Tutar</th>
+                  <th>Durum</th>
+                  <th>Gönderim</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in candidates %}
+                <tr>
+                  <td>
+                    <input
+                      type="checkbox"
+                      class="form-check-input wa-makbuz-check"
+                      name="makbuz_ids"
+                      value="{{ c.makbuz.id }}"
+                      data-status="{{ c.makbuz.status }}"
+                      {% if not c.sendable %}disabled{% endif %}
+                      aria-label="{{ c.party.display_name }} makbuzunu seç"
+                    />
+                  </td>
+                  <td>
+                    <a
+                      href="{{ url_for('makbuzlar.detail_makbuz', party_id=c.party.id, year=year, month=month) }}"
+                      class="text-decoration-none"
+                      >{{ c.party.display_name }}</a><br>
+                    {% if c.has_phone %}<small class="text-muted">{{ c.party.phone|phone_display }}</small>{% else %}<span class="badge bg-light text-muted border">Telefon yok</span>{% endif %}
+                  </td>
+                  <td class="text-end fw-semibold">
+                    ₺{{ "{:,.2f}".format(c.makbuz.grand_total) }}
+                  </td>
+                  <td>
+                    <span
+                      class="badge {{ 'bg-success' if c.makbuz.status == 'paid' else ('bg-primary' if c.makbuz.status == 'sent' else 'bg-secondary') }}"
+                      >{{ status_labels.get(c.makbuz.status, c.makbuz.status) }}</span
+                    >
+                  </td>
+                  <td class="small text-muted">
+                    {% if c.makbuz.sent_at %}{{
+                      c.makbuz.sent_at.strftime('%d.%m.%Y %H:%M')
+                    }}{% else %}—{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            type="submit"
+            id="wa-batch-send"
+            class="btn btn-success"
+            {% if not status.connected %}disabled
+            title="Önce WhatsApp bağlantısını kurun"{% endif %}
+          >
+            <i class="bi bi-whatsapp"></i> Seçilenleri Gönder
+          </button>
+        </form>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+          <p class="mb-1">Bu dönem için oluşturulmuş makbuz bulunmuyor.</p>
+          <a
+            href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}"
+            class="btn btn-sm btn-outline-primary mt-1"
+            >Makbuzlar sayfasından oluşturun</a
+          >
+        </div>
+        {% endif %}
+
+        <hr class="my-3" />
+
+        <!-- Auto-send toggle -->
+        <form
+          method="POST"
+          action="{{ url_for('whatsapp.auto_send_toggle') }}"
+          class="d-flex align-items-start justify-content-between gap-3"
+        >
+          <div class="form-check form-switch mb-0">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              id="wa-auto-send"
+              name="enabled"
+              onchange="this.form.submit()"
+              {% if auto_send_on %}checked{% endif %}
+            />
+            <label class="form-check-label" for="wa-auto-send">
+              <strong>Aylık otomatik gönderim</strong>
+              <span class="d-block small text-muted">
+                Her ayın 1’inde 09:30’da, yalnızca önceki aya ait iş emirlerinin makbuzlarını gönderir.
+              </span>
+            </label>
+          </div>
+          <noscript>
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+              Kaydet
+            </button>
+          </noscript>
+        </form>
+
+        {% if send_history %}
+        <hr class="my-3" />
+
+        <!-- Send history -->
+        <div>
+          <button
+            class="btn btn-sm btn-link text-decoration-none px-0"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#wa-history"
+            aria-expanded="false"
+            aria-controls="wa-history"
+          >
+            <i class="bi bi-clock-history"></i> Gönderim Geçmişi
+            ({{ send_history|length }})
+          </button>
+          <div class="collapse" id="wa-history">
+            <div class="table-responsive mt-2">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr class="small text-muted">
+                    <th>Tarih</th>
+                    <th>Doktor</th>
+                    <th>Dönem</th>
+                    <th>Sonuç</th>
+                    <th>Kaynak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in send_history %}
+                  <tr class="small">
+                    <td class="text-muted text-nowrap">
+                      {{ log.created_at.strftime('%d.%m.%Y %H:%M') }}
+                    </td>
+                    <td>{{ log.doctor_name }}</td>
+                    <td class="text-nowrap">{{ '%02d'|format(log.month) }}/{{ log.year }}</td>
+                    <td>
+                      {% if log.success %}
+                      <span class="badge bg-success">Gönderildi</span>
+                      {% else %}
+                      <span
+                        class="badge bg-danger"
+                        {% if log.message %}title="{{ log.message }}"{% endif %}
+                        >Başarısız</span
+                      >
+                      {% if log.message %}
+                      <span class="text-muted">{{ log.message }}</span>
+                      {% endif %}
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if log.triggered_by == 'scheduler' %}
+                      <span class="badge bg-info text-dark">Otomatik</span>
+                      {% else %}
+                      <span class="badge bg-light text-muted border">El ile</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<details class="disclosure-panel mt-3" {% if selected_recipient %}open{% endif %}>
+  <summary><span><i class="bi bi-chat-left-text" aria-hidden="true"></i><strong>Mesaj araçları</strong><small>Tek kişiye veya seçili doktorlara serbest mesaj gönderin</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
+  <div class="disclosure-content">
+<div class="row g-3">
+  <!-- Send Message -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100" id="message-compose">
+      <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> Mesaj Gönder</h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('whatsapp.send_message') }}">
+          <div class="mb-3">
+            <label class="form-label">Alıcı</label>
+            <select
+              name="phone_number"
+              class="form-select js-searchable-select"
+              data-search-placeholder="Kişi veya telefon ara..."
+              required
+            >
+              <option value="">Kişi seçiniz...</option>
+              {% for p in patients %}
+              <option value="{{ p.phone }}" {% if selected_recipient and selected_recipient.id == p.id %}selected{% endif %}>
+                {{ p.display_name }} ({{ p.phone|phone_display }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mesaj</label>
+            <textarea
+              name="message"
+              class="form-control"
+              rows="4"
+              required
+              placeholder="Mesajınızı yazın..."
+              {% if selected_recipient %}autofocus{% endif %}
+            ></textarea>
+          </div>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-send"></i> Gönder
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Send -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">
+          <i class="bi bi-megaphone"></i> Toplu Mesaj Gönderimi
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('whatsapp.send_bulk') }}">
+          <div class="mb-3">
+            <label class="form-label">Kişiler</label>
+            <input
+              type="text"
+              class="form-control mb-2 js-checkbox-filter"
+              id="bulk-patient-filter"
+              data-target="#bulk-patient-list .form-check"
+              placeholder="Yazdıkça kişi filtrele..."
+            />
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="bulk-select-all">
+                Tümünü seç
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="bulk-select-none">
+                Seçimi temizle
+              </button>
+              <span class="small text-muted ms-auto" id="bulk-selected-count">{{ patients|length }} kişi seçildi</span>
+            </div>
+            <div
+              id="bulk-patient-list"
+              class="border rounded p-3"
+              style="max-height: 200px; overflow-y: auto"
+            >
+              {% for p in patients %}
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  name="patient_ids"
+                  value="{{ p.id }}"
+                  id="patient_{{ p.id }}"
+                  checked
+                />
+                <label class="form-check-label" for="patient_{{ p.id }}">
+                  {{ p.display_name }} ({{ p.phone|phone_display }})
+                </label>
+              </div>
+              {% else %}
+              <p class="text-muted mb-0">
+                Telefon numarası olan kişi bulunmuyor.
+              </p>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mesaj Şablonu</label>
+            <textarea
+              name="message"
+              class="form-control"
+              rows="4"
+              required
+              placeholder="Mesajınız...&#10;&#10;Not: Her kişiye 3 saniye aralıkla gönderim yapılacaktır."
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-warning"
+            id="bulk-message-submit"
+            onclick="
+              return confirm(
+                'Seçili kişilere mesaj gönderilecek. Emin misiniz?',
+              );
+            "
+          >
+            <i class="bi bi-megaphone"></i> <span>Toplu Gönder ({{ patients|length }})</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+  </div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    "use strict";
+
+    // ---- Makbuz selection helpers -------------------------------------
+    var checks = Array.prototype.slice.call(
+      document.querySelectorAll(".wa-makbuz-check")
+    );
+    var selectAll = document.getElementById("wa-select-all");
+    var selectUnsent = document.getElementById("wa-select-unsent");
+    var selectNone = document.getElementById("wa-select-none");
+    var countLabel = document.getElementById("wa-selected-count");
+
+    function updateCount() {
+      if (!countLabel) return;
+      var n = checks.filter(function (c) {
+        return c.checked;
+      }).length;
+      countLabel.textContent = n + " makbuz seçildi";
+    }
+
+    checks.forEach(function (c) {
+      c.addEventListener("change", updateCount);
+    });
+    if (selectAll) {
+      selectAll.addEventListener("change", function () {
+        checks.forEach(function (c) {
+          if (!c.disabled) c.checked = selectAll.checked;
+        });
+        updateCount();
+      });
+    }
+    if (selectUnsent) {
+      selectUnsent.addEventListener("click", function () {
+        checks.forEach(function (c) {
+          if (!c.disabled) c.checked = c.dataset.status === "draft";
+        });
+        updateCount();
+      });
+    }
+    if (selectNone) {
+      selectNone.addEventListener("click", function () {
+        checks.forEach(function (c) {
+          c.checked = false;
+        });
+        updateCount();
+      });
+    }
+    updateCount();
+
+    // ---- Bulk free-message selection ---------------------------------
+    var bulkChecks = Array.prototype.slice.call(
+      document.querySelectorAll('#bulk-patient-list input[name="patient_ids"]')
+    );
+    var bulkSelectAll = document.getElementById("bulk-select-all");
+    var bulkSelectNone = document.getElementById("bulk-select-none");
+    var bulkCount = document.getElementById("bulk-selected-count");
+    var bulkSubmit = document.getElementById("bulk-message-submit");
+    var bulkFilter = document.getElementById("bulk-patient-filter");
+
+    function visibleBulkChecks() {
+      return bulkChecks.filter(function (checkbox) {
+        return checkbox.closest(".form-check").style.display !== "none";
+      });
+    }
+
+    function updateBulkCount() {
+      var selected = bulkChecks.filter(function (checkbox) {
+        return checkbox.checked;
+      }).length;
+      if (bulkCount) bulkCount.textContent = selected + " kişi seçildi";
+      if (bulkSubmit) {
+        bulkSubmit.disabled = selected === 0;
+        bulkSubmit.querySelector("span").textContent = "Toplu Gönder (" + selected + ")";
+      }
+    }
+
+    if (bulkSelectAll) {
+      bulkSelectAll.addEventListener("click", function () {
+        visibleBulkChecks().forEach(function (checkbox) {
+          checkbox.checked = true;
+        });
+        updateBulkCount();
+      });
+    }
+    if (bulkSelectNone) {
+      bulkSelectNone.addEventListener("click", function () {
+        visibleBulkChecks().forEach(function (checkbox) {
+          checkbox.checked = false;
+        });
+        updateBulkCount();
+      });
+    }
+    bulkChecks.forEach(function (checkbox) {
+      checkbox.addEventListener("change", updateBulkCount);
+    });
+    if (bulkFilter) {
+      bulkFilter.addEventListener("input", function () {
+        window.setTimeout(updateBulkCount, 0);
+      });
+    }
+    updateBulkCount();
+
+    // ---- Status + job polling -----------------------------------------
+    var statusUrl = "{{ url_for('whatsapp.status') }}";
+    var isConnected = {{ 'true' if status.connected else 'false' }};
+    var jobEl = document.getElementById("wa-job");
+    var jobRunning = jobEl ? jobEl.dataset.running === "true" : false;
+
+    var qrArea = document.getElementById("wa-qr-area");
+    var qrImage = document.getElementById("wa-qr-image");
+    var pairArea = document.getElementById("wa-pair-area");
+    var pairCode = document.getElementById("wa-pair-code");
+    var statusTitle = document.getElementById("wa-status-title");
+    var idleIcon = document.getElementById("wa-idle-icon");
+
+    function renderConnection(data) {
+      if (!statusTitle) return; // already-connected page has no QR widgets
+      if (data.qr_image) {
+        qrImage.src = data.qr_image;
+        qrArea.classList.remove("d-none");
+        idleIcon.classList.add("d-none");
+      } else {
+        qrArea.classList.add("d-none");
+        idleIcon.classList.remove("d-none");
+      }
+      if (data.pair_code) {
+        pairCode.textContent = data.pair_code;
+        pairArea.classList.remove("d-none");
+      } else {
+        pairArea.classList.add("d-none");
+      }
+      if (data.connecting) {
+        statusTitle.textContent = data.qr_image
+          ? "QR kodu tarayın"
+          : "Bağlanıyor...";
+      } else {
+        statusTitle.textContent = "Bağlı Değil";
+      }
+    }
+
+    var ICON_CLASSES = {
+      sent: "bi bi-check-circle-fill text-success",
+      failed: "bi bi-x-circle-fill text-danger",
+      sending: "bi bi-arrow-repeat text-primary",
+      pending: "bi bi-hourglass text-muted",
+    };
+
+    function renderJob(job) {
+      if (!jobEl || !job) return;
+      jobEl.classList.remove("d-none");
+      document.getElementById("wa-job-title").textContent = job.running
+        ? "Gönderim sürüyor..."
+        : "Son gönderim";
+      document.getElementById("wa-job-counts").textContent =
+        job.done +
+        "/" +
+        job.total +
+        " tamamlandı · " +
+        job.sent +
+        " başarılı · " +
+        job.failed +
+        " başarısız";
+      var pct = job.total ? Math.round((job.done * 100) / job.total) : 0;
+      document.getElementById("wa-job-bar").style.width = pct + "%";
+
+      var list = document.getElementById("wa-job-items");
+      list.textContent = "";
+      job.items.forEach(function (item) {
+        var li = document.createElement("li");
+        var icon = document.createElement("i");
+        icon.className = ICON_CLASSES[item.status] || ICON_CLASSES.pending;
+        li.appendChild(icon);
+        li.appendChild(document.createTextNode(" " + item.doctor));
+        if (item.status === "failed" && item.message) {
+          var span = document.createElement("span");
+          span.className = "text-danger";
+          span.textContent = " — " + item.message;
+          li.appendChild(span);
+        }
+        list.appendChild(li);
+      });
+      jobRunning = job.running;
+    }
+
+    function shouldPoll() {
+      return !isConnected || jobRunning;
+    }
+
+    function poll() {
+      fetch(statusUrl, { headers: { Accept: "application/json" } })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          if (!isConnected && data.connected) {
+            window.location.reload();
+            return;
+          }
+          renderConnection(data);
+          if (data.send_job) renderJob(data.send_job);
+          if (shouldPoll()) setTimeout(poll, 3000);
+        })
+        .catch(function () {
+          if (shouldPoll()) setTimeout(poll, 5000);
+        });
+    }
+
+    if (shouldPoll()) poll();
+  })();
+</script>
+{% endblock %}

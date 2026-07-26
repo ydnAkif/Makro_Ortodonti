@@ -1,0 +1,22 @@
+<nav class="sidebar-nav" aria-label="Uygulama bölümleri">
+    <div class="nav-section-label">Çalışma alanı</div>
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link {% if 'parties' in request.endpoint|default('') and 'work_order' not in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('parties.list_parties') }}" {% if 'parties' in request.endpoint|default('') and 'work_order' not in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-person-vcard" aria-hidden="true"></i><span>Doktorlar</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if 'work_order' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('parties.list_work_orders') }}" {% if 'work_order' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-clipboard2-check" aria-hidden="true"></i><span>İş emirleri</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if 'makbuzlar' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('makbuzlar.list_makbuzlar') }}" {% if 'makbuzlar' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-receipt" aria-hidden="true"></i><span>Makbuzlar</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if 'payment' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('payments.list_payments') }}" {% if 'payment' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-wallet2" aria-hidden="true"></i><span>Tahsilatlar</span></a></li>
+    </ul>
+
+    <div class="nav-section-label">İzleme</div>
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}" href="{{ url_for('dashboard.index') }}" {% if request.endpoint == 'dashboard.index' %}aria-current="page"{% endif %}><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Genel bakış</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if 'report' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('reports.index') }}" {% if 'report' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Raporlar</span></a></li>
+    </ul>
+
+    <div class="nav-section-label">Araçlar</div>
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link {% if 'treatment' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('treatments.list_treatments') }}" {% if 'treatment' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i><span>İşlem kataloğu</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if 'whatsapp' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('whatsapp.index') }}" {% if 'whatsapp' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp</span><span class="wa-status-dot wa-status-{{ whatsapp_state|default('disconnected') }}" title="WhatsApp: {{ {'connected': 'Bağlı', 'connecting': 'Bağlanıyor'}.get(whatsapp_state, 'Bağlı değil') }}" role="img" aria-label="WhatsApp durumu: {{ {'connected': 'Bağlı', 'connecting': 'Bağlanıyor'}.get(whatsapp_state, 'Bağlı değil') }}"></span></a></li>
+        {% if current_user.role == 'admin' %}<li class="nav-item"><a class="nav-link {% if 'settings' in request.endpoint|default('') %}active{% endif %}" href="{{ url_for('settings.index') }}" {% if 'settings' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-sliders" aria-hidden="true"></i><span>Ayarlar</span></a></li>{% endif %}
+    </ul>
+</nav>

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{% if party %}Düzenle{% else %}Yeni Diş Hekimi{% endif %} - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('parties.list_parties') }}">Doktorlar</a></li>
+            <li class="breadcrumb-item active">{% if party %}{{ party.display_name }}{% else %}Yeni Diş Hekimi{% endif %}</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-plus"></i>
+                    {% if party %}Diş Hekimi Düzenle{% else %}Yeni Diş Hekimi Ekle{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('parties.edit_party', party_id=party.id) if party else url_for('parties.add_party') }}">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="name" class="form-label">Ünvan / Firma Adı <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ party.name|default('', true) }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Telefon</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ party.phone|default('', true) }}" placeholder="+90 5XX XXX XX XX" autocomplete="tel">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">E-posta</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ party.email|default('', true) }}" autocomplete="email">
+                        </div>
+                        <div class="col-12">
+                            <label for="address" class="form-label">Adres</label>
+                            <textarea class="form-control" id="address" name="address" rows="2" autocomplete="street-address">{{ party.address|default('', true) }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="tax_id" class="form-label">Vergi No</label>
+                            <input type="text" class="form-control" id="tax_id" name="tax_id" value="{{ party.tax_id|default('', true) }}" inputmode="numeric">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="previous_balance" class="form-label">Önceden devreden borç (₺)</label>
+                            <input type="number" class="form-control" id="previous_balance" name="previous_balance" value="{{ party.previous_balance|default('0.00', true) }}" step="0.01" min="0" inputmode="decimal">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" {% if not party or party.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">Aktif kayıt</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notlar</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3">{{ party.notes|default('', true) }}</textarea>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('parties.list_parties') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> İptal
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {% if party %}Güncelle{% else %}Kaydet{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
