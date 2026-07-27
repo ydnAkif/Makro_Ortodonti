@@ -3,7 +3,7 @@ import logging
 import os
 import time
 
-from flask import Flask, g, request, url_for
+from flask import Flask, request, url_for
 
 from .config import Config, is_insecure_secret
 from .extensions import db, login_manager, csrf, migrate
@@ -114,16 +114,19 @@ def create_app(config_class=Config) -> Flask:
     from .services.observability import init_observability
     init_observability(app)
 
-    # Auto-fetch exchange rates on first request (non-blocking background)
+    # Auto-fetch exchange rates once per calendar day (non-blocking background).
+    # ensure_daily_rate() itself no-ops on every call after the first one for
+    # the current day (see its own _last_auto_check_date guard), so this must
+    # run on every request rather than being gated again here — a per-process
+    # "only once, ever" guard would mean the rate never refreshes past day 1
+    # on a long-lived gunicorn worker.
     @app.before_request
     def _auto_fetch_rates():
-        if not hasattr(app, '_rates_fetched'):
-            app._rates_fetched = True
-            try:
-                from .services.exchange_service import ensure_daily_rate
-                ensure_daily_rate(max_age_days=2)
-            except Exception:
-                logger.debug("Auto-fetch exchange rates failed", exc_info=True)
+        try:
+            from .services.exchange_service import ensure_daily_rate
+            ensure_daily_rate(max_age_days=2)
+        except Exception:
+            logger.debug("Auto-fetch exchange rates failed", exc_info=True)
 
     from .routes.auth import auth_bp
     from .routes.dashboard import dashboard_bp
@@ -213,5 +216,11 @@ def create_app(config_class=Config) -> Flask:
 
     from .services.makbuz_send_queue import MakbuzSendQueue
     MakbuzSendQueue.init_app(app)
+
+    from .services.bulk_message_queue import BulkMessageQueue
+    BulkMessageQueue.init_app(app)
+
+    from .services.pdf_queue import PdfQueue
+    PdfQueue.init_app(app)
 
     return app

@@ -61,6 +61,11 @@
             <div class="report-legend"><span><i class="issued"></i>Fatura</span><span><i class="collected"></i>Tahsilat</span></div>
         </div>
         <div class="card-body">
+            {% if trend_rows %}
+            <div class="trend-chart-wrap">
+                <canvas id="trend-chart" role="img" aria-label="Fatura ve tahsilat trend grafiği"></canvas>
+            </div>
+            {% endif %}
             {% for row in trend_rows %}
             <div class="report-trend-row">
                 <span class="report-trend-label">{{ row.label }}</span>
@@ -101,7 +106,7 @@
 <div class="tab-pane fade" id="tab-doctors">
     <section class="work-panel mb-4" aria-labelledby="doctor-summary-title">
         <div class="work-panel__header">
-            <div><h2 id="doctor-summary-title">Doktor Bazlı Özet</h2><p>{{ doctor_summaries|length }} doktor — dönem内 toplam iş emri ve makbuz</p></div>
+            <div><h2 id="doctor-summary-title">Doktor Bazlı Özet</h2><p>{{ doctor_summaries|length }} doktor — dönem içi toplam iş emri ve makbuz</p></div>
         </div>
         <div class="table-responsive">
             <table class="table table-hover">
@@ -247,6 +252,74 @@
 {% endblock %}
 
 {% block scripts %}
+{% if trend_rows %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script>
+(function() {
+    var canvas = document.getElementById('trend-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    var labels = {{ trend_rows|map(attribute='label')|list|tojson }};
+    var issued = {{ trend_rows|map(attribute='issued')|map('float')|list|tojson }};
+    var collected = {{ trend_rows|map(attribute='collected')|map('float')|list|tojson }};
+    var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    var gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(16,46,58,.08)';
+    var tickColor = isDark ? '#8da3ac' : '#58717b';
+
+    new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Fatura',
+                    data: issued,
+                    borderColor: '#e27c67',
+                    backgroundColor: 'rgba(226,124,103,.12)',
+                    tension: .3,
+                    fill: true,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'Tahsilat',
+                    data: collected,
+                    borderColor: '#278468',
+                    backgroundColor: 'rgba(39,132,104,.12)',
+                    tension: .3,
+                    fill: true,
+                    pointRadius: 3,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': ₺' + ctx.parsed.y.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: {
+                        color: tickColor,
+                        callback: function(value) { return '₺' + Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 0 }); },
+                    },
+                },
+            },
+        },
+    });
+})();
+</script>
+{% endif %}
 <script>
 document.getElementById('period').addEventListener('change', function() {
     if (this.value !== 'custom') {

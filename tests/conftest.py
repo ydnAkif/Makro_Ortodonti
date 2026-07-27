@@ -49,6 +49,13 @@ def _reset_whatsapp_state(tmp_path_factory, monkeypatch):
     monkeypatch.setattr(MakbuzSendQueue, "_job", None)
     monkeypatch.setattr(MakbuzSendQueue, "_thread", None)
     monkeypatch.setattr(MakbuzSendQueue, "_delay_seconds", 0)
+
+    from app.services.bulk_message_queue import BulkMessageQueue
+
+    monkeypatch.setattr(BulkMessageQueue, "_app", None)
+    monkeypatch.setattr(BulkMessageQueue, "_job", None)
+    monkeypatch.setattr(BulkMessageQueue, "_thread", None)
+    monkeypatch.setattr(BulkMessageQueue, "_delay_seconds", 0)
     yield
     handle = WhatsAppService._process_lock_handle
     if handle is not None:
@@ -230,3 +237,12 @@ def authenticated_page(page, live_server_url):
     page.get_by_role("button", name="Giriş Yap").click()
     page.wait_for_url(f"{live_server_url}/")
     return page
+
+
+def pytest_collection_modifyitems(items):
+    """Auto-apply the ``e2e`` marker to everything under tests/e2e/ so
+    ``pytest -m "not e2e"`` has a real fast path without every test file
+    having to remember to mark itself."""
+    for item in items:
+        if "e2e" in item.fspath.dirname.split("/"):
+            item.add_marker(pytest.mark.e2e)

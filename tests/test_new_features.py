@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
@@ -378,7 +377,7 @@ class TestPurgeDemoData:
         login(client, "admin", "admin-pass")
         self._seed_operational_data(app)
 
-        resp = client.post("/settings/purge-demo-data", follow_redirects=True)
+        resp = client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
         assert resp.status_code == 200
         assert "Demo veriler temizlendi".encode() in resp.data
 
@@ -418,7 +417,7 @@ class TestPurgeDemoData:
             ))
             db.session.commit()
 
-        resp = client.post("/settings/purge-demo-data", follow_redirects=True)
+        resp = client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
         assert resp.status_code == 200
         assert "Demo veriler temizlendi".encode() in resp.data
 
@@ -440,7 +439,7 @@ class TestPurgeDemoData:
                 db.select(db.func.count()).select_from(Treatment)
             ).scalar()
 
-        client.post("/settings/purge-demo-data", follow_redirects=True)
+        client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
 
         with app.app_context():
             assert db.session.execute(
@@ -460,7 +459,7 @@ class TestPurgeDemoData:
                 db.select(db.func.count()).select_from(User)
             ).scalar()
 
-        client.post("/settings/purge-demo-data", follow_redirects=True)
+        client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
 
         with app.app_context():
             assert db.session.execute(
@@ -476,7 +475,7 @@ class TestPurgeDemoData:
                 db.select(db.func.count()).select_from(Settings)
             ).scalar()
 
-        client.post("/settings/purge-demo-data", follow_redirects=True)
+        client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
 
         with app.app_context():
             assert db.session.execute(
@@ -486,16 +485,33 @@ class TestPurgeDemoData:
     def test_admin_yetkisi_gerekli(self, client, app):
         """Staff bu işlemi yapamamalı."""
         login(client, "staff", "staff-pass")
-        resp = client.post("/settings/purge-demo-data", follow_redirects=True)
+        resp = client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
         assert resp.status_code == 200
         assert "yetkiniz bulunmuyor".encode() in resp.data
 
     def test_bos_veritabaninda_calismali(self, client, app):
         """Zaten boş veritabanında çalıştırınca hata vermemeli."""
         login(client, "admin", "admin-pass")
-        resp = client.post("/settings/purge-demo-data", follow_redirects=True)
+        resp = client.post("/settings/purge-demo-data", data={"confirm_phrase": "SİL"}, follow_redirects=True)
         assert resp.status_code == 200
         assert "Demo veriler temizlendi".encode() in resp.data
+
+    def test_onay_ifadesi_yanlissa_hicbir_sey_silinmez(self, client, app):
+        """confirm_phrase 'SİL' değilse (veya boşsa) hiçbir veri silinmemeli."""
+        login(client, "admin", "admin-pass")
+        self._seed_operational_data(app)
+
+        resp = client.post("/settings/purge-demo-data", data={"confirm_phrase": "evet"}, follow_redirects=True)
+        assert resp.status_code == 200
+        assert "Onaylamak için".encode() in resp.data
+
+        with app.app_context():
+            assert db.session.execute(db.select(WorkOrder)).scalars().first() is not None
+
+        resp = client.post("/settings/purge-demo-data", follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            assert db.session.execute(db.select(WorkOrder)).scalars().first() is not None
 
 
 # ===========================================================================

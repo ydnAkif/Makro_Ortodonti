@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "makro-ortodonti-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "source .venv/bin/activate && FLASK_DEBUG=true python run.py"],
+      "port": 5001
+    }
+  ]
+}

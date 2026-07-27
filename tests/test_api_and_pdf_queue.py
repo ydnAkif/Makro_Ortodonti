@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
-from decimal import Decimal
 
-import pytest
 
 from app.extensions import db
-from app.models.models import Makbuz, Party, PartyType, Treatment, WorkOrder
+from app.models.models import Party, PartyType
 from conftest import login
 
 
@@ -58,6 +55,27 @@ class TestPdfQueue:
     def test_get_nonexistent_job(self):
         from app.services.pdf_queue import PdfQueue
         assert PdfQueue.get_result("nonexistent") is None
+
+    def test_worker_thread_has_app_context(self, app):
+        """Regression test: the worker thread must push app.app_context()
+        like every other background service (whatsapp_service,
+        makbuz_send_queue), otherwise any submitted job that touches the DB
+        or current_app raises "working outside of application context"."""
+        from app.services.pdf_queue import PdfQueue
+        from flask import current_app
+
+        def _needs_app_context():
+            # Raises RuntimeError outside an app context.
+            return current_app.name
+
+        job_id = PdfQueue.submit(_needs_app_context)
+        import time
+        time.sleep(0.3)
+
+        job = PdfQueue.get_result(job_id)
+        assert job is not None
+        assert job.status == "completed", job.error
+        assert job.result == app.name
 
 
 # ---------------------------------------------------------------------------
@@ -156,3 +174,81 @@ class TestApiDashboard:
         assert "monthly_work_orders" in data
         assert "monthly_total_try" in data
         assert "eur_to_try" in data
+
+
+class TestApiBearerTokenAuth:
+    """/api/v1/* used to redirect (302) an unauthenticated caller to the
+    HTML login page — useless for a script or mobile client. It now
+    returns 401/403 JSON, and accepts a per-user Bearer token as an
+    alternative to a browser session."""
+
+    def test_no_credentials_returns_401_json(self, client, app):
+        res = client.get("/api/v1/parties")
+        assert res.status_code == 401
+        assert res.get_json() == {"error": "unauthorized"}
+
+    def test_garbage_bearer_token_returns_401_json(self, client, app):
+        res = client.get(
+            "/api/v1/parties",
+            headers={"Authorization": "Bearer not-a-real-token"},
+        )
+        assert res.status_code == 401
+
+    def test_valid_bearer_token_grants_access(self, client, app):
+        from app.authz import hash_api_token
+        from app.models.models import User
+
+        raw_token = "test-token-abc123"
+        with app.app_context():
+            admin = db.session.execute(
+                db.select(User).where(User.username == "admin")
+            ).scalar_one()
+            admin.api_token_hash = hash_api_token(raw_token)
+            db.session.commit()
+
+        res = client.get(
+            "/api/v1/parties",
+            headers={"Authorization": f"Bearer {raw_token}"},
+        )
+        assert res.status_code == 200
+        assert isinstance(res.get_json(), list)
+
+    def test_bearer_token_respects_role_permissions(self, client, app):
+        """A staff token should still work for clinical.view but be denied
+        wherever authz.STAFF_PERMISSIONS doesn't include the permission."""
+        from app.authz import hash_api_token
+        from app.models.models import User
+
+        raw_token = "staff-token-xyz789"
+        with app.app_context():
+            staff = db.session.execute(
+                db.select(User).where(User.username == "staff")
+            ).scalar_one()
+            staff.api_token_hash = hash_api_token(raw_token)
+            db.session.commit()
+
+        headers = {"Authorization": f"Bearer {raw_token}"}
+        res = client.get("/api/v1/parties", headers=headers)
+        assert res.status_code == 200
+
+    def test_generate_and_revoke_api_token(self, client, app):
+        from app.models.models import User
+
+        login(client, "admin", "admin-pass")
+        resp = client.post("/settings/api-token/generate", follow_redirects=True)
+        assert resp.status_code == 200
+        assert "Yeni API token".encode() in resp.data
+
+        with app.app_context():
+            admin = db.session.execute(
+                db.select(User).where(User.username == "admin")
+            ).scalar_one()
+            assert admin.api_token_hash is not None
+
+        resp = client.post("/settings/api-token/revoke", follow_redirects=True)
+        assert "iptal edildi".encode() in resp.data
+        with app.app_context():
+            admin = db.session.execute(
+                db.select(User).where(User.username == "admin")
+            ).scalar_one()
+            assert admin.api_token_hash is None

@@ -176,7 +176,7 @@ class InvoicePDF(BasePDF):
         subtotal_eur = sum(item.line_total_eur for item in invoice.items)
         vat_eur = sum(item.vat_amount_eur for item in invoice.items)
         self.ln(4)
-        x_label, x_value = 126, 163
+        x_label = 126
         rows = (
             ("Ara toplam", f"€{subtotal_eur:,.2f}", False),
             ("KDV toplamı", f"€{vat_eur:,.2f}", False),

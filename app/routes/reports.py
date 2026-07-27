@@ -5,23 +5,14 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from flask import Blueprint, render_template, request, send_file, jsonify
+from flask import Blueprint, render_template, request, send_file
 from flask_login import login_required
 from io import BytesIO
 
 from app.authz import permissions_required
-from app.extensions import db
-from app.models.models import (
-    INVOICE_CATEGORY_LABELS,
-    Makbuz,
-    Party,
-    PartyType,
-    Settings,
-    WorkOrder,
-)
+from app.models.models import INVOICE_CATEGORY_LABELS
 from app.services.reports_service import (
     MONTH_NAMES,
-    VAT_RATES,
     build_aging_buckets,
     build_category_stats,
     build_daily_rows,
@@ -34,16 +25,10 @@ from app.services.reports_service import (
     fetch_report_data,
     resolve_period,
 )
+from app.services.settings_service import get_setting as _get_setting
 
 
 reports_bp = Blueprint("reports", __name__)
-
-
-def _get_setting(key: str, default: str = "") -> str:
-    value = db.session.execute(
-        db.select(Settings.value).where(Settings.key == key)
-    ).scalar_one_or_none()
-    return value or default
 
 
 def _period_label(start: date, end: date) -> str:

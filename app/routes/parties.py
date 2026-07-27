@@ -1,31 +1,25 @@
+import logging
+from zipfile import BadZipFile
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, Response
 from flask_login import login_required
 from datetime import date, timedelta
 from decimal import Decimal
 
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, Settings, money
+from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, money
 from app.authz import permissions_required
 from app.services.party_service import PartyService
 from app.services.search_service import tr_contains, tr_order, tr_fold, tr_equals
-from app.services.validation_service import normalize_display_name, parse_date
-from app.services.exchange_service import get_latest_rate, get_latest_usd_rate
+from app.services.validation_service import normalize_display_name, neutralize_formula_prefix, parse_date
+from app.services.exchange_service import get_latest_usd_rate
 from app.services.reports_pdf_service import generate_work_orders_pdf
+from app.services.settings_service import get_clinic_identity
 from app.constants import MONTHS
 
+logger = logging.getLogger(__name__)
+
 parties_bp = Blueprint("parties", __name__)
-
-
-def _is_period_locked(party_id: int, year: int, month: int) -> bool:
-    """Return True if the given period has a non-draft makbuz (sent or paid)."""
-    return db.session.execute(
-        db.select(Makbuz).where(
-            Makbuz.party_id == party_id,
-            Makbuz.year == year,
-            Makbuz.month == month,
-            Makbuz.status != Makbuz.STATUS_DRAFT,
-        )
-    ).scalar_one_or_none() is not None
 
 
 def _get_treatments_by_category(category):
@@ -228,14 +222,12 @@ def list_work_orders():
 def export_work_orders_pdf():
     """PDF export for filtered work orders."""
     data = _resolve_work_order_query(request.args)
-    clinic_name = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_name")).scalar_one_or_none() or "Makro Ortodonti"
-    clinic_phone = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_phone")).scalar_one_or_none() or ""
-    clinic_email = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_email")).scalar_one_or_none() or ""
+    clinic = get_clinic_identity()
 
     pdf_bytes = generate_work_orders_pdf(
-        clinic_name=clinic_name,
-        clinic_phone=clinic_phone,
-        clinic_email=clinic_email,
+        clinic_name=clinic["clinic_name"],
+        clinic_phone=clinic["clinic_phone"],
+        clinic_email=clinic["clinic_email"],
         period_label=data["period_label"],
         work_orders=data["work_orders"],
         doctor_count=data["doctor_count"],
@@ -286,15 +278,13 @@ def export_party_summary_pdf(party_id):
         .order_by(WorkOrder.work_date.desc(), WorkOrder.id.desc())
     ).scalars().all()
 
-    clinic_name = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_name")).scalar_one_or_none() or "Makro Ortodonti"
-    clinic_phone = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_phone")).scalar_one_or_none() or ""
-    clinic_email = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_email")).scalar_one_or_none() or ""
+    clinic = get_clinic_identity()
 
     period_total = money(sum((wo.total_price for wo in work_orders), Decimal("0.00")))
     pdf_bytes = generate_work_orders_pdf(
-        clinic_name=clinic_name,
-        clinic_phone=clinic_phone,
-        clinic_email=clinic_email,
+        clinic_name=clinic["clinic_name"],
+        clinic_phone=clinic["clinic_phone"],
+        clinic_email=clinic["clinic_email"],
         period_label=period_label,
         work_orders=work_orders,
         doctor_count=1,
@@ -366,12 +356,12 @@ def import_parties():
                 if not name:
                     skipped += 1
                     continue
-                name = normalize_display_name(name)
+                name = normalize_display_name(neutralize_formula_prefix(name))
                 phone = _text(row[1] if len(row) > 1 else None, 20)
                 email = _text(row[2] if len(row) > 2 else None, 200)
-                address = _text(row[3] if len(row) > 3 else None, 2000)
+                address = neutralize_formula_prefix(_text(row[3] if len(row) > 3 else None, 2000))
                 tax_id = _text(row[4] if len(row) > 4 else None, 50)
-                notes = _text(row[5] if len(row) > 5 else None, 2000)
+                notes = neutralize_formula_prefix(_text(row[5] if len(row) > 5 else None, 2000))
 
                 # Yalnızca isimle eşleştir (Türkçe duyarlı): aynı telefonu paylaşan
                 # farklı isimli kayıtlar (ör. iki şubeli klinik) ayrı satır kalmalı.
@@ -403,9 +393,16 @@ def import_parties():
             wb.close()
             flash(f"İçe aktarma tamamlandı: {added} yeni, {updated} güncellendi, {skipped} atlandı.", "success")
             return redirect(url_for("parties.list_parties"))
-        except Exception as e:
+        except (KeyError, IndexError, ValueError, OSError, BadZipFile) as exc:
             db.session.rollback()
-            flash(f"İçe aktarma hatası: {str(e)}", "danger")
+            logger.warning("Hekim içe aktarma: dosya okunamadı: %s", exc)
+            flash("Dosya okunamadı. Geçerli bir .xlsx dosyası olduğundan ve beklenen sütun düzenine "
+                  "sahip olduğundan emin olun.", "danger")
+            return redirect(url_for("parties.import_parties"))
+        except Exception:
+            db.session.rollback()
+            logger.exception("Hekim içe aktarma sırasında beklenmeyen hata")
+            flash("İçe aktarma sırasında beklenmeyen bir hata oluştu.", "danger")
             return redirect(url_for("parties.import_parties"))
 
     return render_template("parties/import.html")
@@ -704,7 +701,7 @@ def add_work_order(party_id):
 @permissions_required("clinical.edit")
 def edit_work_order(party_id, wo_id):
     party = PartyService.get_party_or_404(party_id)
-    wo = PartyService.get_work_order_or_404(wo_id)
+    wo = PartyService.get_work_order_or_404(party_id, wo_id)
 
     if request.method == "POST":
         try:

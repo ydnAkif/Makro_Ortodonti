@@ -526,19 +526,26 @@ class TestRoutes:
     def test_send_bulk_counts_failures(self, client, app):
         login(client, "admin", "admin-pass")
         from app.models.models import Party
+        from app.services.bulk_message_queue import BulkMessageQueue
 
         with app.app_context():
             party_id = db.session.execute(db.select(Party.id).limit(1)).scalar_one()
 
+        WhatsAppService._connected = True
         with patch(
             "app.services.whatsapp_service.WhatsAppService.send_message",
             return_value={"success": False, "message": "WhatsApp bağlı değil."},
         ):
-            with patch("time.sleep"):
-                response = client.post(
-                    "/whatsapp/send-bulk",
-                    data={"message": "test", "patient_ids": [str(party_id), "999999"]},
-                    follow_redirects=True,
-                )
+            response = client.post(
+                "/whatsapp/send-bulk",
+                # party_id 999999 doesn't exist and is dropped before any send
+                # is attempted, so only the real party contributes to the count.
+                data={"message": "test", "patient_ids": [str(party_id), "999999"]},
+                follow_redirects=True,
+            )
         assert response.status_code == 200
-        assert "1 başarısız".encode() in response.data
+        if BulkMessageQueue._thread is not None:
+            BulkMessageQueue._thread.join(timeout=2)
+        job = BulkMessageQueue.current_job()
+        assert job is not None
+        assert job["failed"] == 1

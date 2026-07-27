@@ -1,5 +1,6 @@
-{% extends "base.html" %} {% block title %}{{ party.display_name }} - {{
-clinic_name }}{% endblock %} {% block content %}
+{% extends "base.html" %} {% import "components/macros.html" as macros %} {%
+block title %}{{ party.display_name }} - {{ clinic_name }}{% endblock %} {%
+block content %}
 <div class="mb-4">
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -400,17 +401,7 @@ clinic_name }}{% endblock %} {% block content %}
                 </td>
                 <td class="fw-semibold">{{ wo.patient_name }}</td>
                 <td>
-                  {% set items = wo.apparatus_type|fromjson %} {% if items is
-                  iterable and items is not string and items|length > 0 %} {%
-                  for item in items %}
-                  <span class="badge badge-soft-aqua me-1"
-                    >{{ item.name if item is mapping else item }}</span
-                  >
-                  {% endfor %} {% else %}
-                  <span class="apparatus-display badge badge-soft-aqua"
-                    >{{ wo.apparatus_type }}</span
-                  >
-                  {% endif %}
+                  {{ macros.badge_list(wo.apparatus_type, "apparatus-display badge badge-soft-aqua") }}
                 </td>
                 <td class="text-end text-nowrap">
                   ₺{{ "{:,.2f}".format(wo.apparatus_price) }}
@@ -492,17 +483,7 @@ clinic_name }}{% endblock %} {% block content %}
                         <strong
                           ><i class="bi bi-tools me-1"></i> Aparey:</strong
                         >
-                        {% set items = wo.apparatus_type|fromjson %} {% if items
-                        is iterable and items is not string and items|length > 0
-                        %} {% for item in items %}
-                        <span class="badge badge-soft-aqua me-1"
-                          >{{ item.name if item is mapping else item }}</span
-                        >
-                        {% endfor %} {% else %}
-                        <span class="badge badge-soft-aqua"
-                          >{{ wo.apparatus_type }}</span
-                        >
-                        {% endif %}
+                        {{ macros.badge_list(wo.apparatus_type) }}
                       </div>
                       <div class="col-md-6">
                         <strong>Aparey Fiyatı:</strong> ₺{{
@@ -520,15 +501,7 @@ clinic_name }}{% endblock %} {% block content %}
                     <div class="mt-2">
                       <strong>Ekstra Eklentiler:</strong>
                       <div class="mt-1">
-                        {% set extras = extra_value|fromjson %} {% if extras is
-                        iterable and extras is not string and extras | length >
-                        0 %} {% for ex in extras %}
-                        <span class="badge badge-soft-aqua me-1"
-                          >{{ ex.name if ex is mapping else ex }}</span
-                        >
-                        {% endfor %} {% else %}
-                        <span class="text-muted">{{ extra_value }}</span>
-                        {% endif %}
+                        {{ macros.badge_list(extra_value, "text-muted") }}
                       </div>
                     </div>
                     {% endif %} {% set note_value = wo.notes|clean_optional %}
@@ -552,6 +525,67 @@ clinic_name }}{% endblock %} {% block content %}
               {% endfor %}
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="d-md-none work-order-cards">
+          {% for wo in work_orders %}
+          <div class="work-order-card">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">{{ wo.patient_name }}</div>
+                <div class="text-muted small">{{ wo.work_date.strftime('%d.%m.%Y') }}</div>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold text-primary">₺{{ "{:,.2f}".format(wo.total_price) }}</div>
+              </div>
+            </div>
+            <div class="mt-2">{{ macros.badge_list(wo.apparatus_type, "apparatus-display badge badge-soft-aqua") }}</div>
+            <div class="d-flex justify-content-between small text-muted mt-2">
+              <span>Aparey: ₺{{ "{:,.2f}".format(wo.apparatus_price) }}</span>
+              <span>Ekstra: ₺{{ "{:,.2f}".format(wo.extra_price) }}</span>
+            </div>
+            {% set extra_value = wo.extra_addons|clean_optional %}
+            {% if extra_value %}
+            <div class="mt-2 small">
+              <strong>Ekstra Eklentiler:</strong>
+              {{ macros.badge_list(extra_value, "text-muted") }}
+            </div>
+            {% endif %}
+            {% set note_value = wo.notes|clean_optional %}
+            {% if note_value %}
+            <div class="mt-2 small text-muted">{{ note_value }}</div>
+            {% endif %}
+            <div class="d-flex gap-2 mt-3">
+              <a
+                href="{{ url_for('parties.edit_work_order', party_id=party.id, wo_id=wo.id, return_to='party_detail', return_view=view, return_year=year, return_month=month or 1, return_search=search) }}"
+                class="btn btn-outline-secondary btn-sm flex-fill"
+              >
+                <i class="bi bi-pencil" aria-hidden="true"></i> Düzenle
+              </a>
+              <form
+                method="POST"
+                action="{{ url_for('parties.delete_work_order', party_id=party.id, wo_id=wo.id) }}"
+                class="flex-fill"
+                data-confirm="Bu iş emrini silmek istediğinize emin misiniz?"
+              >
+                <input type="hidden" name="return_to" value="party_detail" />
+                <input type="hidden" name="return_view" value="{{ view }}" />
+                <input type="hidden" name="return_year" value="{{ year }}" />
+                <input type="hidden" name="return_month" value="{{ month or 1 }}" />
+                <input type="hidden" name="return_search" value="{{ search }}" />
+                <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                  <i class="bi bi-trash" aria-hidden="true"></i> Sil
+                </button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+          <p class="empty-state">
+            {% if search %}"{{ search }}" için {{ period_label }} döneminde iş emri bulunamadı.
+            {% else %}{{ period_label }} döneminde iş emri yok.{% endif %}
+          </p>
+          {% endfor %}
         </div>
       </div>
     </div>

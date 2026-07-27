@@ -16,7 +16,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Enum as SQLEnum,
-    event,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -464,6 +463,10 @@ class User(UserMixin, Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="staff", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # SHA-256 hex digest of a bearer token for /api/v1/*, not the token
+    # itself — the raw token is shown once at generation time and cannot be
+    # recovered from this column (same pattern as GitHub/Stripe API keys).
+    api_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
 
     ROLE_ADMIN = "admin"
     ROLE_STAFF = "staff"
@@ -635,6 +638,7 @@ class MakbuzSendLog(Base, TimestampMixin):
 
     TRIGGER_MANUAL = "manual"
     TRIGGER_SCHEDULER = "scheduler"
+    TRIGGER_REMINDER = "reminder"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     batch_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)

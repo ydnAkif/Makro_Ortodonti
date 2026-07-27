@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
+
+from flask import abort
 
 from app.extensions import db
-from app.models.models import Makbuz, Party, PartyType, TreatmentCategory, WorkOrder
-from app.services.search_service import tr_fold, tr_order
+from app.models.models import Makbuz, Party, PartyType, RATE_SCALE, WorkOrder, money
 from app.services.validation_service import (
     normalize_display_name,
     normalize_optional_text,
     parse_date,
-    parse_float,
+    parse_decimal,
 )
 
 
@@ -36,8 +36,18 @@ class PartyService:
         return db.get_or_404(Party, party_id)
 
     @staticmethod
-    def get_work_order_or_404(wo_id: int) -> WorkOrder:
-        return db.get_or_404(WorkOrder, wo_id)
+    def get_work_order_or_404(party_id: int, wo_id: int) -> WorkOrder:
+        """Fetch a work order and enforce it belongs to party_id.
+
+        Without this check, a caller who supplies a valid wo_id that
+        belongs to a *different* party bypasses that other party's
+        period-lock check (the lock lookups below all key off the URL's
+        party_id, not the work order's real owner).
+        """
+        wo = db.get_or_404(WorkOrder, wo_id)
+        if wo.party_id != party_id:
+            abort(404)
+        return wo
 
     @classmethod
     def create_party(cls, form_data: Dict[str, Any]) -> Party:
@@ -88,9 +98,27 @@ class PartyService:
         db.session.commit()
         return True
 
+    @staticmethod
+    def _parse_work_order_money(form_data: Dict[str, Any]) -> tuple[Decimal, Decimal, Decimal | None]:
+        """Parse apparatus/extra prices and the applied exchange rate.
+
+        Uses parse_decimal (not parse_float) so entered values never make a
+        string->float->Decimal round trip through binary floating point, and
+        rejects negative prices — nothing upstream of this validated that.
+        """
+        apparatus_price = parse_decimal(form_data.get("apparatus_price", "0")) or Decimal("0.00")
+        extra_price = parse_decimal(form_data.get("extra_price", "0")) or Decimal("0.00")
+        if apparatus_price < 0 or extra_price < 0:
+            raise ValueError("Aparey ve ekstra tutarları negatif olamaz.")
+
+        rate = parse_decimal(form_data.get("exchange_rate_applied", ""), scale=str(RATE_SCALE))
+        exchange_rate_applied = rate if rate and rate > 0 else None
+
+        return apparatus_price, extra_price, exchange_rate_applied
+
     @classmethod
     def create_work_order(cls, party_id: int, form_data: Dict[str, Any]) -> WorkOrder:
-        party = cls.get_party_or_404(party_id)
+        cls.get_party_or_404(party_id)
         work_date = parse_date(form_data.get("work_date", ""))
         if not work_date:
             raise ValueError("Geçersiz tarih.")
@@ -98,10 +126,7 @@ class PartyService:
         if cls.is_period_locked(party_id, work_date.year, work_date.month):
             raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri eklenemez.")
 
-        apparatus_price = Decimal(str(parse_float(form_data.get("apparatus_price", "0")) or 0))
-        extra_price = Decimal(str(parse_float(form_data.get("extra_price", "0")) or 0))
-        rate_val = parse_float(form_data.get("exchange_rate_applied", ""))
-        exchange_rate_applied = Decimal(str(rate_val)) if rate_val else None
+        apparatus_price, extra_price, exchange_rate_applied = cls._parse_work_order_money(form_data)
 
         wo = WorkOrder(
             party_id=party_id,
@@ -111,7 +136,7 @@ class PartyService:
             patient_name=normalize_display_name(form_data.get("patient_name", "")),
             apparatus_price=apparatus_price,
             extra_price=extra_price,
-            total_price=apparatus_price + extra_price,
+            total_price=money(apparatus_price + extra_price),
             exchange_rate_applied=exchange_rate_applied,
             notes=normalize_optional_text(form_data.get("notes", "")),
         )
@@ -129,8 +154,8 @@ class PartyService:
 
     @classmethod
     def update_work_order(cls, party_id: int, wo_id: int, form_data: Dict[str, Any]) -> WorkOrder:
-        party = cls.get_party_or_404(party_id)
-        wo = cls.get_work_order_or_404(wo_id)
+        cls.get_party_or_404(party_id)
+        wo = cls.get_work_order_or_404(party_id, wo_id)
 
         work_date = parse_date(form_data.get("work_date", ""))
         if not work_date:
@@ -142,10 +167,7 @@ class PartyService:
         if cls.is_period_locked(party_id, wo.work_date.year, wo.work_date.month):
             raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri düzenlenemez.")
 
-        apparatus_price = Decimal(str(parse_float(form_data.get("apparatus_price", "0")) or 0))
-        extra_price = Decimal(str(parse_float(form_data.get("extra_price", "0")) or 0))
-        rate_val = parse_float(form_data.get("exchange_rate_applied", ""))
-        exchange_rate_applied = Decimal(str(rate_val)) if rate_val else None
+        apparatus_price, extra_price, exchange_rate_applied = cls._parse_work_order_money(form_data)
 
         wo.work_date = work_date
         wo.apparatus_type = str(form_data.get("apparatus_type", "")).strip()
@@ -153,7 +175,7 @@ class PartyService:
         wo.patient_name = normalize_display_name(form_data.get("patient_name", ""))
         wo.apparatus_price = apparatus_price
         wo.extra_price = extra_price
-        wo.total_price = apparatus_price + extra_price
+        wo.total_price = money(apparatus_price + extra_price)
         wo.exchange_rate_applied = exchange_rate_applied
         wo.notes = normalize_optional_text(form_data.get("notes", ""))
 
@@ -162,7 +184,7 @@ class PartyService:
 
     @classmethod
     def delete_work_order(cls, party_id: int, wo_id: int) -> bool:
-        wo = cls.get_work_order_or_404(wo_id)
+        wo = cls.get_work_order_or_404(party_id, wo_id)
         if cls.is_period_locked(party_id, wo.work_date.year, wo.work_date.month):
             raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri silinemez.")
 

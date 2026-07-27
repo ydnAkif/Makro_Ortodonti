@@ -12,12 +12,11 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-import pytest
 
 from app.extensions import db
 from app.models.models import (
     ExchangeRate, Invoice, InvoiceItem, InvoiceItemType, Makbuz, Party, PartyType,
-    Treatment, TreatmentCategory, WorkOrder, money,
+    Treatment, TreatmentCategory, WorkOrder,
 )
 from conftest import login
 
@@ -67,6 +66,62 @@ class TestPermissionBoundary:
         login(client, "staff", "staff-pass")
         res = client.get("/makbuzlar/")
         assert res.status_code == 200
+
+    def test_staff_cannot_delete_payment_entry(self, client, app):
+        """billing.delete_payment admin'e özeldir — staff'ın billing.edit
+        yetkisi olması bu tekil, geri dönüşü olmayan silme işlemini kapsamaz."""
+        from app.services.makbuz_account_service import record_payment
+        from app.models.models import Makbuz, Party, PartyType
+
+        party_id = _make_dentist(app, name="Dr. Payment Delete Perm")
+        with app.app_context():
+            party = db.session.get(Party, party_id)
+            makbuz = Makbuz(
+                party_id=party.id, year=date.today().year, month=date.today().month,
+                status=Makbuz.STATUS_SENT, work_order_count=1,
+                subtotal=Decimal("100.00"), grand_total=Decimal("100.00"),
+                sent_at=date.today(),
+            )
+            db.session.add(makbuz)
+            db.session.flush()
+            record_payment(makbuz, payment_date=date.today(), amount=Decimal("50.00"), method="cash")
+            db.session.commit()
+            entry_id = makbuz.payment_entries[0].id
+
+        login(client, "staff", "staff-pass")
+        res = client.post(f"/payments/entries/{entry_id}/delete", follow_redirects=True)
+        assert res.status_code == 200
+        assert "yetkiniz bulunmuyor".encode() in res.data
+
+        with app.app_context():
+            from app.models.models import MakbuzPayment
+            assert db.session.get(MakbuzPayment, entry_id) is not None
+
+    def test_staff_cannot_unmark_paid(self, client, app):
+        """billing.cancel_makbuz admin'e özeldir — staff bir makbuzun
+        ödendi durumunu geri alıp tahsilat geçmişini silemez."""
+        from app.models.models import Makbuz, Party
+
+        party_id = _make_dentist(app, name="Dr. Unmark Perm")
+        with app.app_context():
+            party = db.session.get(Party, party_id)
+            makbuz = Makbuz(
+                party_id=party.id, year=date.today().year, month=date.today().month,
+                status=Makbuz.STATUS_PAID, work_order_count=1,
+                subtotal=Decimal("100.00"), grand_total=Decimal("100.00"),
+                paid_at=date.today(), paid_amount=Decimal("100.00"),
+            )
+            db.session.add(makbuz)
+            db.session.commit()
+            makbuz_id = makbuz.id
+
+        login(client, "staff", "staff-pass")
+        res = client.post(f"/payments/{makbuz_id}/unmark-paid", follow_redirects=True)
+        assert res.status_code == 200
+        assert "yetkiniz bulunmuyor".encode() in res.data
+
+        with app.app_context():
+            assert db.session.get(Makbuz, makbuz_id).status == Makbuz.STATUS_PAID
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +249,7 @@ class TestCategoryFallback:
             db.session.add(t)
             db.session.flush()
 
-            from app.models.models import Invoice, InvoiceItem, INVOICE_CATEGORY_LABELS, invoice_item_category_key
+            from app.models.models import INVOICE_CATEGORY_LABELS, invoice_item_category_key
             inv = Invoice(
                 invoice_number="CAT-FALLBACK-001",
                 invoice_date=date.today(),
@@ -228,7 +283,7 @@ class TestCategoryFallback:
 
     def test_invoice_category_label_for_other(self, app):
         """OTHER category_key için label 'Diğer' olmalı."""
-        from app.models.models import INVOICE_CATEGORY_LABELS, TreatmentCategory
+        from app.models.models import INVOICE_CATEGORY_LABELS
         assert INVOICE_CATEGORY_LABELS.get(TreatmentCategory.OTHER) == "Diğer"
 
 
@@ -275,3 +330,37 @@ class TestVatRateBoundary:
             makbuz.recalculate_totals()
             assert makbuz.vat_amount == Decimal("100.00")
             assert makbuz.grand_total == Decimal("300.00")
+
+    def test_absurd_vat_rate_is_clamped_via_route(self, client, app):
+        """A vat_rate above 100 submitted through the generate form must not
+        flow through unclamped into recalculate_totals()."""
+        from conftest import login
+        from app.models.models import WorkOrder
+
+        login(client, "admin", "admin-pass")
+        with app.app_context():
+            party = Party(party_type=PartyType.DENTIST, name="Dr. Vat Absurd", is_active=True)
+            db.session.add(party)
+            db.session.flush()
+            wo = WorkOrder(
+                party_id=party.id, work_date=date(2026, 8, 10), apparatus_type="Nance",
+                patient_name="Test", apparatus_price=Decimal("1000.00"),
+                extra_price=Decimal("0.00"), total_price=Decimal("1000.00"),
+            )
+            db.session.add(wo)
+            db.session.commit()
+            party_id = party.id
+
+        client.post(
+            f"/makbuzlar/{party_id}/generate",
+            data={"year": 2026, "month": 8, "vat_applied": "on", "vat_rate": "999999"},
+            follow_redirects=False,
+        )
+
+        with app.app_context():
+            makbuz = db.session.execute(
+                db.select(Makbuz).where(Makbuz.party_id == party_id, Makbuz.year == 2026, Makbuz.month == 8)
+            ).scalar_one()
+            assert makbuz.vat_rate == Decimal("0.00")
+            assert makbuz.vat_amount == Decimal("0.00")
+            assert makbuz.grand_total == Decimal("1000.00")

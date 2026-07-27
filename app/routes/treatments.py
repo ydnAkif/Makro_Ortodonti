@@ -1,3 +1,6 @@
+import logging
+from zipfile import BadZipFile
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required
 import io
@@ -7,8 +10,11 @@ from app.models.models import Treatment, TreatmentCategory
 from app.authz import permissions_required
 from app.services.validation_service import (
     TREATMENT_CATEGORY_ALIASES,
+    neutralize_formula_prefix,
     normalize_treatment_fields,
 )
+
+logger = logging.getLogger(__name__)
 
 treatments_bp = Blueprint("treatments", __name__)
 
@@ -174,8 +180,8 @@ def import_treatments():
 
                 try:
                     name, description, category, price, currency = normalize_treatment_fields(
-                        row[0],
-                        row[3] if len(row) > 3 else None,
+                        neutralize_formula_prefix(row[0]),
+                        neutralize_formula_prefix(row[3] if len(row) > 3 else None),
                         row[1] if len(row) > 1 else "other",
                         row[2] if len(row) > 2 else None,
                         row[4] if len(row) > 4 else None,
@@ -218,8 +224,15 @@ def import_treatments():
                 parts.append(f"{skipped} atlandı")
 
             flash(f"İçe aktarma tamamlandı: {', '.join(parts) if parts else 'Değişiklik yok'}.", "success")
-        except Exception as e:
-            flash(f"İçe aktarma hatası: {str(e)}", "danger")
+        except (KeyError, IndexError, OSError, BadZipFile) as exc:
+            db.session.rollback()
+            logger.warning("İşlem içe aktarma: dosya okunamadı: %s", exc)
+            flash("Dosya okunamadı. Geçerli bir .xlsx dosyası olduğundan ve beklenen sütun düzenine "
+                  "sahip olduğundan emin olun.", "danger")
+        except Exception:
+            db.session.rollback()
+            logger.exception("İşlem içe aktarma sırasında beklenmeyen hata")
+            flash("İçe aktarma sırasında beklenmeyen bir hata oluştu.", "danger")
 
         return redirect(url_for("treatments.list_treatments"))
 

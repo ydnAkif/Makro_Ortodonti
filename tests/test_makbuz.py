@@ -6,7 +6,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Makbuz, MakbuzPayment, Settings
+from app.models.models import Party, PartyType, WorkOrder, Makbuz, MakbuzPayment
 
 from conftest import login
 

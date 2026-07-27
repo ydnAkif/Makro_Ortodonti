@@ -1,7 +1,6 @@
 import os
 
 from fpdf import FPDF
-from fpdf.enums import XPos, YPos
 
 FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "fonts")
 FONT_PATH = os.path.join(FONT_DIR, "DejaVuSans.ttf")

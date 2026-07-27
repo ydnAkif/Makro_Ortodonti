@@ -32,6 +32,7 @@
     --sky-500: #35afd0;
     --coral-500: #e27c67;
     --amber-500: #d8a03b;
+    --warning-text-500: #8b641b;
     --success-500: #176a4a;
     --danger-500: #cf5b62;
     --report-invoice: #39758c;
@@ -51,39 +52,71 @@
     --bs-border-color: var(--line);
 }
 
-/* ── Dark Mode Theme Token Overrides ────────────────────────── */
+/* ── Dark Mode Theme Token Overrides ─────────────────────────────
+   Single source of truth for both the system-preference media query and
+   the explicit data-bs-theme="dark" toggle (app.js). These used to be two
+   separate blocks with slightly different values; because a later rule of
+   equal specificity always wins, the first one was silently dead weight,
+   and semantic status colors (success/danger/warning/coral/sky/report-*)
+   had no dark-mode value at all — rendering at their light-mode hex
+   directly on the dark canvas with poor contrast. Fixed by consolidating
+   into one canonical set of neutral tokens and adding brightened variants
+   for every semantic color actually used via var(--*) throughout the
+   sheet (see the .text-*/.bg-* rules further down). */
 @media (prefers-color-scheme: dark) {
     :root:not([data-bs-theme="light"]) {
-        --ink-950: #f0f5f7;
-        --ink-800: #d0dde2;
-        --ink-600: #8ea8b3;
-        --ink-400: #6b8996;
+        --ink-950: #e8ecef;
+        --ink-800: #c2d0d6;
+        --ink-600: #8da3ac;
+        --ink-400: #6e8792;
         --canvas: #0c1a20;
-        --surface: #142730;
-        --surface-raised: #1a313d;
+        --surface: #142831;
+        --surface-raised: #1a323d;
         --line: #223f4c;
-        --line-strong: #2c5162;
-        --aqua-100: #19444b;
+        --line-strong: #2e5565;
+        --aqua-100: rgba(57, 191, 179, .12);
+        --sky-500: #5ec4e0;
+        --coral-500: #ef9a80;
+        --amber-500: #e8b968;
+        --warning-text-500: #e8b968;
+        --success-500: #4fae7c;
+        --danger-500: #e8848a;
+        --report-invoice: #5b98ae;
+        --report-collected: #4aa886;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, .25);
+        --shadow-md: 0 18px 45px rgba(0, 0, 0, .35);
         --bs-body-color: var(--ink-950);
         --bs-body-bg: var(--canvas);
         --bs-border-color: var(--line);
+        color-scheme: dark;
     }
 }
 
 [data-bs-theme="dark"] {
-    --ink-950: #f0f5f7;
-    --ink-800: #d0dde2;
-    --ink-600: #8ea8b3;
-    --ink-400: #6b8996;
+    --ink-950: #e8ecef;
+    --ink-800: #c2d0d6;
+    --ink-600: #8da3ac;
+    --ink-400: #6e8792;
     --canvas: #0c1a20;
-    --surface: #142730;
-    --surface-raised: #1a313d;
+    --surface: #142831;
+    --surface-raised: #1a323d;
     --line: #223f4c;
-    --line-strong: #2c5162;
-    --aqua-100: #19444b;
+    --line-strong: #2e5565;
+    --aqua-100: rgba(57, 191, 179, .12);
+    --sky-500: #5ec4e0;
+    --coral-500: #ef9a80;
+    --amber-500: #e8b968;
+    --warning-text-500: #e8b968;
+    --success-500: #4fae7c;
+    --danger-500: #e8848a;
+    --report-invoice: #5b98ae;
+    --report-collected: #4aa886;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .25);
+    --shadow-md: 0 18px 45px rgba(0, 0, 0, .35);
     --bs-body-color: var(--ink-950);
     --bs-body-bg: var(--canvas);
     --bs-border-color: var(--line);
+    color-scheme: dark;
 }
 
 /* ── Mobile Shell & Form Actions Bottom Padding ──────────────── */
@@ -1288,7 +1321,7 @@ textarea.form-control {
 }
 
 .alert-warning {
-    color: #8b641b;
+    color: var(--warning-text-500);
     background: color-mix(in srgb, var(--amber-500) 10%, var(--surface));
 }
 
@@ -2617,25 +2650,11 @@ textarea.form-control {
     }
 }
 
-/* ── Dark mode ────────────────────────────────────────────────── */
-[data-bs-theme="dark"] {
-    --ink-950: #e8ecef;
-    --ink-800: #c2d0d6;
-    --ink-600: #8da3ac;
-    --ink-400: #6e8792;
-    --canvas: #0c1a20;
-    --surface: #142831;
-    --surface-raised: #1a323d;
-    --line: #223f4c;
-    --line-strong: #2e5565;
-    --aqua-100: rgba(57, 191, 179, .12);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .25);
-    --shadow-md: 0 18px 45px rgba(0, 0, 0, .35);
-    --bs-body-bg: var(--surface);
-    --bs-body-color: var(--ink-950);
-    --bs-border-color: var(--line);
-    color-scheme: dark;
-}
+/* ── Dark mode component overrides ───────────────────────────────
+   Token values themselves live in the single [data-bs-theme="dark"] block
+   near the top of this file (with the prefers-color-scheme media query) —
+   this section only carries component-level rules that need more than a
+   token swap. */
 
 [data-bs-theme="dark"] body {
     background: var(--canvas);
@@ -2824,6 +2843,30 @@ textarea.form-control {
     background: var(--aqua-100);
     color: var(--aqua-700);
     font-size: 1.6rem;
+}
+
+/* ── Work-order mobile cards (parties/detail.html) ────────────────
+   Below md, the work-order table (table-responsive d-none d-md-block)
+   is replaced by this stacked-card list instead of being invisible. */
+.work-order-cards {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: .85rem;
+}
+
+.work-order-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised, var(--surface));
+    padding: .9rem 1rem;
+}
+
+/* ── Report trend chart (reports/index.html, Chart.js) ───────────── */
+.trend-chart-wrap {
+    position: relative;
+    height: 220px;
+    margin-bottom: 1.25rem;
 }
 
 .empty-state-card h5 {

@@ -154,3 +154,22 @@ def parse_enum(enum_class: type[Enum], val: str) -> Enum | None:
             return enum_class[val_clean]
     except (ValueError, KeyError, TypeError):
         return None
+
+def neutralize_formula_prefix(value: object) -> object:
+    """Defuse a leading '=' in free-text imported from Excel.
+
+    A cell value starting with '=' is interpreted as a formula by every
+    major spreadsheet application, so if this text is ever re-exported to
+    Excel/CSV later, an imported name/note could execute arbitrary
+    formulas for whoever opens that export ("CSV/Excel injection"). Only
+    guards '=' — not '+'/'-'/'@' — because those are also legitimate
+    leading characters for real data this app imports (e.g. phone numbers
+    starting with '+'), and callers should only apply this to genuinely
+    free-text fields (name, notes, address, description), not phone/email.
+
+    Non-string cell values (numbers, None, etc., as openpyxl can hand
+    back for any column) pass through unchanged rather than raising.
+    """
+    if isinstance(value, str) and value.startswith("="):
+        return "'" + value
+    return value

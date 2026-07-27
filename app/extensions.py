@@ -15,6 +15,11 @@ def configure_sqlite_connection(dbapi_connection, _connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=5000")
+        # WAL lets readers (web requests) proceed while the WhatsApp/backup
+        # background threads hold a write transaction, instead of blocking
+        # on the default rollback-journal's single-writer-excludes-all-readers
+        # behavior. No-op for :memory: databases used in tests.
+        cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 
 db = SQLAlchemy()

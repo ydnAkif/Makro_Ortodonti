@@ -82,6 +82,11 @@ def upgrade():
 
     if "invoice_items" in inspector.get_table_names():
         op.execute("UPDATE invoice_items SET treatment_id = NULL WHERE treatment_id IS NOT NULL")
+    # patient_treatments.treatment_id is NOT NULL, so it can't be nulled out like
+    # invoice_items above. Every row references a treatment about to be replaced,
+    # so it must be removed first or PRAGMA foreign_keys=ON aborts this migration.
+    if "patient_treatments" in inspector.get_table_names():
+        op.execute("DELETE FROM patient_treatments")
     op.execute("DELETE FROM treatments")
 
     treatments_table = sa.table(

@@ -18,7 +18,11 @@ def seed_db_command():
     click.echo("Initializing database tables...")
     init_db()
     click.echo("Seeding catalog and sample data...")
-    seed_sample_data()
+    generated_password = seed_sample_data()
+    if generated_password:
+        click.echo("=" * 60)
+        click.echo(f"  Admin şifresi (bir daha gösterilmeyecek): {generated_password}")
+        click.echo("=" * 60)
     migrated = migrate_patients_to_parties()
     linked = link_invoices_to_parties()
     if migrated:

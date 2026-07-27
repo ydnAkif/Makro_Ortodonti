@@ -315,6 +315,39 @@ endblock %} {% block content %}
           </noscript>
         </form>
 
+        <hr class="my-3" />
+
+        <!-- Payment reminder toggle -->
+        <form
+          method="POST"
+          action="{{ url_for('whatsapp.payment_reminder_toggle') }}"
+          class="d-flex align-items-start justify-content-between gap-3"
+        >
+          <div class="form-check form-switch mb-0">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              id="wa-payment-reminder"
+              name="enabled"
+              onchange="this.form.submit()"
+              {% if payment_reminder_on %}checked{% endif %}
+            />
+            <label class="form-check-label" for="wa-payment-reminder">
+              <strong>Ödeme hatırlatıcı</strong>
+              <span class="d-block small text-muted">
+                Gönderildikten sonra 15+ gündür ödenmemiş makbuzlar için günde bir kez
+                (en fazla 7 günde bir tekrar) otomatik WhatsApp hatırlatması gönderir.
+              </span>
+            </label>
+          </div>
+          <noscript>
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+              Kaydet
+            </button>
+          </noscript>
+        </form>
+
         {% if send_history %}
         <hr class="my-3" />
 

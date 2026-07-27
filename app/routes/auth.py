@@ -48,7 +48,7 @@ def login():
         failed_count = db.session.execute(
             db.select(db.func.count(LoginAttempt.id)).where(
                 db.or_(LoginAttempt.ip_address == ip_address, LoginAttempt.username == username),
-                LoginAttempt.is_successful == False,
+                LoginAttempt.is_successful.is_(False),
                 LoginAttempt.created_at >= lockout_time
             )
         ).scalar() or 0

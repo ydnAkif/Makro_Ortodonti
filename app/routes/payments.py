@@ -189,7 +189,7 @@ def mark_paid(makbuz_id):
 
 @payments_bp.route("/<int:makbuz_id>/unmark-paid", methods=["POST"])
 @login_required
-@permissions_required("billing.edit")
+@permissions_required("billing.cancel_makbuz")
 def unmark_paid(makbuz_id):
     makbuz = db.get_or_404(Makbuz, makbuz_id)
     for entry in list(makbuz.payment_entries):
@@ -206,7 +206,7 @@ def unmark_paid(makbuz_id):
 
 @payments_bp.route("/entries/<int:payment_id>/delete", methods=["POST"])
 @login_required
-@permissions_required("billing.edit")
+@permissions_required("billing.delete_payment")
 def delete_payment(payment_id):
     payment = db.get_or_404(MakbuzPayment, payment_id)
     makbuz = payment.makbuz

@@ -8,10 +8,12 @@ ait iş emirlerinden güncellenen makbuzları WhatsApp gönderim kuyruğuna veri
 
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from apscheduler.schedulers.background import BackgroundScheduler
+
+from app.constants import MONTH_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,9 @@ _scheduler: BackgroundScheduler | None = None
 SETTINGS_KEY = "makbuz_auto_run_date"
 AUTO_SEND_RUN_KEY = "makbuz_auto_send_run_date"
 AUTO_SEND_TOGGLE_KEY = "whatsapp_auto_send_makbuz"
+PAYMENT_REMINDER_TOGGLE_KEY = "whatsapp_payment_reminders"
+REMINDER_THRESHOLD_DAYS = 15  # makbuz "sent" bu kadar gündür ödenmemişse hatırlatılır
+REMINDER_COOLDOWN_DAYS = 7  # aynı makbuz için en erken bu kadar gün sonra tekrar hatırlat
 
 
 def _previous_month(today: date) -> tuple[int, int]:
@@ -62,6 +67,17 @@ def auto_send_enabled() -> bool:
 
     value = db.session.execute(
         db.select(Settings.value).where(Settings.key == AUTO_SEND_TOGGLE_KEY)
+    ).scalar_one_or_none()
+    return value == "true"
+
+
+def payment_reminders_enabled() -> bool:
+    """Read the overdue-payment-reminder toggle from Settings (default: off)."""
+    from app.extensions import db
+    from app.models.models import Settings
+
+    value = db.session.execute(
+        db.select(Settings.value).where(Settings.key == PAYMENT_REMINDER_TOGGLE_KEY)
     ).scalar_one_or_none()
     return value == "true"
 
@@ -189,6 +205,90 @@ def _auto_send_monthly_makbuzlar(app) -> None:
             logger.warning("Otomatik makbuz gönderimi başlatılamadı: %s", message)
 
 
+def _send_payment_reminders(app) -> None:
+    """Vadesi geçmiş (gönderilmiş, ödenmemiş, eşik gün sayısını aşan) makbuzlar
+    için WhatsApp üzerinden tek satırlık hatırlatma gönderir. Ayar kapalıysa
+    veya WhatsApp bağlı değilse hiçbir şey yapmaz. Aynı makbuza
+    REMINDER_COOLDOWN_DAYS içinde ikinci bir hatırlatma göndermez —
+    MakbuzSendLog geçmişine bakarak kontrol eder, ayrı bir tabloya gerek yok.
+    """
+    with app.app_context():
+        if not payment_reminders_enabled():
+            return
+
+        from app.services.whatsapp_service import WhatsAppService
+
+        if not WhatsAppService.get_status()["connected"]:
+            logger.info("Ödeme hatırlatıcı atlandı: WhatsApp bağlı değil.")
+            return
+
+        import time as time_module
+
+        from app.extensions import db
+        from app.models.models import Makbuz, MakbuzSendLog, Party
+
+        today = date.today()
+        threshold_datetime = datetime.now() - timedelta(days=REMINDER_THRESHOLD_DAYS)
+        cooldown_cutoff = datetime.now() - timedelta(days=REMINDER_COOLDOWN_DAYS)
+
+        candidates = db.session.execute(
+            db.select(Makbuz)
+            .join(Party, Makbuz.party_id == Party.id)
+            .where(
+                Makbuz.status == Makbuz.STATUS_SENT,
+                Makbuz.sent_at.isnot(None),
+                Makbuz.sent_at <= threshold_datetime,
+                Party.is_active.is_(True),
+                Party.phone.isnot(None),
+                Party.phone != "",
+            )
+        ).scalars().all()
+
+        sent_count = 0
+        for makbuz in candidates:
+            if makbuz.outstanding_amount <= 0:
+                continue
+
+            already_reminded = db.session.execute(
+                db.select(MakbuzSendLog.id).where(
+                    MakbuzSendLog.makbuz_id == makbuz.id,
+                    MakbuzSendLog.triggered_by == MakbuzSendLog.TRIGGER_REMINDER,
+                    MakbuzSendLog.created_at >= cooldown_cutoff,
+                ).limit(1)
+            ).scalar_one_or_none()
+            if already_reminded is not None:
+                continue
+
+            party = makbuz.party
+            message = (
+                f"Sayın {party.display_name}, {MONTH_NAMES[makbuz.month]} {makbuz.year} dönemine ait "
+                f"₺{makbuz.outstanding_amount:,.2f} tutarındaki bakiyeniz henüz tahsil edilmemiş görünüyor. "
+                "Bilginize sunarız."
+            )
+            result = WhatsAppService.send_message(party.phone, message)
+            db.session.add(MakbuzSendLog(
+                batch_id=f"reminder-{today.isoformat()}",
+                makbuz_id=makbuz.id,
+                party_id=makbuz.party_id,
+                doctor_name=party.display_name,
+                phone=party.phone,
+                year=makbuz.year,
+                month=makbuz.month,
+                success=result["success"],
+                message=result["message"],
+                triggered_by=MakbuzSendLog.TRIGGER_REMINDER,
+            ))
+            db.session.commit()
+            if result["success"]:
+                sent_count += 1
+            time_module.sleep(3)
+
+        logger.info(
+            "Ödeme hatırlatıcı tamamlandı: %s makbuz kontrol edildi, %s hatırlatma gönderildi.",
+            len(candidates), sent_count,
+        )
+
+
 def _purge_old_login_attempts(app) -> None:
     """30 günden eski LoginAttempt kayıtlarını siler (tablo büyümesini önler)."""
     with app.app_context():
@@ -263,6 +363,16 @@ def init_scheduler(app) -> None:
         replace_existing=True,
     )
 
+    scheduler.add_job(
+        _send_payment_reminders,
+        trigger="cron",
+        hour=10,
+        minute=0,
+        args=[app],
+        id="daily_payment_reminders",
+        replace_existing=True,
+    )
+
     from app.services.backup_service import scheduled_backup
     scheduler.add_job(
         scheduled_backup,
@@ -302,6 +412,7 @@ def init_scheduler(app) -> None:
     _scheduler = scheduler
     logger.info(
         "Zamanlayıcı başlatıldı: ayın 1'i 06:00 taslaklar, "
-        "09:30 otomatik gönderim (ayar açıksa), her gece 02:00 yedekleme, "
+        "09:30 otomatik gönderim (ayar açıksa), her gün 10:00 ödeme hatırlatıcı "
+        "(ayar açıksa), her gece 02:00 yedekleme, "
         "Pazar 03:00 login kayıtları temizliği, ayın 1'i 03:30 audit log temizliği."
     )

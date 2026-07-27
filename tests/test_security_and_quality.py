@@ -10,7 +10,6 @@ These tests complement the existing suites with:
 """
 from __future__ import annotations
 
-import json
 import pytest
 from datetime import date
 from unittest.mock import patch
@@ -22,7 +21,7 @@ from app.config import DEFAULT_DEV_SECRET, PLACEHOLDER_SECRET
 from app.extensions import db
 from app.models.base import Base
 from app.models.models import (
-    ExchangeRate, Party, PartyType, Settings, Treatment, User,
+    ExchangeRate, Party, PartyType, User,
 )
 from app.models.invoice_service import InvoiceService
 from conftest import login

@@ -1,0 +1,15 @@
+{# Shared rendering for apparatus_type/extra_addons columns, which store
+   either a JSON array (["Nance", "TPA"]) or a legacy plain string ("Nance").
+   Previously re-implemented with the same 4-line Jinja conditional in three
+   separate places in parties/detail.html and once each in
+   makbuzlar/detail.html and work_orders/list.html. #}
+{% macro badge_list(raw_value, fallback_class="badge badge-soft-aqua") %}
+{%- set items = raw_value|fromjson -%}
+{%- if items|length > 0 -%}
+  {%- for item in items -%}
+  <span class="badge badge-soft-aqua me-1">{{ item.name if item is mapping else item }}</span>
+  {%- endfor -%}
+{%- else -%}
+  <span class="{{ fallback_class }}">{{ raw_value }}</span>
+{%- endif -%}
+{% endmacro %}

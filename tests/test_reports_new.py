@@ -5,11 +5,10 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import json
-import pytest
 
 from app.extensions import db
 from app.models.models import (
-    ExchangeRate, Makbuz, MakbuzPayment, Party, PartyType, WorkOrder,
+    Makbuz, Party, PartyType, WorkOrder,
 )
 from conftest import login
 

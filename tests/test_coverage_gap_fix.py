@@ -9,8 +9,8 @@ import pytest
 
 from app.extensions import db
 from app.models.models import (
-    AuditLog, LoginAttempt, Makbuz, MakbuzPayment, Party, PartyType,
-    WorkOrder, ExchangeRate, Settings, User,
+    LoginAttempt, Makbuz, MakbuzPayment, Party, PartyType,
+    ExchangeRate,
 )
 from conftest import login
 
@@ -130,7 +130,6 @@ class TestDeletePayment:
             db.session.flush()
             record_payment(makbuz, payment_date=date.today(), amount=Decimal("50.00"), method="cash")
             db.session.commit()
-            makbuz_id = makbuz.id
             entry_id = makbuz.payment_entries[0].id
 
         response = client.post(
@@ -364,7 +363,7 @@ class TestExchangeServiceBranches:
                     assert rate == Decimal("41.0")
 
     def test_ensure_daily_rate_double_check_lock(self, app):
-        from app.services.exchange_service import ensure_daily_rate, _auto_check_lock
+        from app.services.exchange_service import ensure_daily_rate
         import app.services.exchange_service as es
 
         with app.app_context():
@@ -445,7 +444,6 @@ class TestInjectGlobalsErrorPaths:
             assert response.status_code == 200
 
     def test_rate_health_error(self, client, app):
-        from app.services.exchange_service import get_rate_health
 
         login(client, "admin", "admin-pass")
         with patch("app.services.exchange_service.get_rate_health", side_effect=Exception("boom")):

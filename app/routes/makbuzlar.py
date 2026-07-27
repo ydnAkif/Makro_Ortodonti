@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models.models import WorkOrder, Party, Makbuz, MakbuzPayment, MakbuzSendLog, money
+from app.models.models import WorkOrder, Party, Makbuz, MakbuzSendLog
 from app.authz import permissions_required
 from sqlalchemy import extract
 from app.services.validation_service import parse_date
@@ -46,7 +46,7 @@ def _parse_vat_form(prefix: str = "") -> tuple[bool, Decimal]:
         vat_rate = Decimal(str(request.form.get(f"{prefix}vat_rate", "0") or "0").replace(",", "."))
     except InvalidOperation:
         vat_rate = Decimal("0")
-    if vat_rate < 0:
+    if vat_rate < 0 or vat_rate > 100:
         vat_rate = Decimal("0")
     return vat_applied, vat_rate
 
@@ -79,18 +79,16 @@ def list_makbuzlar():
 def export_makbuzlar_pdf():
     """PDF export for makbuz summary list."""
     from flask import Response
-    from app.models.models import Settings
     from app.services.reports_pdf_service import generate_makbuz_list_pdf
+    from app.services.settings_service import get_clinic_identity
 
     data = resolve_makbuzlar_query(request.args)
-    clinic_name = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_name")).scalar_one_or_none() or "Makro Ortodonti"
-    clinic_phone = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_phone")).scalar_one_or_none() or ""
-    clinic_email = db.session.execute(db.select(Settings.value).where(Settings.key == "clinic_email")).scalar_one_or_none() or ""
+    clinic = get_clinic_identity()
 
     pdf_bytes = generate_makbuz_list_pdf(
-        clinic_name=clinic_name,
-        clinic_phone=clinic_phone,
-        clinic_email=clinic_email,
+        clinic_name=clinic["clinic_name"],
+        clinic_phone=clinic["clinic_phone"],
+        clinic_email=clinic["clinic_email"],
         period_label=data["period_label"],
         doctors=data["doctors"],
         grand_total_price=data["grand_total_price"],

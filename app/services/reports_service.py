@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -10,29 +11,26 @@ from decimal import Decimal
 from typing import Any
 
 from flask import has_app_context
-from sqlalchemy import extract
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models.models import (
-    INVOICE_CATEGORY_LABELS,
     ExchangeRate,
     Invoice,
     InvoiceItem,
-    InvoiceItemType,
     Makbuz,
-    MakbuzPayment,
     Party,
     PartyType,
     Payment,
     TreatmentCategory,
     WorkOrder,
-    invoice_item_category_key,
     money,
 )
 from app.services.exchange_service import get_rate_for_date
 
 from app.constants import MONTH_NAMES
+
+logger = logging.getLogger(__name__)
 
 VAT_RATES = [
     (Decimal("0"), "%0 (Muaf)"),
@@ -43,12 +41,26 @@ VAT_RATES = [
 
 
 def _resolve_rate(work_date: date, applied: Decimal | None) -> Decimal:
-    """Return the effective EUR→TRY rate for a work order."""
+    """Return the effective EUR→TRY rate for a work order.
+
+    Falls back to 1:1 only when no rate can be found at all (no rate
+    recorded on the work order and no ExchangeRate row on or before its
+    date). That fallback silently understates TRY figures reported as EUR,
+    so it's logged loudly rather than swallowed — this should never
+    actually fire once the exchange-rate cron/auto-fetch is running.
+    """
     rate = applied if applied and applied > 0 else None
     if not rate:
         obj = get_rate_for_date(work_date)
         rate = obj.eur_to_try if obj else None
-    return rate if rate and rate > 0 else Decimal("1")
+    if rate and rate > 0:
+        return rate
+    logger.warning(
+        "Kur bulunamadı, %s tarihli iş emri için 1:1 varsayılan kur kullanılıyor "
+        "— rapor tutarları yanlış olabilir.",
+        work_date,
+    )
+    return Decimal("1")
 
 
 def _parse_wo_items(raw: str | None) -> list[dict]:
@@ -634,7 +646,7 @@ def fetch_report_data(start_date: date, end_date: date) -> dict[str, Any]:
         .options(selectinload(Invoice.items).selectinload(InvoiceItem.treatment))
         .where(
             Invoice.invoice_date.between(start_date, end_date),
-            Invoice.is_deleted == False,
+            Invoice.is_deleted.is_(False),
             Invoice.status != Invoice.STATUS_CANCELLED,
         )
     ).scalars().all()
@@ -644,7 +656,7 @@ def fetch_report_data(start_date: date, end_date: date) -> dict[str, Any]:
         .join(Invoice, Payment.invoice_id == Invoice.id)
         .where(
             Payment.payment_date.between(start_date, end_date),
-            Invoice.is_deleted == False,
+            Invoice.is_deleted.is_(False),
             Invoice.status != Invoice.STATUS_CANCELLED,
         )
     ).scalars().all()
@@ -684,7 +696,7 @@ def fetch_report_data(start_date: date, end_date: date) -> dict[str, Any]:
         .options(selectinload(Invoice.payments))
         .where(
             Invoice.invoice_date <= end_date,
-            Invoice.is_deleted == False,
+            Invoice.is_deleted.is_(False),
             Invoice.status != Invoice.STATUS_CANCELLED,
         )
     ).scalars().all()

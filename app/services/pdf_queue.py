@@ -1,6 +1,6 @@
 """Arka plan PDF üretim kuyruğu.
 
-Büyük PDF'ler (çok sayıda makbuz veya iş emri) senkron olarak生成
+Büyük PDF'ler (çok sayıda makbuz veya iş emri) senkron olarak üretim
 yapıldığında HTTP isteğini uzun süre bloke eder. Bu servis, PDF
 üretimini arka plan iş parçacığına taşıyarak istek yanıt süresini
 kısaltır.
@@ -43,6 +43,11 @@ class PdfQueue:
     _lock = threading.Lock()
     _worker_thread: threading.Thread | None = None
     _max_jobs = 50  # en eski tamamlanmış job'ları temizle
+    _app = None
+
+    @classmethod
+    def init_app(cls, app) -> None:
+        cls._app = app
 
     @classmethod
     def submit(cls, fn: Callable, *args: Any, **kwargs: Any) -> str:
@@ -69,6 +74,14 @@ class PdfQueue:
     @classmethod
     def _worker(cls) -> None:
         """Kuyruktaki işleri sırayla çalıştır."""
+        if cls._app is not None:
+            with cls._app.app_context():
+                cls._drain_queue()
+        else:
+            cls._drain_queue()
+
+    @classmethod
+    def _drain_queue(cls) -> None:
         while True:
             item = None
             with cls._lock:

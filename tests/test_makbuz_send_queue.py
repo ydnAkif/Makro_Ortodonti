@@ -6,7 +6,7 @@ WhatsApp/Neonize and PDF generation are always mocked.
 from __future__ import annotations
 
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -590,3 +590,142 @@ class TestStatusIndicators:
         response = client.get("/")
         assert b"wa-connect-banner" not in response.data
         assert b"wa-status-connected" in response.data
+
+
+class TestPaymentReminderScheduler:
+    def _seed_sent_makbuz(self, app, name, phone, sent_days_ago, outstanding=Decimal("1000.00")):
+        with app.app_context():
+            party = Party(party_type=PartyType.DENTIST, name=name, phone=phone)
+            db.session.add(party)
+            db.session.flush()
+            makbuz = Makbuz(
+                party_id=party.id, year=2026, month=6, work_order_count=1,
+                subtotal=outstanding, vat_applied=False, vat_rate=Decimal("0"),
+                status=Makbuz.STATUS_SENT,
+                sent_at=datetime.now() - timedelta(days=sent_days_ago),
+                generated_at=datetime.now().astimezone(),
+            )
+            makbuz.recalculate_totals()
+            db.session.add(makbuz)
+            db.session.commit()
+            return party.id, makbuz.id
+
+    def _enable_reminders(self, app):
+        from app.models.models import Settings
+        from app.services.scheduler_service import PAYMENT_REMINDER_TOGGLE_KEY
+
+        with app.app_context():
+            db.session.add(Settings(key=PAYMENT_REMINDER_TOGGLE_KEY, value="true"))
+            db.session.commit()
+
+    def test_scheduler_registers_daily_reminder_job(self, app):
+        import app.services.scheduler_service as sched
+
+        original_scheduler = sched._scheduler
+        original_testing = app.testing
+        original_debug = app.debug
+        fake_scheduler = MagicMock()
+        try:
+            sched._scheduler = None
+            app.testing = False
+            app.debug = False
+            with patch.object(sched, "BackgroundScheduler", return_value=fake_scheduler):
+                sched.init_scheduler(app)
+
+            reminder_call = next(
+                call for call in fake_scheduler.add_job.call_args_list
+                if call.kwargs["id"] == "daily_payment_reminders"
+            )
+            assert reminder_call.kwargs["hour"] == 10
+            assert reminder_call.kwargs["minute"] == 0
+        finally:
+            sched._scheduler = original_scheduler
+            app.testing = original_testing
+            app.debug = original_debug
+
+    def test_sends_reminder_for_overdue_unpaid_makbuz(self, app):
+        import app.services.scheduler_service as sched
+
+        _, makbuz_id = self._seed_sent_makbuz(app, "Dr. Gecikmiş", "+905551119001", sent_days_ago=20)
+        self._enable_reminders(app)
+        WhatsAppService._connected = True
+
+        with patch.object(
+            WhatsAppService, "send_message", return_value={"success": True, "message": "ok"}
+        ) as mock_send:
+            sched._send_payment_reminders(app)
+
+        mock_send.assert_called_once()
+        with app.app_context():
+            log = db.session.execute(
+                db.select(MakbuzSendLog).where(MakbuzSendLog.makbuz_id == makbuz_id)
+            ).scalar_one()
+            assert log.triggered_by == MakbuzSendLog.TRIGGER_REMINDER
+            assert log.success is True
+
+    def test_no_reminder_before_threshold(self, app):
+        import app.services.scheduler_service as sched
+
+        self._seed_sent_makbuz(app, "Dr. Yeni Gönderilmiş", "+905551119002", sent_days_ago=3)
+        self._enable_reminders(app)
+        WhatsAppService._connected = True
+
+        with patch.object(WhatsAppService, "send_message") as mock_send:
+            sched._send_payment_reminders(app)
+        mock_send.assert_not_called()
+
+    def test_no_reminder_when_disabled(self, app):
+        import app.services.scheduler_service as sched
+
+        self._seed_sent_makbuz(app, "Dr. Ayar Kapali", "+905551119003", sent_days_ago=20)
+        WhatsAppService._connected = True
+
+        with patch.object(WhatsAppService, "send_message") as mock_send:
+            sched._send_payment_reminders(app)
+        mock_send.assert_not_called()
+
+    def test_no_reminder_when_whatsapp_disconnected(self, app):
+        import app.services.scheduler_service as sched
+
+        self._seed_sent_makbuz(app, "Dr. Baglanti Yok", "+905551119004", sent_days_ago=20)
+        self._enable_reminders(app)
+        WhatsAppService._connected = False
+
+        with patch.object(WhatsAppService, "send_message") as mock_send:
+            sched._send_payment_reminders(app)
+        mock_send.assert_not_called()
+
+    def test_no_duplicate_reminder_within_cooldown(self, app):
+        import app.services.scheduler_service as sched
+
+        party_id, makbuz_id = self._seed_sent_makbuz(app, "Dr. Cooldown", "+905551119005", sent_days_ago=20)
+        self._enable_reminders(app)
+        WhatsAppService._connected = True
+
+        with app.app_context():
+            db.session.add(MakbuzSendLog(
+                batch_id="reminder-earlier", makbuz_id=makbuz_id, party_id=party_id,
+                doctor_name="Dr. Cooldown", phone="+905551119005", year=2026, month=6,
+                success=True, triggered_by=MakbuzSendLog.TRIGGER_REMINDER,
+            ))
+            db.session.commit()
+
+        with patch.object(WhatsAppService, "send_message") as mock_send:
+            sched._send_payment_reminders(app)
+        mock_send.assert_not_called()
+
+    def test_no_reminder_for_fully_paid_makbuz(self, app):
+        import app.services.scheduler_service as sched
+
+        _, makbuz_id = self._seed_sent_makbuz(app, "Dr. Odendi", "+905551119006", sent_days_ago=20)
+        self._enable_reminders(app)
+        WhatsAppService._connected = True
+
+        with app.app_context():
+            makbuz = db.session.get(Makbuz, makbuz_id)
+            makbuz.paid_amount = makbuz.grand_total
+            db.session.commit()
+
+        with patch.object(WhatsAppService, "send_message") as mock_send:
+            sched._send_payment_reminders(app)
+        mock_send.assert_not_called()

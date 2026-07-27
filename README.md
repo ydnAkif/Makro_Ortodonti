@@ -84,13 +84,14 @@ export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))
 export ENCRYPTION_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
 export SESSION_COOKIE_SECURE=true
 export FORCE_HSTS=true
-export DATABASE_ENCRYPTION_AT_REST=true
 
 flask db upgrade
 gunicorn --workers 1 --bind 0.0.0.0:8000 "run:app"
 ```
 
 > **Önemli Not:** WhatsApp entegrasyonu nedeniyle Gunicorn `--workers 1` ile çalıştırılmalıdır.
+>
+> **Diskte şifreleme:** Uygulama, SQLite veritabanı dosyasını kendisi şifrelemez (yalnızca SMTP şifresi gibi belirli hassas alanlar `ENCRYPTION_KEY` ile Fernet şifrelenir — bkz. `security_service.py`). KVKK kapsamındaki verinin diskte şifrelenmesi gerekiyorsa işletim sistemi seviyesinde tam disk şifrelemesi (LUKS/FileVault/BitLocker) veya SQLCipher gibi bir çözüm operatör tarafından ayrıca kurulmalıdır.
 
 ---
 

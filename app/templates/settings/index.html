@@ -108,19 +108,49 @@
             {% endif %}
         </div>
     </details>
+    <details class="disclosure-panel" id="api-access">
+        <summary><span><i class="bi bi-key" aria-hidden="true"></i><strong>API Erişimi</strong><small>{% if api_token_configured %}Token tanımlı{% else %}Token yok{% endif %}</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
+        <div class="disclosure-content">
+            <p class="text-muted small">
+                <code>/api/v1/*</code> salt-okunur uçlarına erişim için <code>Authorization: Bearer &lt;token&gt;</code>
+                başlığıyla kullanılacak bir token. Token yalnızca oluşturulduğu anda gösterilir, sonrasında
+                tekrar görüntülenemez — kaybederseniz yenisini oluşturun.
+            </p>
+            <div class="d-flex gap-2">
+                <form method="POST" action="{{ url_for('settings.generate_api_token') }}"
+                      data-confirm="{% if api_token_configured %}Mevcut token geçersiz olacak ve yeni bir token oluşturulacak. Devam edilsin mi?{% endif %}">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                        {% if api_token_configured %}Token'ı Yenile{% else %}Token Oluştur{% endif %}
+                    </button>
+                </form>
+                {% if api_token_configured %}
+                <form method="POST" action="{{ url_for('settings.revoke_api_token') }}"
+                      data-confirm="API token iptal edilecek. Emin misiniz?">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-circle" aria-hidden="true"></i> İptal Et
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </details>
     <details class="disclosure-panel" id="danger-zone">
         <summary><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><strong>Tehlikeli Alan</strong><small>Geri alınamaz işlemler</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
         <div class="disclosure-content">
             <div class="alert alert-danger mb-3">
                 <strong>Dikkat:</strong> Aşağıdaki işlem <strong>geri alınamaz</strong>. Doktor listesi ve işlem kataloğu korunur; tüm iş emirleri, makbuzlar, faturalar, tahsilatlar, döviz kurları ve audit logları <strong>kalıcı olarak silinir</strong>.
             </div>
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div>
                     <strong>Demo verilerini temizle</strong>
                     <p class="text-muted small mb-0">Sistemi canlı kullanıma geçirmeden önce tüm test verilerini siler.</p>
                 </div>
-                <form method="POST" action="{{ url_for('settings.purge_demo_data') }}" class="ms-auto"
+                <form method="POST" action="{{ url_for('settings.purge_demo_data') }}" class="ms-auto d-flex align-items-center gap-2"
                       data-confirm="TÜM iş emirleri, makbuzlar, faturalar, tahsilatlar, döviz kurları ve loglar silinecek. Doktor listesi ve işlem kataloğu korunacak. Bu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?">
+                    <label class="visually-hidden" for="purge-confirm-phrase">Onay için "SİL" yazın</label>
+                    <input type="text" class="form-control form-control-sm" id="purge-confirm-phrase"
+                           name="confirm_phrase" placeholder='Onaylamak için "SİL" yazın' autocomplete="off" style="width:12rem">
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-trash" aria-hidden="true"></i> Verileri temizle
                     </button>

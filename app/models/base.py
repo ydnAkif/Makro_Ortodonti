@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Boolean, event
+from sqlalchemy import DateTime, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

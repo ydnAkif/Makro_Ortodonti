@@ -32,3 +32,24 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    # Several route/service modules intentionally import after the blueprint
+    # or class is defined to avoid circular imports (routes <-> services).
+    "E402",
+]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_ignores = true
+# Baseline only: the codebase is not yet fully annotated. Kept out of the
+# CI gate (see .github/workflows/ci.yml) until that cleanup happens; this
+# config exists so `mypy app` is at least runnable locally without noise
+# from missing third-party stubs.

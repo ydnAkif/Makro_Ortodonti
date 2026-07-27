@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
-from flask_login import login_required
+from flask_login import login_required, current_user
 from datetime import date
 
 from app.extensions import db
@@ -32,7 +32,39 @@ def index():
         exchange_rates=exchange_rates,
         today=date.today(),
         backups=backups,
+        api_token_configured=bool(current_user.api_token_hash),
     )
+
+
+@settings_bp.route("/api-token/generate", methods=["POST"])
+@login_required
+@permissions_required("settings.manage")
+def generate_api_token():
+    """Issue a new /api/v1/* bearer token for the current admin, replacing
+    any previous one. The raw token is shown exactly once — only its hash
+    is kept, so it can't be recovered later, only regenerated."""
+    import secrets
+    from app.authz import hash_api_token
+
+    raw_token = secrets.token_urlsafe(32)
+    current_user.api_token_hash = hash_api_token(raw_token)
+    db.session.commit()
+
+    flash(
+        f"Yeni API token'ınız (bir daha gösterilmeyecek): {raw_token}",
+        "success",
+    )
+    return redirect(url_for("settings.index"))
+
+
+@settings_bp.route("/api-token/revoke", methods=["POST"])
+@login_required
+@permissions_required("settings.manage")
+def revoke_api_token():
+    current_user.api_token_hash = None
+    db.session.commit()
+    flash("API token iptal edildi.", "success")
+    return redirect(url_for("settings.index"))
 
 
 @settings_bp.route("/update", methods=["POST"])
@@ -185,6 +217,10 @@ def purge_demo_data():
         WorkOrder, Makbuz, MakbuzPayment, MakbuzSendLog, Payment, ExchangeRate,
         AuditLog, Invoice, InvoiceItem,
     )
+
+    if request.form.get("confirm_phrase", "").strip().upper() != "SİL":
+        flash('Onaylamak için "SİL" yazmanız gerekiyor. Hiçbir veri silinmedi.', "warning")
+        return redirect(url_for("settings.index"))
 
     # Sıralama önemli: FK bağımlılıkları aşağıdan yukarıya silinir
     db.session.execute(db.delete(MakbuzPayment))

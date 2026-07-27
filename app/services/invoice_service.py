@@ -10,7 +10,7 @@ from sqlalchemy import Integer, cast, select, update
 
 from app.models.models import (
     ExchangeRate, Invoice, InvoiceItem, InvoiceItemType,
-    PatientTreatment, Settings, Treatment, Party
+    PatientTreatment, Settings, Treatment, Party, money,
 )
 
 
@@ -33,14 +33,14 @@ def _normalize_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"Miktar sıfırdan büyük olmalıdır (girilen: {quantity}).")
 
     try:
-        unit_price = Decimal(str(item_data.get("unit_price_eur"))).quantize(Decimal("0.01"))
+        unit_price = money(item_data.get("unit_price_eur"))
     except (TypeError, ValueError, InvalidOperation) as exc:
         raise ValueError("Birim fiyat sayısal olmalıdır.") from exc
     if not unit_price.is_finite() or unit_price < 0:
         raise ValueError(f"Birim fiyat negatif olamaz (girilen: {unit_price}).")
 
     try:
-        vat_rate = Decimal(str(item_data.get("vat_rate", 0))).quantize(Decimal("0.01"))
+        vat_rate = money(item_data.get("vat_rate", 0))
     except (TypeError, ValueError, InvalidOperation) as exc:
         raise ValueError("KDV oranı sayısal olmalıdır.") from exc
     if not vat_rate.is_finite() or not Decimal("0") <= vat_rate <= Decimal("100"):
@@ -50,7 +50,7 @@ def _normalize_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
     if discount_type not in {None, "percent", "amount"}:
         raise ValueError("İskonto tipi percent veya amount olmalıdır.")
     try:
-        discount_value = Decimal(str(item_data.get("discount_value", 0) or 0)).quantize(Decimal("0.01"))
+        discount_value = money(item_data.get("discount_value", 0) or 0)
     except (TypeError, ValueError, InvalidOperation) as exc:
         raise ValueError("İskonto değeri sayısal olmalıdır.") from exc
     if not discount_value.is_finite() or discount_value < 0:
@@ -184,7 +184,7 @@ class InvoiceService:
         for item_data in normalized_items:
             item_type = item_data["item_type"]
             unit_eur = item_data["unit_price_eur"]
-            unit_try = (unit_eur * rate).quantize(Decimal("0.01"))
+            unit_try = money(unit_eur * rate)
             
             item = InvoiceItem(
                 invoice_id=invoice.id,
@@ -238,7 +238,7 @@ class InvoiceService:
                 raise ValueError(f"PatientTreatment {tid} not found")
             treatment = pt.treatment
             unit_eur = pt.effective_price_eur
-            unit_try = (unit_eur * rate).quantize(Decimal("0.01"))
+            unit_try = money(unit_eur * rate)
 
             item = InvoiceItem(
                 invoice_id=invoice.id,

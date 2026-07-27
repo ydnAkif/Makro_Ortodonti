@@ -1,0 +1,14 @@
+# SQLite WAL-mode companion files (see app/extensions.py PRAGMA journal_mode=WAL) —
+# transient, regenerated on every write, never meaningful to commit.
+data/*.db-wal
+data/*.db-shm
+
+# Local environment overrides
+.env
+
+# Test/coverage artifacts
+.coverage
+.pytest_cache/
+
+# Editor/OS noise
+.DS_Store

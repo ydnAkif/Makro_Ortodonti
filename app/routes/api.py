@@ -19,10 +19,10 @@ from decimal import Decimal
 
 from flask import Blueprint, jsonify, request
 
-from app.authz import permissions_required
+from app.authz import api_permissions_required
 from app.extensions import db
 from app.models.models import (
-    Makbuz, Party, PartyType, Treatment, WorkOrder, money,
+    Makbuz, Party, PartyType, Treatment, WorkOrder,
 )
 from app.services.exchange_service import get_latest_rate
 from app.services.search_service import tr_order
@@ -104,7 +104,7 @@ def _serialize_treatment(t: Treatment) -> dict:
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/parties")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def list_parties():
     q = db.select(Party).where(
         Party.party_type == PartyType.DENTIST,
@@ -115,7 +115,7 @@ def list_parties():
 
 
 @api_bp.route("/parties/<int:party_id>")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def get_party(party_id):
     p = db.session.get(Party, party_id)
     if not p:
@@ -153,7 +153,7 @@ def get_party(party_id):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/work-orders")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def list_work_orders():
     year = request.args.get("year", date.today().year, type=int)
     month = request.args.get("month", date.today().month, type=int)
@@ -182,7 +182,7 @@ def list_work_orders():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/makbuzlar")
-@permissions_required("billing.view")
+@api_permissions_required("billing.view")
 def list_makbuzlar():
     year = request.args.get("year", date.today().year, type=int)
     month = request.args.get("month", date.today().month, type=int)
@@ -205,7 +205,7 @@ def list_makbuzlar():
 
 
 @api_bp.route("/makbuzlar/<int:makbuz_id>")
-@permissions_required("billing.view")
+@api_permissions_required("billing.view")
 def get_makbuz(makbuz_id):
     m = db.session.get(Makbuz, makbuz_id)
     if not m:
@@ -230,7 +230,7 @@ def get_makbuz(makbuz_id):
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/treatments")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def list_treatments():
     category = request.args.get("category")
     q = db.select(Treatment).where(Treatment.is_active.is_(True))
@@ -246,7 +246,7 @@ def list_treatments():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/exchange-rate")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def get_exchange_rate():
     rate = get_latest_rate()
     if rate is None:
@@ -259,7 +259,7 @@ def get_exchange_rate():
 # ---------------------------------------------------------------------------
 
 @api_bp.route("/dashboard")
-@permissions_required("clinical.view")
+@api_permissions_required("clinical.view")
 def dashboard_summary():
     from datetime import timedelta
 

@@ -1,5 +1,4 @@
 import json
-import os
 
 from fpdf.enums import MethodReturnValue, XPos, YPos
 

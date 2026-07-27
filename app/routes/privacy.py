@@ -8,7 +8,7 @@ from flask_login import login_required
 
 from app.authz import permissions_required
 from app.extensions import db
-from app.models.models import AuditLog, Invoice, Party, PatientTreatment
+from app.models.models import AuditLog, Invoice, Party
 
 
 privacy_bp = Blueprint("privacy", __name__)

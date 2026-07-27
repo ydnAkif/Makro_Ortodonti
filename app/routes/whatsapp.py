@@ -1,4 +1,3 @@
-import random
 from datetime import date
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
@@ -35,6 +34,27 @@ def _makbuz_candidates(year: int, month: int) -> list[dict]:
     ]
 
 
+def _current_send_job() -> dict | None:
+    """Pick whichever background queue (makbuz batch or bulk message) is
+    active or most recently finished, so the shared progress panel in the
+    template can show either kind of job without needing two UIs."""
+    from app.services.makbuz_send_queue import MakbuzSendQueue
+    from app.services.bulk_message_queue import BulkMessageQueue
+
+    makbuz_job = MakbuzSendQueue.current_job()
+    bulk_job = BulkMessageQueue.current_job()
+
+    if makbuz_job and makbuz_job["running"]:
+        return makbuz_job
+    if bulk_job and bulk_job["running"]:
+        return bulk_job
+
+    candidates = [job for job in (makbuz_job, bulk_job) if job is not None]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda job: job.get("finished_at") or job.get("started_at") or "")
+
+
 def _doctors_without_makbuz(year: int, month: int) -> int:
     """Doctors with work orders in the period but no makbuz generated yet."""
     with_orders = db.session.execute(
@@ -57,8 +77,7 @@ def _doctors_without_makbuz(year: int, month: int) -> int:
 @login_required
 @permissions_required("messaging.use")
 def index():
-    from app.services.makbuz_send_queue import MakbuzSendQueue
-    from app.services.scheduler_service import auto_send_enabled
+    from app.services.scheduler_service import auto_send_enabled, payment_reminders_enabled
     from app.services.whatsapp_service import WhatsAppService
 
     status = WhatsAppService.get_status()
@@ -101,9 +120,10 @@ def index():
         months=MONTHS,
         years=list(range(today.year - 2, today.year + 1)),
         status_labels=MAKBUZ_STATUS_LABELS,
-        send_job=MakbuzSendQueue.current_job(),
+        send_job=_current_send_job(),
         send_history=send_history,
         auto_send_on=auto_send_enabled(),
+        payment_reminder_on=payment_reminders_enabled(),
     )
 
 
@@ -152,6 +172,36 @@ def auto_send_toggle():
     return redirect(url_for("whatsapp.index"))
 
 
+@whatsapp_bp.route("/payment-reminder-toggle", methods=["POST"])
+@login_required
+@permissions_required("billing.edit")
+def payment_reminder_toggle():
+    from app.services.scheduler_service import PAYMENT_REMINDER_TOGGLE_KEY
+
+    enabled = request.form.get("enabled") == "on"
+    row = db.session.execute(
+        db.select(Settings).where(Settings.key == PAYMENT_REMINDER_TOGGLE_KEY)
+    ).scalar_one_or_none()
+    if row is None:
+        row = Settings(
+            key=PAYMENT_REMINDER_TOGGLE_KEY,
+            value="false",
+            description="Vadesi geçmiş, ödenmemiş makbuzlar için günlük WhatsApp hatırlatması gönder",
+        )
+        db.session.add(row)
+    row.value = "true" if enabled else "false"
+    db.session.commit()
+
+    flash(
+        "Ödeme hatırlatıcı açıldı. Gönderildikten sonra 15+ gündür ödenmemiş "
+        "makbuzlar için günde bir kez otomatik WhatsApp hatırlatması gönderilecek."
+        if enabled
+        else "Ödeme hatırlatıcı kapatıldı.",
+        "success",
+    )
+    return redirect(url_for("whatsapp.index"))
+
+
 @whatsapp_bp.route("/connect", methods=["POST"])
 @login_required
 @permissions_required("messaging.use")
@@ -194,30 +244,13 @@ def send_message():
 @login_required
 @permissions_required("messaging.use")
 def send_bulk():
-    from app.services.whatsapp_service import WhatsAppService
-    import time
+    from app.services.bulk_message_queue import BulkMessageQueue
 
     message_template = request.form.get("message", "").strip()
     party_ids = request.form.getlist("patient_ids", type=int)
 
-    if not message_template or not party_ids:
-        flash("Mesaj ve en az bir kişi seçimi zorunludur.", "danger")
-        return redirect(url_for("whatsapp.index"))
-
-    success_count = 0
-    fail_count = 0
-
-    for pid in party_ids:
-        party = db.session.get(Party, pid)
-        if party and party.phone:
-            result = WhatsAppService.send_message(party.phone, message_template)
-            if result["success"]:
-                success_count += 1
-            else:
-                fail_count += 1
-            time.sleep(round(random.uniform(3, 5), 2))
-
-    flash(f"Toplu gönderim tamamlandı: {success_count} başarılı, {fail_count} başarısız.", "info")
+    started, message = BulkMessageQueue.start_batch(party_ids, message_template)
+    flash(message, "info" if started else "danger")
     return redirect(url_for("whatsapp.index"))
 
 
@@ -225,11 +258,10 @@ def send_bulk():
 @login_required
 @permissions_required("messaging.use")
 def status():
-    from app.services.makbuz_send_queue import MakbuzSendQueue
     from app.services.whatsapp_service import WhatsAppService
 
     status = WhatsAppService.get_status()
     if status.get("connected_at") is not None:
         status["connected_at"] = status["connected_at"].isoformat()
-    status["send_job"] = MakbuzSendQueue.current_job()
+    status["send_job"] = _current_send_job()
     return jsonify(status)

@@ -9,14 +9,12 @@ from __future__ import annotations
 import io
 import json
 import os
-import sys
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import bcrypt
 import pytest
-from flask import Flask
 
 from conftest import login
 
@@ -79,7 +77,6 @@ class TestDatabaseMigration:
         from app.extensions import db
         from app.models.models import Invoice, Patient, Party, PartyType
         from app.models.database import link_invoices_to_parties
-        from app.models.invoice_service import InvoiceService
 
         with app.app_context():
             patient = db.session.execute(
@@ -170,7 +167,7 @@ class TestDatabaseMigration:
             db.session.commit()
             db.session.execute(db.text("PRAGMA foreign_keys = ON"))
 
-            result = seed_sample_data()
+            seed_sample_data()
             assert db.session.execute(db.select(Treatment).limit(1)).scalar_one_or_none() is not None
             assert db.session.execute(db.select(User).where(User.username == "admin")).scalar_one_or_none() is not None
 
@@ -184,7 +181,7 @@ class TestDatabaseMigration:
             db.session.delete(admin)
             db.session.commit()
 
-            result = seed_sample_data()
+            seed_sample_data()
             assert db.session.execute(db.select(User).where(User.username == "admin")).scalar_one_or_none() is not None
 
     def test_seed_sample_data_fixes_invalid_hash(self, client, app):
@@ -197,7 +194,7 @@ class TestDatabaseMigration:
             admin.password_hash = "not-a-valid-hash"
             db.session.commit()
 
-            result = seed_sample_data()
+            seed_sample_data()
             admin2 = db.session.execute(db.select(User).where(User.username == "admin")).scalar_one()
             assert _is_valid_bcrypt_hash(admin2.password_hash)
 
@@ -259,7 +256,6 @@ class TestExchangeService:
                 fetch_eur_try_rate()
 
     def test_fetch_and_store_rate_new(self, app):
-        from app.extensions import db
         from app.services.exchange_service import fetch_and_store_rate
 
         with app.app_context():
@@ -276,7 +272,6 @@ class TestExchangeService:
             existing = db.session.execute(
                 db.select(ExchangeRate).where(ExchangeRate.source == "ecb")
             ).scalar_one()
-            old_rate = existing.eur_to_try
 
             with patch("app.services.exchange_service.fetch_eur_try_rate", return_value=Decimal("55.5")):
                 rate = fetch_and_store_rate()
@@ -355,7 +350,7 @@ class TestExchangeService:
             es._last_auto_check_date = date.today()
             with patch("app.services.exchange_service.get_rate_health") as mock_health:
                 mock_health.return_value = {"exists": True, "is_stale": False}
-                result = ensure_daily_rate()
+                ensure_daily_rate()
                 mock_health.assert_called_once()
 
 
@@ -536,7 +531,7 @@ class TestWhatsAppService:
 
     def test_send_invoice_message_party_phone(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType, Invoice, InvoiceItemType
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
         from app.services.whatsapp_service import WhatsAppService
 
@@ -557,7 +552,7 @@ class TestWhatsAppService:
 
     def test_send_invoice_message_no_phone(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType, Invoice
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
         from app.services.whatsapp_service import WhatsAppService
 
@@ -677,6 +672,8 @@ class TestWhatsAppRoutes:
     def test_send_bulk(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
+        from app.services.bulk_message_queue import BulkMessageQueue
+        from app.services.whatsapp_service import WhatsAppService
 
         login(client, "admin", "admin-pass")
         with app.app_context():
@@ -685,12 +682,18 @@ class TestWhatsAppRoutes:
             ).scalar_one()
             pid = party.id
 
+        WhatsAppService._connected = True
         with patch("app.services.whatsapp_service.WhatsAppService.send_message", return_value={"success": True, "message": "OK"}):
             response = client.post("/whatsapp/send-bulk", data={
                 "message": "Toplu mesaj",
                 "patient_ids": [pid],
             }, follow_redirects=False)
             assert response.status_code == 302
+            if BulkMessageQueue._thread is not None:
+                BulkMessageQueue._thread.join(timeout=2)
+            job = BulkMessageQueue.current_job()
+            assert job is not None
+            assert job["sent"] == 1
 
     def test_send_bulk_validation(self, client, app):
         login(client, "admin", "admin-pass")
@@ -736,7 +739,7 @@ class TestPrivacyRoutes:
 
     def test_anonymize_409_with_active_invoices(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType, Invoice
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
 
         login(client, "admin", "admin-pass")
@@ -789,7 +792,7 @@ class TestEmailService:
 
     def test_send_email_no_recipient(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType, Invoice
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
         from app.services.email_service import send_invoice_email
 
@@ -1228,7 +1231,7 @@ class TestModelsExtra:
 
     def test_party_repr(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType
+        from app.models.models import Party
         with app.app_context():
             party = db.session.execute(db.select(Party).limit(1)).scalar_one()
             r = repr(party)
@@ -1252,7 +1255,7 @@ class TestModelsExtra:
 
     def test_invoice_repr(self, client, app):
         from app.extensions import db
-        from app.models.models import Invoice, Party, PartyType
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
@@ -1265,7 +1268,7 @@ class TestModelsExtra:
 
     def test_invoice_item_repr(self, client, app):
         from app.extensions import db
-        from app.models.models import InvoiceItem, Party, PartyType
+        from app.models.models import Party, PartyType
         from app.models.invoice_service import InvoiceService
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
@@ -1301,7 +1304,6 @@ class TestModelsExtra:
             assert "WhatsAppSession" in repr(ws)
 
     def test_login_attempt_repr(self, client, app):
-        from app.extensions import db
         from app.models.models import LoginAttempt
         with app.app_context():
             la = LoginAttempt(ip_address="127.0.0.1", username="test", is_successful=True)
@@ -1445,7 +1447,7 @@ class TestAppInitExtra:
     def test_purge_audit_logs_cli(self, client, app):
         from app.extensions import db
         from app.models.models import AuditLog
-        from datetime import datetime, timedelta, timezone
+        from datetime import timedelta
 
         with app.app_context():
             old_log = AuditLog(
