@@ -1,10 +1,19 @@
-# Makro Ortodonti (v2.1.0) 🌟
+# Makro Ortodonti (v2.2.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
 [![Test Suite](https://img.shields.io/badge/pytest-passing-success.svg)]()
 
 Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli dinamik/sabit kurlu faturalandırmayı, günlük/aylık/yıllık otomatik makbuzları, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır.
+
+---
+
+## 💎 v2.2.0 Modern Doktorlar UI & Kart Izgarası (Redesign)
+
+- **🎴 Doktor Kart Izgarası (Card Grid View)**: Hekim kayıtları için dairesel gradient başharf balonları (**AN** -> Aklen Anıl), doğrudan WhatsApp erişimi ve borç durumu rozetleri içeren modern 3-kolonlu kart tasarımı.
+- **📑 Sadeleştirilmiş Modern Tablo**: Tekrarlayan hantal butonlar ve sıfır sütunları yerine birleştirilmiş akıllı finans hücresi ve temiz satır hover'ları.
+- **📊 Üst Metrik Kartları**: Doktorlar listesinin üzerinde 3 adet canlı istatistik kartı (Toplam Hekim, Toplam İş Hacmi, Açık Bakiye).
+- **🔀 Görünüm Değiştirici (Toggle)**: Kart ve Tablo görünüm modları arasında tek tıkla geçiş ve `localStorage` tercihi saklama.
 
 ---
 

@@ -1,123 +1,131 @@
-{# Diş hekimi sonuç tablosu. Hem tam sayfada hem de canlı arama (partial=1)
-isteğinde tek başına render edilir; bu yüzden base.html'i genişletmez. #}
-<div class="work-panel">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0 party-table">
-      <thead class="table-light">
-        <tr>
-          <th>Ad / Ünvan</th>
-          <th class="text-end">İş Toplamı</th>
-          <th class="text-end">KDV</th>
-          <th class="text-end">Ödeme Toplamı</th>
-          <th class="text-end">Bakiye</th>
-          <th>Telefon</th>
-          <th>Vergi No / TC</th>
-          <th class="text-end">Eylem</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in parties %} {% set finance = kasa_by_party.get(p.id) %}
-        <tr class="party-row">
-          <td class="party-name-cell">
-            <a
-              href="{{ url_for('parties.detail_party', party_id=p.id) }}"
-              class="text-decoration-none fw-bold"
-            >
-              {{ p.display_name }}
+{# Diş hekimi sonuç görünümü (Kart Grid & Modern Tablo). Canlı arama desteği ile. #}
+<div id="partiesContainer" class="parties-view-grid">
+  {% if parties %}
+  
+  <!-- 🎴 1. KART GRID GÖRÜNÜMÜ -->
+  <div class="parties-cards-grid" id="partiesGridView">
+    {% for p in parties %}
+    {% set finance = kasa_by_party.get(p.id) %}
+    {% set initials = (p.display_name[:2] if p.display_name else 'DH')|upper %}
+    {% set bal = finance.balance if finance else 0 %}
+    <div class="party-card-item">
+      <div class="party-card-header">
+        <div class="d-flex align-items-center gap-3">
+          <div class="party-avatar">{{ initials }}</div>
+          <div>
+            <h3 class="party-card-title">
+              <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="text-decoration-none text-reset">{{ p.display_name }}</a>
+            </h3>
+            {% if p.phone %}
+            <a href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}" class="party-card-phone" title="WhatsApp Mesajı Hazırla">
+              <i class="bi bi-whatsapp text-success"></i>
+              <span>{{ p.phone|phone_display }}</span>
             </a>
-          </td>
-          <td class="text-end" data-label="İş Toplamı">
-            ₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}
-          </td>
-          <td class="text-end" data-label="KDV">
-            {% if finance and finance.vat_total is not none %}₺{{
-            "{:,.2f}".format(finance.vat_total) }}{% else %}-{% endif %}
-          </td>
-          <td class="text-end text-success" data-label="Ödeme Toplamı">
-            ₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}
-          </td>
-          <td
-            class="text-end fw-bold {% if finance and finance.balance > 0 %}text-warning{% else %}text-success{% endif %}"
-            data-label="Bakiye"
-          >
-            ₺{{ "{:,.2f}".format(finance.balance if finance else 0) }}
-          </td>
-          <td class="party-phone-cell" data-label="Telefon">
-            {% if p.phone %}<a
-              href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}"
-              title="{{ p.display_name }} için WhatsApp mesajı hazırla"
-              aria-label="{{ p.display_name }} adlı doktora WhatsApp mesajı gönder"
-              >{{ p.phone|phone_display }}</a
-            >{% else %}-{% endif %}
-          </td>
-          <td class="party-tax-cell" data-label="Vergi No / TC">
-            {% if p.tax_id %}<span
-              class="font-monospace text-muted"
-              style="font-size: 0.82rem"
-              >{{ p.tax_id }}</span
-            >{% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-          <td class="text-end party-actions-cell" data-label="İşlem">
-            <a
-              href="{{ url_for('parties.add_work_order', party_id=p.id) }}"
-              class="btn btn-sm btn-primary"
-              title="İş Emri Gir"
-              aria-label="{{ p.display_name }} için iş emri gir"
-            >
-              <i class="bi bi-clipboard2-plus" aria-hidden="true"></i> İş Emri
-            </a>
-            <a
-              href="{{ url_for('parties.detail_party', party_id=p.id) }}"
-              class="btn btn-sm btn-outline-secondary"
-              aria-label="{{ p.display_name }} ayrıntılarını aç"
-              >Detay</a
-            >
-          </td>
-        </tr>
+            {% endif %}
+          </div>
+        </div>
+        {% if bal > 0 %}
+        <span class="badge-tint badge-tint-warning" title="Ödenmemiş Bakiye"><i class="bi bi-exclamation-circle"></i> ₺{{ "{:,.2f}".format(bal) }}</span>
         {% else %}
-        <tr class="party-empty-row">
-          <td colspan="8">
-            <div class="empty-state-card">
-              <div class="empty-state-icon"><i class="bi bi-person-x"></i></div>
-              <h5>
-                {% if search %}"{{ search }}" için sonuç bulunamadı{% else
-                %}Henüz Doktor Eklenmemiş{% endif %}
-              </h5>
-              <p>
-                {% if search %}Farklı bir arama terimi deneyin.{% else %}Doktor
-                kayıtlarını oluşturarak başlayın.{% endif %}
-              </p>
-              {% if not search and current_user.is_authenticated %}<a
-                href="{{ url_for('parties.add_party') }}"
-                class="btn btn-primary btn-sm"
-                ><i class="bi bi-plus-lg me-1"></i>İlk Kaydı Ekle</a
-              >{% endif %}
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      {% if parties %}
-      <tfoot>
-        <tr class="table-active fw-bold">
-          <td>Toplam (sayfa)</td>
-          <td class="text-end">
-            ₺{{ "{:,.2f}".format(kasa_page_total_work) }}
-          </td>
-          <td class="text-end">-</td>
-          <td class="text-end text-success">
-            ₺{{ "{:,.2f}".format(kasa_page_total_payment) }}
-          </td>
-          <td class="text-end text-warning">
-            ₺{{ "{:,.2f}".format(kasa_page_total_balance) }}
-          </td>
-          <td></td>
-          <td></td>
-          <td></td>
-        </tr>
-      </tfoot>
-      {% endif %}
-    </table>
+        <span class="badge-tint badge-tint-success"><i class="bi bi-check-circle-fill"></i> Borçsuz</span>
+        {% endif %}
+      </div>
+
+      <div class="party-card-body">
+        <div class="party-card-stat">
+          <span class="party-card-stat-label">İŞ TOPLAMI</span>
+          <span class="party-card-stat-val">₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}</span>
+        </div>
+        <div class="party-card-stat text-end">
+          <span class="party-card-stat-label">TAHSİLAT</span>
+          <span class="party-card-stat-val text-success">₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}</span>
+        </div>
+      </div>
+
+      <div class="party-card-footer">
+        <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary flex-grow-1">
+          <i class="bi bi-clipboard2-plus me-1"></i>İş Emri Gir
+        </a>
+        <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-person me-1"></i>Detay
+        </a>
+      </div>
+    </div>
+    {% endfor %}
   </div>
+
+  <!-- 📑 2. MODERN TABLO GÖRÜNÜMÜ -->
+  <div class="work-panel d-none" id="partiesTableView">
+    <div class="table-responsive">
+      <table class="table party-table-modern align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Doktor / İletişim</th>
+            <th class="text-end">İş Toplamı</th>
+            <th class="text-end">KDV</th>
+            <th class="text-end">Tahsilat</th>
+            <th class="text-center">Bakiye Durumu</th>
+            <th>Vergi No / TC</th>
+            <th class="text-end">İşlem</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in parties %}
+          {% set finance = kasa_by_party.get(p.id) %}
+          {% set initials = (p.display_name[:2] if p.display_name else 'DH')|upper %}
+          {% set bal = finance.balance if finance else 0 %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-3">
+                <div class="party-avatar" style="width:36px;height:36px;font-size:0.8rem;">{{ initials }}</div>
+                <div>
+                  <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="fw-bold text-decoration-none text-reset d-block">{{ p.display_name }}</a>
+                  {% if p.phone %}
+                  <small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ p.phone|phone_display }}</small>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="text-end fw-semibold">₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}</td>
+            <td class="text-end text-muted small">
+              {% if finance and finance.vat_total is not none %}₺{{ "{:,.2f}".format(finance.vat_total) }}{% else %}-{% endif %}
+            </td>
+            <td class="text-end text-success fw-semibold">₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}</td>
+            <td class="text-center">
+              {% if bal > 0 %}
+              <span class="badge-tint badge-tint-warning"><i class="bi bi-exclamation-circle me-1"></i>₺{{ "{:,.2f}".format(bal) }}</span>
+              {% else %}
+              <span class="badge-tint badge-tint-success"><i class="bi bi-check-circle-fill me-1"></i>Borçsuz</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted font-monospace">{{ p.tax_id or '—' }}</td>
+            <td class="text-end">
+              <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary me-1" title="İş Emri Gir">
+                <i class="bi bi-clipboard2-plus"></i> İş Emri
+              </a>
+              <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="Detay">
+                Detay
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="work-panel">
+    <div class="empty-state-card text-center py-5">
+      <div class="empty-state-icon mb-3 fs-1 text-muted"><i class="bi bi-person-x"></i></div>
+      <h5>{% if search %}"{{ search }}" için sonuç bulunamadı{% else %}Henüz Doktor Eklenmemiş{% endif %}</h5>
+      <p>{% if search %}Farklı bir arama terimi deneyin.{% else %}Doktor kayıtlarını oluşturarak başlayın.{% endif %}</p>
+      {% if not search and current_user.is_authenticated %}
+      <a href="{{ url_for('parties.add_party') }}" class="btn btn-primary btn-sm mt-2"><i class="bi bi-plus-lg me-1"></i>İlk Kaydı Ekle</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
+
 {% include "components/pagination.html" %}

@@ -417,4 +417,47 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // ── Parties View Mode Toggle (Grid vs Table) ───────────────
+    var toggleContainer = document.getElementById('partiesViewToggle');
+    if (toggleContainer) {
+        var gridView = document.getElementById('partiesGridView');
+        var tableView = document.getElementById('partiesTableView');
+        var buttons = toggleContainer.querySelectorAll('.view-mode-btn');
+
+        function setView(mode) {
+            buttons.forEach(function(btn) {
+                if (btn.dataset.view === mode) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            if (gridView && tableView) {
+                if (mode === 'table') {
+                    gridView.classList.add('d-none');
+                    tableView.classList.remove('d-none');
+                } else {
+                    gridView.classList.remove('d-none');
+                    tableView.classList.add('d-none');
+                }
+            }
+            try {
+                localStorage.setItem('parties_view_mode', mode);
+            } catch (err) {}
+        }
+
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                setView(btn.dataset.view);
+            });
+        });
+
+        // Load saved preference or default to grid
+        var savedMode = 'grid';
+        try {
+            savedMode = localStorage.getItem('parties_view_mode') || 'grid';
+        } catch (err) {}
+        setView(savedMode);
+    }
 });
