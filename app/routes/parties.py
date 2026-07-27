@@ -82,16 +82,13 @@ def list_parties():
 
         for p in parties:
             party_makbuzlar = makbuzlar_by_party.get(p.id, [])
-            issued_makbuzlar = [
-                m for m in party_makbuzlar
-                if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
-            ]
+            financial_makbuzlar = [m for m in party_makbuzlar if m.affects_balance]
             prev_bal = money(p.previous_balance or Decimal("0.00"))
             # Açık bakiye gerçek açık dönemlerden hesaplanır. Tahsilatı toplam
             # iş hacminden çıkarmak, devreden borca ayrılan fazla ödemeyi ikinci
             # kez düşürüp negatif bakiye üretiyordu.
             total_balance = money(sum(
-                (m.outstanding_amount for m in issued_makbuzlar),
+                (m.outstanding_amount for m in financial_makbuzlar),
                 Decimal("0.00"),
             ) + prev_bal)
 
@@ -166,11 +163,14 @@ def list_parties():
         active_summaries = db.session.execute(
             db.select(Makbuz).where(
                 Makbuz.party_id.in_(all_party_ids),
-                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
             )
         ).scalars().all()
         total_summary_outstanding = money(sum(
-            (summary.outstanding_amount for summary in active_summaries),
+            (
+                summary.outstanding_amount
+                for summary in active_summaries
+                if summary.affects_balance
+            ),
             Decimal("0.00"),
         ))
     else:
@@ -652,10 +652,11 @@ def _get_party_outstanding(party: Party) -> Decimal:
         db.select(Makbuz).where(Makbuz.party_id == party.id)
     ).scalars().all()
 
-    billed = money(sum((m.grand_total for m in makbuzlar if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)), Decimal("0.00")))
-    paid = money(sum((m.collected_amount for m in makbuzlar), Decimal("0.00")))
     prev_bal = money(party.previous_balance or Decimal("0.00"))
-    return money(billed - paid + prev_bal)
+    return money(sum(
+        (m.outstanding_amount for m in makbuzlar if m.affects_balance),
+        Decimal("0.00"),
+    ) + prev_bal)
 
 
 def _compute_monthly_totals(party_id: int, year: int, year_work_orders: list) -> list[dict]:
@@ -691,7 +692,6 @@ def _compute_previous_debt(party_id: int, year: int, month: int | None, view: st
             db.select(Makbuz).where(
                 Makbuz.party_id == party_id,
                 (Makbuz.year * 100 + Makbuz.month) < (year * 100 + month),
-                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
             )
         ).scalars().all()
     else:
@@ -699,11 +699,10 @@ def _compute_previous_debt(party_id: int, year: int, month: int | None, view: st
             db.select(Makbuz).where(
                 Makbuz.party_id == party_id,
                 Makbuz.year < year,
-                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
             )
         ).scalars().all()
     for m in prev_makbuzlar:
-        if m.outstanding_amount > 0:
+        if m.affects_balance and m.outstanding_amount > 0:
             previous_periods_debt += m.outstanding_amount
     return previous_periods_debt
 

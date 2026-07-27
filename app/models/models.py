@@ -610,6 +610,16 @@ class Makbuz(Base, TimestampMixin):
     def is_partially_paid(self) -> bool:
         return Decimal("0.00") < self.collected_amount < self.grand_total
 
+    @property
+    def affects_balance(self) -> bool:
+        """Whether this summary must participate in financial totals.
+
+        A summary can still be ``draft`` when a partial payment was recorded
+        before it was sent over WhatsApp.  The payment makes it a real
+        financial movement even though its communication status is draft.
+        """
+        return self.status in (self.STATUS_SENT, self.STATUS_PAID) or self.collected_amount > 0
+
     def __repr__(self) -> str:
         return f"<Makbuz {self.party_id} {self.year}-{self.month:02d} ₺{self.grand_total:.2f} ({self.status})>"
 

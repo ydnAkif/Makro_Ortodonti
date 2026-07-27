@@ -33,7 +33,6 @@ def open_periods_before(makbuz: Makbuz) -> list[OpenPeriod]:
         .where(
             Makbuz.party_id == makbuz.party_id,
             (Makbuz.year * 100 + Makbuz.month) < (makbuz.year * 100 + makbuz.month),
-            Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
         )
         .order_by(Makbuz.year, Makbuz.month)
     ).scalars().all()
@@ -47,7 +46,7 @@ def open_periods_before(makbuz: Makbuz) -> list[OpenPeriod]:
             outstanding=row.outstanding_amount,
         )
         for row in rows
-        if row.outstanding_amount > 0
+        if row.affects_balance and row.outstanding_amount > 0
     ]
 
 

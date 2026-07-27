@@ -51,12 +51,9 @@ def list_payments():
     rows = []
     for party in doctors:
         m_list = by_party.get(party.id, [])
-        issued_makbuzlar = [
-            m for m in m_list
-            if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
-        ]
+        financial_makbuzlar = [m for m in m_list if m.affects_balance]
         billed = money(sum(
-            (m.grand_total for m in issued_makbuzlar),
+            (m.grand_total for m in financial_makbuzlar),
             Decimal("0.00"),
         ))
         # Tahsil edilen, kasaya giren gerçek hareket toplamıdır. Bir ödeme
@@ -76,7 +73,7 @@ def list_payments():
         # kapanmamış makbuzlar ve kalan devreden borçtan oluşur. Billed -
         # paid hesabı, devreden borca uygulanan tahsilatı ikinci kez düşürür.
         outstanding = money(sum(
-            (m.outstanding_amount for m in issued_makbuzlar),
+            (m.outstanding_amount for m in financial_makbuzlar),
             Decimal("0.00"),
         ) + prev_bal)
         rows.append({
@@ -99,7 +96,7 @@ def list_payments():
 
     pending_makbuzlar = [
         m for m in all_makbuzlar
-        if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
+        if m.affects_balance
         and m.outstanding_amount > 0
         and m.party_id in visible_party_ids
     ]

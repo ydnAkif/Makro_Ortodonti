@@ -914,3 +914,50 @@ def test_overpayment_does_not_double_deduct_outstanding(client, app):
     assert "Toplam Açık Bakiye" in parties_html
     assert parties_html.count("₺320.00") >= 1
     assert "₺2,000.00" in parties_html
+
+
+def test_partial_payment_on_draft_is_included_in_all_balance_totals(client, app):
+    """A payment-bearing draft is financial even before its WhatsApp send."""
+    login(client, "admin", "admin-pass")
+    carry_party_id = _make_doctor(app, name="Dr. Devreden 320")
+    partial_party_id = _make_doctor(app, name="Dr. Kısmi Taslak")
+
+    with app.app_context():
+        db.session.get(Party, carry_party_id).previous_balance = Decimal("320.00")
+        summary = Makbuz(
+            party_id=partial_party_id,
+            year=2026,
+            month=7,
+            work_order_count=1,
+            subtotal=Decimal("1783.88"),
+            vat_applied=True,
+            vat_rate=Decimal("20.00"),
+            status=Makbuz.STATUS_DRAFT,
+            generated_at=datetime.now().astimezone(),
+        )
+        summary.recalculate_totals()
+        db.session.add(summary)
+        db.session.flush()
+
+        from app.services.makbuz_account_service import record_payment
+
+        record_payment(
+            summary,
+            payment_date=date(2026, 7, 27),
+            amount=Decimal("1500.00"),
+            method="cash",
+        )
+        db.session.commit()
+        assert summary.status == Makbuz.STATUS_DRAFT
+        assert summary.affects_balance is True
+        assert summary.outstanding_amount == Decimal("640.66")
+
+    html = client.get("/payments/").get_data(as_text=True)
+    assert "₺2,140.66" in html
+    assert "₺1,500.00" in html
+    assert "₺640.66" in html
+    assert "2 Doktor" in html
+    assert "Toplam <strong>₺960.66</strong> açık bakiye" in html
+
+    parties_html = client.get("/parties/").get_data(as_text=True)
+    assert "₺960.66" in parties_html

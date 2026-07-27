@@ -234,7 +234,7 @@ def build_period_overview(
 
     # --- Makbuzlar (in-period) ---
     for m in makbuzlar:
-        if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if m.affects_balance:
             overview.makbuz_count += 1
             overview.issued_try += money(m.grand_total)
 
@@ -255,7 +255,7 @@ def build_period_overview(
         m_date = date(m.year, m.month, 1)
         if m_date > end_date:
             continue
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         remaining = m.outstanding_amount
         if remaining > Decimal("0.01"):
@@ -308,7 +308,7 @@ def build_doctor_summaries(
 
         if m_date > end_date or m_end < start_date:
             continue
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
 
         d = _get(m.party_id, m.party.name if m.party else "Bilinmeyen")
@@ -322,7 +322,7 @@ def build_doctor_summaries(
         m_date = date(m.year, m.month, 1)
         if m_date >= start_date:
             continue
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         outstanding = m.outstanding_amount
         if outstanding > 0:
@@ -369,7 +369,7 @@ def build_aging_buckets(
         return 4
 
     for m in all_makbuzlar:
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         remaining = m.outstanding_amount
         if remaining <= Decimal("0.01"):
@@ -457,7 +457,7 @@ def build_vat_summary(makbuzlar: list[Makbuz]) -> list[VATSummary]:
     """KDV özeti — orana göre kırılım."""
     summaries: dict[Decimal, VATSummary] = {}
     for m in makbuzlar:
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         rate = m.vat_rate if m.vat_applied else Decimal("0")
         if rate not in summaries:
@@ -527,7 +527,7 @@ def build_monthly_trend(
     for m in all_makbuzlar:
         m_date = date(m.year, m.month, 1)
         m_end = date(m.year + 1, 1, 1) - timedelta(days=1) if m.month == 12 else date(m.year, m.month + 1, 1) - timedelta(days=1)
-        if m_date <= end_date and m_end >= start_date and m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if m_date <= end_date and m_end >= start_date and m.affects_balance:
             k = key_for(m_date)
             values[k]["issued"] += money(m.grand_total)
 
@@ -593,7 +593,7 @@ def build_doctor_detail(
             m_end = date(m.year, m.month + 1, 1) - timedelta(days=1)
         if m_date > end_date or m_end < start_date:
             continue
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         doctor.makbuz_count += 1
         doctor.makbuz_total_try += money(m.grand_total)
@@ -612,7 +612,7 @@ def build_doctor_detail(
         m_date = date(m.year, m.month, 1)
         if m_date >= start_date:
             continue
-        if m.status not in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID):
+        if not m.affects_balance:
             continue
         outstanding = m.outstanding_amount
         if outstanding > 0:
