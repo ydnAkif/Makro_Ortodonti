@@ -1,10 +1,25 @@
-# Makro Ortodonti (v2.3.0) 🌟
+# Makro Ortodonti (v3.0.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
 [![Test Suite](https://img.shields.io/badge/pytest-passing-success.svg)]()
 
-Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli fiyatlandırmayı, bilgilendirme amaçlı aylık hesap özetlerini, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır. Uygulamadaki aylık hesap özetleri resmi fatura veya makbuz değildir; e-fatura süreçleri uygulama dışında yürütülür.
+Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli fiyatlandırmayı, bilgilendirme amaçlı hesap özetlerini, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır. Uygulamadaki hesap özetleri resmi fatura veya makbuz değildir; e-fatura süreçleri uygulama dışında yürütülür.
+
+---
+
+## 🧾 v3.0.0 Sadeleşmiş Hesap Özetleri & Devreden KDV Matematiği
+
+- **⚡ Taslak (Draft) Süreçlerinin Kaldırılması**: Eklenen iş emirleri ve hesap özetleri doğrudan aktif duruma geçer, taslak onaylama zorunluluğu yoktur ve anında bakiyeye yansır.
+- **🏷️ "Hesap Özeti" İsimlendirmesi**: Kullanıcı arayüzünde, menülerde ve çıktılarda "Aylık Özetler" ibaresi **"Hesap Özeti"** olarak güncellendi.
+- **🔓 Resmi Fatura/Kısıtlama Engellerinin Kaldırılması**: WhatsApp'tan gönderilmiş özetler istenildiği zaman düzenlenebilir veya silinebilir; WhatsApp durumu kilitleme oluşturmaz.
+- **🧮 Hassas KDV & Devreden Borç Matematiği**: KDV yalnızca ilgili ayın yeni iş emirleri ara toplamına (`subtotal`) uygulanır. Geçmiş dönemlerden devreden bakiyeye (`carried_over_balance`) veya açılış borcuna **asla yeniden KDV eklenmez**.
+- **📊 5 Satırlı Şeffaf Bildirim Kırılımı**: WhatsApp ve özet ekranlarında borç kırılımı net 5 satır olarak gösterilir:
+  1. *Bu ayki işler*: Ara toplam
+  2. *Bu ay KDV (%10)*: Sadece bu ayın KDV tutarı
+  3. *Bu ay toplam*: İşler + KDV
+  4. *Devreden borç*: Geçmiş ödenmemiş dönemler + Açılış borcu
+  5. *Toplam ödenecek*: Bu ay toplamı + Devreden borç
 
 ---
 
