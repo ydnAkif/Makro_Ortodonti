@@ -138,3 +138,39 @@ def test_v3_resolve_makbuzlar_query_edge_cases(app):
         res_unprepared = resolve_makbuzlar_query({"view": "month", "status_filter": "unprepared"})
         assert isinstance(res_unprepared["doctors"], list)
 
+
+def test_v3_record_payment_validations_and_excess_allocation(app):
+    import pytest
+
+    with app.app_context():
+        doctor = Party(party_type=PartyType.DENTIST, name="Dr. Excess Test", previous_balance=Decimal("500.00"))
+        db.session.add(doctor)
+        db.session.commit()
+        doc_id = doctor.id
+
+        wo_june = WorkOrder(party_id=doc_id, work_date=date(2026, 6, 1), apparatus_type="App 1", patient_name="H1", apparatus_price=Decimal("1000.00"), total_price=Decimal("1000.00"))
+        db.session.add(wo_june)
+        db.session.commit()
+        june_m = generate_makbuz(doc_id, 2026, 6, vat_applied=False, vat_rate=Decimal("0.00"))
+
+        wo_july = WorkOrder(party_id=doc_id, work_date=date(2026, 7, 1), apparatus_type="App 2", patient_name="H2", apparatus_price=Decimal("1000.00"), total_price=Decimal("1000.00"))
+        db.session.add(wo_july)
+        db.session.commit()
+        july_m = generate_makbuz(doc_id, 2026, 7, vat_applied=False, vat_rate=Decimal("0.00"))
+
+        # Zero or negative amount raises ValueError
+        with pytest.raises(ValueError, match="Geçerli bir ödeme tutarı girin."):
+            record_payment(july_m, payment_date=date(2026, 7, 15), amount=Decimal("0.00"), method="cash")
+
+        # Exceeding limit raises ValueError
+        with pytest.raises(ValueError, match="bakiyeyi aşamaz"):
+            record_payment(july_m, payment_date=date(2026, 7, 15), amount=Decimal("99999.00"), method="cash")
+
+        # Pay July (1000) + June (1000) + Previous Balance (500) = 2500 TL total excess payment on July makbuz
+        entry = record_payment(july_m, payment_date=date(2026, 7, 15), amount=Decimal("2500.00"), method="transfer")
+        assert entry.amount == Decimal("1000.00")
+        assert july_m.outstanding_amount == Decimal("0.00")
+        assert june_m.outstanding_amount == Decimal("0.00")
+        assert doctor.previous_balance_outstanding == Decimal("0.00")
+
+

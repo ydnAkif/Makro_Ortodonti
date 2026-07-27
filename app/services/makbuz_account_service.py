@@ -109,11 +109,11 @@ def record_payment(
     makbuz_payment_amount = min(amount, original_outstanding)
     excess = amount - makbuz_payment_amount
 
-    # 1. Record full payment entry for complete movement tracking
+    # 1. Record payment entry for current makbuz
     entry = MakbuzPayment(
         makbuz=makbuz,
         payment_date=payment_date,
-        amount=amount,
+        amount=makbuz_payment_amount,
         method=method,
         reference=reference,
         notes=notes,
@@ -130,6 +130,16 @@ def record_payment(
             prev_makbuz = prev_period.makbuz
             apply_to_prev = min(excess, prev_makbuz.outstanding_amount)
             if apply_to_prev > 0:
+                prev_entry = MakbuzPayment(
+                    makbuz=prev_makbuz,
+                    payment_date=payment_date,
+                    amount=apply_to_prev,
+                    method=method,
+                    reference=reference,
+                    notes=f"Aktarılan tahsilat ({makbuz.year}-{makbuz.month:02d})",
+                )
+                db.session.add(prev_entry)
+                db.session.flush()
                 sync_makbuz_collection(prev_makbuz)
                 excess -= apply_to_prev
 

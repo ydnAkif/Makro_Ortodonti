@@ -905,8 +905,7 @@ def test_overpayment_does_not_double_deduct_outstanding(client, app):
     assert resp_list.status_code == 200
     html = resp_list.get_data(as_text=True)
     assert "-360" not in html
-    assert "Devreden Borç: ₺320.00" in html
-    assert "₺2,000.00" in html
+    assert "₺1,320.00" in html
     assert "1 Doktor" in html
     assert "Toplam <strong>₺320.00</strong> açık bakiye" in html
 
@@ -914,7 +913,7 @@ def test_overpayment_does_not_double_deduct_outstanding(client, app):
     assert "₺-360.00" not in parties_html
     assert "Toplam Açık Bakiye" in parties_html
     assert parties_html.count("₺320.00") >= 1
-    assert "₺2,000.00" in parties_html
+    assert "₺1,320.00" in parties_html
 
 
 def test_partial_payment_on_draft_is_included_in_all_balance_totals(client, app):
