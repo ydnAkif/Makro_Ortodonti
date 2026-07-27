@@ -130,21 +130,19 @@
                         </div>
                         {% set note_value = wo.notes|clean_optional %}
                         {% if note_value %}<div class="workorder-note"><i class="bi bi-journal-text" aria-hidden="true"></i><span>{{ note_value }}</span></div>{% endif %}
-                        <div class="stepper-bar my-1 py-1 px-2" style="font-size: 0.72rem;">
-                            <div class="stepper-step stepper-step--completed"><span class="stepper-badge"><i class="bi bi-check"></i></span><span class="stepper-label">Sipariş</span></div>
-                            <div class="stepper-step stepper-step--completed"><span class="stepper-badge"><i class="bi bi-check"></i></span><span class="stepper-label">Üretim</span></div>
-                            <div class="stepper-step stepper-step--active"><span class="stepper-badge">3</span><span class="stepper-label">Kontrol</span></div>
-                            <div class="stepper-step stepper-step--pending"><span class="stepper-badge">4</span><span class="stepper-label">Teslim</span></div>
-                        </div>
                     </td>
                     <td class="text-end">
+                        {% set islem_ucreti = wo.apparatus_price + wo.extra_price %}
+                        {% set kdv_tutari = (islem_ucreti * 10 / 100) if (wo.party and wo.party.applies_kdv) else 0 %}
+                        {% set islem_toplam = islem_ucreti + kdv_tutari %}
                         <div class="workorder-amounts">
-                            <span><small>Aparey</small><b>₺{{ "{:,.2f}".format(wo.apparatus_price) }}</b></span>
-                            <span><small>Ekstra</small><b>₺{{ "{:,.2f}".format(wo.extra_price) }}</b></span>
-                            <strong><small>Toplam</small>₺{{ "{:,.2f}".format(wo.total_price) }}</strong>
+                            <span><small>İşlem Ücreti</small><b>₺{{ "{:,.2f}".format(islem_ucreti) }}</b></span>
+                            <span><small>KDV (%10)</small><b>₺{{ "{:,.2f}".format(kdv_tutari) }}</b></span>
+                            <strong><small>Toplam</small>₺{{ "{:,.2f}".format(islem_toplam) }}</strong>
                         </div>
                     </td>
                     <td class="text-end workorder-row-actions">
+                        <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=wo.party_id, year=wo.work_date.year, month=wo.work_date.month) }}" class="btn btn-sm btn-outline-success text-nowrap" title="Doktordan ödeme al"><i class="bi bi-cash-coin me-1" aria-hidden="true"></i>Ödeme Al</a>
                         <a href="{{ url_for('parties.edit_work_order', party_id=wo.party_id, wo_id=wo.id, return_to='work_orders', return_view=view, return_date=(selected_date.isoformat() if selected_date else none), return_year=(year if view == 'month' else none), return_month=(month if view == 'month' else none), return_search=search) }}" class="btn btn-sm btn-outline-secondary" title="İş emrini düzenle" aria-label="{{ wo.patient_name }} iş emrini düzenle"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                         <form method="POST" action="{{ url_for('parties.delete_work_order', party_id=wo.party_id, wo_id=wo.id) }}" class="d-inline" data-confirm="Bu iş emrini silmek istediğinize emin misiniz?">
                             <input type="hidden" name="return_to" value="work_orders">

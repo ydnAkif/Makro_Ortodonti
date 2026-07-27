@@ -11,6 +11,138 @@
     </div>
 </header>
 
+<style>
+/* Premium Modern Smart Table & Dashboard Styles */
+.work-panel {
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+}
+
+.work-panel__header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 1.25rem 1.5rem !important;
+}
+
+.work-panel__header h2 {
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    font-size: 1.1rem !important;
+    letter-spacing: -0.01em !important;
+}
+
+.summary-line {
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    overflow: hidden;
+}
+
+.summary-line > div {
+    padding: 1rem 1.25rem !important;
+    border-right: 1px solid #f1f5f9 !important;
+}
+
+.summary-line > div:last-child {
+    border-right: none !important;
+}
+
+.summary-line span {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.summary-line strong {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.table thead th {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+    padding: 0.65rem 0.35rem !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    white-space: nowrap !important;
+}
+
+.table tbody td {
+    padding: 0.75rem 0.35rem !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.8rem !important;
+}
+
+.table tbody tr {
+    transition: background-color 0.15s ease !important;
+}
+
+.table tbody tr:hover {
+    background-color: #f8fafc !important;
+}
+
+.table tfoot td {
+    background-color: #f8fafc !important;
+    padding: 0.75rem 0.35rem !important;
+    border-top: 2px solid #e2e8f0 !important;
+    font-size: 0.8rem !important;
+}
+
+.badge-tint-info {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 0.25rem 0.45rem !important;
+    border-radius: 6px !important;
+    font-size: 0.75rem !important;
+}
+
+.badge-kdv {
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe !important;
+    font-weight: 600 !important;
+    padding: 0.2rem 0.45rem !important;
+    border-radius: 6px !important;
+    font-size: 0.75rem !important;
+}
+
+.btn-whatsapp-bulk {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+    padding: 0.5rem 1rem !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25) !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-whatsapp-bulk:hover:not(:disabled) {
+    background-color: #059669 !important;
+    border-color: #059669 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+}
+
+.btn-whatsapp-bulk:disabled {
+    opacity: 0.5 !important;
+    box-shadow: none !important;
+}
+</style>
+
 <div class="workorder-period-bar">
     <nav class="period-switch" aria-label="Hesap özeti dönemi">
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=today.isoformat(), status_filter=status_filter) }}" class="{% if view == 'day' %}active{% endif %}">Gün</a>
@@ -57,53 +189,33 @@
     </form>
 </div>
 
-<!-- Status Filter Pills -->
-<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-    <span class="small text-muted me-1 font-weight-bold">Durum Filtresi:</span>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='all') }}" class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Tümü ({{ doctors|length }})</a>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='draft') }}" class="btn btn-sm {% if status_filter == 'draft' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Açık Bakiye Var ({{ draft_count }})</a>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='sent') }}" class="btn btn-sm {% if status_filter == 'sent' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Tahsilat Bekleyenler ({{ awaiting_payment_count }})</a>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='paid') }}" class="btn btn-sm {% if status_filter == 'paid' %}btn-success{% else %}btn-outline-secondary{% endif %}">Ödenenler ({{ paid_count }})</a>
-</div>
-
-<div class="summary-line summary-line--four">
-    <div><span><i class="bi bi-clipboard2-check text-primary me-1" aria-hidden="true"></i>İş emri</span><strong>{{ grand_total_count }}</strong></div>
-    <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Dönem toplamı</span><strong>₺{{ "{:,.2f}".format(grand_total_price) }}</strong></div>
-    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Açık bakiye</span><strong>{{ draft_count }} doktor</strong></div>
-    <div><span><i class="bi bi-clock-history text-warning me-1" aria-hidden="true"></i>Tahsilat bekliyor</span><strong>{{ awaiting_payment_count }} özet</strong></div>
+<!-- Summary Line -->
+<div class="summary-line summary-line--four mb-3">
+    <div><span><i class="bi bi-clipboard2-check text-primary me-1" aria-hidden="true"></i>Toplam İş Emri</span><strong>{{ grand_total_count }} iş</strong></div>
+    <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Dönem Toplamı</span><strong>₺{{ "{:,.2f}".format(grand_total_price) }}</strong></div>
+    <div><span><i class="bi bi-clock-history text-muted me-1" aria-hidden="true"></i>Devreden Borçlar</span><strong>₺{{ "{:,.2f}".format(doctors|sum(attribute='carried_over_balance')) }}</strong></div>
+    <div><span><i class="bi bi-exclamation-circle text-danger me-1" aria-hidden="true"></i>Toplam Alacak (Kalan)</span><strong class="text-danger">₺{{ "{:,.2f}".format(doctors|sum(attribute='total_due')) }}</strong></div>
 </div>
 
 {% if sending %}
 <div class="notice-strip mb-3" id="makbuz-send-progress" role="status">
     <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
-    <span>Seçilen aylık hesap özetleri gönderiliyor. İşlem tamamlandığında liste yenilenecek.</span>
+    <span>Aylık hesap özetleri WhatsApp üzerinden gönderiliyor. İşlem tamamlandığında liste yenilenecek.</span>
 </div>
 {% endif %}
 
 <!-- Doctor List -->
-<form method="POST" action="{{ url_for('makbuzlar.bulk_generate_drafts') }}">
+<form method="POST" action="{{ url_for('makbuzlar.bulk_send_makbuzlar') }}">
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="month" value="{{ month }}">
     <div class="work-panel">
         <div class="work-panel__header">
-            <div><h2>{{ period_label }}</h2><p>Doktor bazlı aylık hesap özeti durumu</p></div>
-            <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+            <div><h2>{{ period_label }}</h2><p>Doktor bazlı hesap ve bakiye özeti</p></div>
+            <div class="d-flex align-items-center justify-content-end gap-2">
                 <span class="small text-muted" id="makbuz-selected-count">0 doktor seçildi</span>
-                {% if preparation_count %}
-                <button type="submit" class="btn btn-primary btn-sm" id="bulk-generate-button" disabled>
-                    <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> Seçilenler için özet oluştur
+                <button type="submit" class="btn btn-success btn-sm" id="bulk-send-button" data-confirm="Seçili doktor hesap özetleri WhatsApp üzerinden gönderilsin mi?" disabled>
+                    <i class="bi bi-whatsapp me-1" aria-hidden="true"></i> Seçilenleri WhatsApp'tan Gönder
                 </button>
-                {% endif %}
-                {% if draft_count %}
-                <button type="submit" class="btn btn-success btn-sm" id="bulk-send-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_send_makbuzlar') }}" data-confirm="Seçili taslaklar WhatsApp üzerinden gönderilsin mi?" data-confirm-title="WhatsApp Gönderim Onayı" data-confirm-btn="Evet, Gönder" data-confirm-btn-class="btn-success" data-confirm-icon="bi-whatsapp" disabled>
-                    <i class="bi bi-whatsapp" aria-hidden="true"></i> Seçilenleri WhatsApp'tan gönder
-                </button>
-                {% endif %}
-                {% if deletable_count %}
-                <button type="submit" class="btn btn-danger btn-sm" id="bulk-delete-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_delete_makbuzlar') }}" data-confirm="Seçili aylık hesap özetleri kalıcı olarak silinecek. Gönderim geçmişi korunur. Emin misiniz?" disabled>
-                    <i class="bi bi-trash" aria-hidden="true"></i> Seçilenleri sil
-                </button>
-                {% endif %}
             </div>
         </div>
         <div class="card-body p-0">
@@ -111,15 +223,19 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th class="col-w-checkbox text-center">
+                            <th class="col-w-checkbox text-center" style="width: 30px;">
                                 <input type="checkbox" class="form-check-input" id="select-all-parties" title="Tümünü seç" aria-label="Tüm doktorları seç">
                             </th>
-                            <th class="text-start">Doktor</th>
+                            <th class="text-start" style="min-width: 140px;">Doktor</th>
                             <th class="text-center">İş Emri</th>
-                            <th class="text-end">Toplam (₺)</th>
-                            <th class="text-center">Gönderim</th>
-                            <th class="text-center">KDV</th>
-                            <th class="text-end col-w-actions">İşlem</th>
+                            <th class="text-end">Net İşler</th>
+                            <th class="text-center">KDV (%10)</th>
+                            <th class="text-end">Dönem Toplamı</th>
+                            <th class="text-end">Devreden</th>
+                            <th class="text-end">Ödenen</th>
+                            <th class="text-end">Kalan Net</th>
+                            <th class="text-center">Kalan KDV</th>
+                            <th class="text-end">Toplam Borç</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,87 +243,56 @@
                         {% set m = d.makbuz %}
                         <tr>
                             <td class="col-w-checkbox text-center">
-                                {% if not m or (not m.payment_entries and m.collected_amount <= 0) %}
                                 <input type="checkbox" class="form-check-input" name="party_ids" value="{{ d.party_id }}">
-                                {% endif %}
                             </td>
                             <td class="text-start">
                                 <div class="d-flex align-items-center">
                                     <div>
-                                        <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="fw-bold text-decoration-none">{{ d.party.name if d.party else '-' }}</a>
-                                        {% if d.party and d.party.phone %}<br><small class="text-muted">{{ d.party.phone|phone_display }}</small>{% endif %}
+                                        <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="fw-bold text-decoration-none text-dark text-nowrap">{{ d.party.name if d.party else '-' }}</a>
+                                        {% if d.party and d.party.phone %}<br><small class="text-muted text-nowrap"><i class="bi bi-telephone me-1"></i>{{ d.party.phone|phone_display }}</small>{% endif %}
+                                        {% if d.carried_over_balance > 0 %}<br><small class="text-muted text-nowrap" style="font-size:0.75rem;"><i class="bi bi-clock-history me-1"></i>Devreden borç: ₺{{ "{:,.2f}".format(d.carried_over_balance) }}</small>{% endif %}
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-center"><span class="badge-tint badge-tint-info">{{ d.count }} iş</span></td>
-                            <td class="text-end num-cell">
-                                <div class="fw-bold">₺{{ "{:,.2f}".format((m.grand_total if m else d.total_price)) }}</div>
-                                {% if m and m.grand_total > 0 %}
-                                {% set pct = [((m.collected_amount / m.grand_total) * 100)|int, 100]|min %}
-                                <div class="payment-progress-bar ms-auto" style="max-width: 100px;" title="%{{ pct }} tahsil edildi">
-                                    <div class="payment-progress-fill" style="width: {{ pct }}%;"></div>
-                                </div>
-                                {% endif %}
-                            </td>
                             <td class="text-center">
-                                {% if not m %}
-                                <span class="badge-tint badge-tint-secondary"><i class="bi bi-dash-circle me-1"></i>OLUŞTURULMADI</span>
-                                {% elif m.status == 'paid' %}
-                                <span class="badge-tint badge-tint-success"><i class="bi bi-check-circle-fill me-1"></i>Ödendi</span>
-                                {% elif m.is_partially_paid %}
-                                <span class="badge-tint badge-tint-warning"><i class="bi bi-pie-chart-fill me-1"></i>Kısmi Ödendi</span>
-                                {% elif m.status == 'sent' %}
-                                <span class="badge-tint badge-tint-info"><i class="bi bi-send-fill me-1"></i>Gönderildi</span>
+                                <a href="{{ d.work_orders_url }}" class="badge-tint badge-tint-info text-decoration-none text-nowrap" title="İş emirlerini görüntüle">
+                                    <i class="bi bi-receipt me-1"></i>{{ d.count }} iş
+                                </a>
+                            </td>
+                            <td class="text-end num-cell text-nowrap">₺{{ "{:,.2f}".format(d.subtotal) }}</td>
+                            <td class="text-center text-nowrap">
+                                {% if d.party and d.party.applies_kdv %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" title="KDV dahil">₺{{ "{:,.2f}".format(d.vat_amount) }}</span>
                                 {% else %}
-                                <span class="badge-tint badge-tint-secondary"><i class="bi bi-pencil-square me-1"></i>Taslak</span>
+                                <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
-                                {% if not m or (not m.payment_entries and m.collected_amount <= 0) %}
-                                {% set saved_vat_rate = 10 %}
-                                <div class="form-check form-switch d-inline-block">
-                                    <input class="form-check-input" type="checkbox" name="vat_{{ d.party_id }}_vat_applied" id="vat-{{ d.party_id }}" {% if (m and m.vat_applied) or (not m and d.party.applies_kdv) %}checked{% endif %}>
-                                    <label class="form-check-label small" for="vat-{{ d.party_id }}">%{{ '{:g}'.format(saved_vat_rate) }}</label>
-                                    <input type="hidden" name="vat_{{ d.party_id }}_vat_rate" value="{{ '{:.2f}'.format(saved_vat_rate) }}">
-                                </div>
-                                {% elif m.vat_applied %}
-                                <small class="text-muted">%{{ '{:.2f}'.format(m.vat_rate) }}</small>
+                            <td class="text-end num-cell fw-semibold text-nowrap">₺{{ "{:,.2f}".format(d.grand_total) }}</td>
+                            <td class="text-end num-cell text-muted text-nowrap">
+                                {% if d.carried_over_balance > 0 %}₺{{ "{:,.2f}".format(d.carried_over_balance) }}{% else %}₺0.00{% endif %}
+                            </td>
+                            <td class="text-end num-cell text-success text-nowrap">
+                                {% if d.collected_amount > 0 %}₺{{ "{:,.2f}".format(d.collected_amount) }}{% else %}<span class="text-muted">₺0.00</span>{% endif %}
+                            </td>
+                            <td class="text-end num-cell text-nowrap">₺{{ "{:,.2f}".format(d.kalan_net) }}</td>
+                            <td class="text-center text-nowrap">
+                                {% if d.party and d.party.applies_kdv and d.kalan_kdv > 0 %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">₺{{ "{:,.2f}".format(d.kalan_kdv) }}</span>
                                 {% else %}
-                                <small class="text-muted">-</small>
+                                <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end">
-                                {% if m %}
-                                <a href="{{ url_for('makbuzlar.pdf_makbuz', makbuz_id=m.id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" title="PDF Önizle">
-                                    <i class="bi bi-file-earmark-pdf"></i>
-                                </a>
-                                {% endif %}
-                                <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil-square"></i> Gör / Düzenle
-                                </a>
-                                {% if m and not m.payment_entries and m.collected_amount <= 0 %}
-                                <form method="POST" action="{{ url_for('makbuzlar.delete_makbuz', makbuz_id=m.id) }}" class="d-inline" data-confirm="Bu aylık hesap özeti silinsin mi?">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Aylık özeti sil"><i class="bi bi-trash"></i></button>
-                                </form>
-                                {% endif %}
-                                {% if m and m.status == 'sent' %}
-                                <a href="{{ url_for('payments.mark_paid', makbuz_id=m.id) }}" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-cash-coin"></i> Tahsilat kaydet
-                                </a>
-                                {% elif m and m.status == 'paid' %}
-                                <a href="{{ url_for('payments.list_payments', search=d.party.display_name, year=year, tab='paid') }}" class="btn btn-sm btn-outline-success">
-                                    <i class="bi bi-check-circle"></i> Tahsilatlarda gör
-                                </a>
-                                {% endif %}
+                            <td class="text-end num-cell fw-bold fs-6 text-nowrap {% if d.total_due > 0 %}text-danger{% else %}text-success{% endif %}">
+                                ₺{{ "{:,.2f}".format(d.total_due) }}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7">
+                            <td colspan="11">
                                 <div class="empty-state-card">
                                     <div class="empty-state-icon"><i class="bi bi-receipt-cutoff"></i></div>
-                            <h5>Bu Dönem Aylık Özet Bulunmuyor</h5>
-                                    <p>Bu dönem için iş emri girilmedi.</p>
+                                    <h5>Bu Dönem İçin Kayıt Bulunmuyor</h5>
+                                    <p>Seçilen dönemde iş emri veya hesap özeti kaydı yok.</p>
                                 </div>
                             </td>
                         </tr>
@@ -217,10 +302,16 @@
                     <tfoot class="table-light">
                         <tr>
                             <td></td>
-                            <td class="fw-bold">TOPLAM</td>
+                            <td class="fw-bold text-start">TOPLAM</td>
                             <td class="text-center fw-bold">{{ grand_total_count }}</td>
-                            <td class="text-end fw-bold fs-5">₺{{ "{:,.2f}".format(grand_total_price) }}</td>
-                            <td colspan="3"></td>
+                            <td class="text-end fw-bold">₺{{ "{:,.2f}".format(doctors|sum(attribute='subtotal')) }}</td>
+                            <td class="text-center fw-bold">₺{{ "{:,.2f}".format(doctors|sum(attribute='vat_amount')) }}</td>
+                            <td class="text-end fw-bold">₺{{ "{:,.2f}".format(grand_total_price) }}</td>
+                            <td class="text-end fw-bold text-muted">₺{{ "{:,.2f}".format(doctors|sum(attribute='carried_over_balance')) }}</td>
+                            <td class="text-end fw-bold text-success">₺{{ "{:,.2f}".format(doctors|sum(attribute='collected_amount')) }}</td>
+                            <td class="text-end fw-bold">₺{{ "{:,.2f}".format(doctors|sum(attribute='kalan_net')) }}</td>
+                            <td class="text-center fw-bold">₺{{ "{:,.2f}".format(doctors|sum(attribute='kalan_kdv')) }}</td>
+                            <td class="text-end fw-bold fs-5 text-danger">₺{{ "{:,.2f}".format(doctors|sum(attribute='total_due')) }}</td>
                         </tr>
                     </tfoot>
                     {% endif %}
@@ -229,6 +320,7 @@
         </div>
     </div>
 </form>
+
 <script>
 (function () {
     var selectAll = document.getElementById("select-all-parties");
@@ -240,13 +332,9 @@
         var all = Array.prototype.slice.call(boxes());
         var selected = all.filter(function (box) { return box.checked; });
         var count = document.getElementById("makbuz-selected-count");
-        var generateButton = document.getElementById("bulk-generate-button");
         var sendButton = document.getElementById("bulk-send-button");
-        var deleteButton = document.getElementById("bulk-delete-button");
         if (count) count.textContent = selected.length + " doktor seçildi";
-        if (generateButton) generateButton.disabled = selected.length === 0;
         if (sendButton) sendButton.disabled = selected.length === 0;
-        if (deleteButton) deleteButton.disabled = selected.length === 0;
         selectAll.checked = all.length > 0 && selected.length === all.length;
         selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
     };
@@ -261,6 +349,7 @@
     updateSelection();
 })();
 </script>
+
 {% if sending %}
 <script>
 (function () {

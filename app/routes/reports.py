@@ -99,7 +99,11 @@ def _build_kdv_doctor_rows(year: int, month: int) -> list[dict]:
         vat_rate = VAT_RATE
         vat_amount = money(summary.vat_amount) if summary and summary.vat_applied else money(subtotal * vat_rate / Decimal("100"))
         grand_total = money(subtotal + vat_amount)
+        if len(doctor_work_orders) == 0 and (not summary or summary.subtotal <= 0):
+            continue
+
         rows.append({
+            "party_id": doctor.id,
             "name": doctor.display_name,
             "tax_id": doctor.tax_id or "-",
             "work_order_count": len(doctor_work_orders),

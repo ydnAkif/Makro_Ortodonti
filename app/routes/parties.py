@@ -229,18 +229,30 @@ def _resolve_work_order_query(request_args):
     next_nav_month = 1 if month == 12 else month + 1
     next_nav_year = year + 1 if month == 12 else year
 
+    query = (
+        db.select(WorkOrder)
+        .join(Party, WorkOrder.party_id == Party.id)
+        .where(Party.is_active.is_(True))
+    )
+
     if view == "all":
-        period_start = date(2000, 1, 1)
-        period_end = date(2099, 12, 31)
         period_label = "Tüm Zamanlar"
     elif view == "year":
         period_start = date(year, 1, 1)
         period_end = date(year + 1, 1, 1)
         period_label = f"{year} Yılı"
+        query = query.where(
+            WorkOrder.work_date >= period_start,
+            WorkOrder.work_date < period_end,
+        )
     elif view == "day":
         period_start = selected_date
         period_end = selected_date + timedelta(days=1)
         period_label = selected_date.strftime("%d.%m.%Y")
+        query = query.where(
+            WorkOrder.work_date >= period_start,
+            WorkOrder.work_date < period_end,
+        )
     else:  # view == "month"
         try:
             period_start = date(year, month, 1)
@@ -249,16 +261,11 @@ def _resolve_work_order_query(request_args):
             period_start = date(year, month, 1)
         period_end = date(year + (month == 12), month % 12 + 1, 1)
         period_label = f"{MONTHS[month - 1][1]} {year}"
-
-    query = (
-        db.select(WorkOrder)
-        .join(Party, WorkOrder.party_id == Party.id)
-        .where(
+        query = query.where(
             WorkOrder.work_date >= period_start,
             WorkOrder.work_date < period_end,
-            Party.is_active.is_(True),
         )
-    )
+
     if search:
         query = query.where(db.or_(
             tr_contains(Party.name, search),
@@ -321,7 +328,7 @@ def export_work_orders_pdf():
         period_total=data["period_total"],
     )
 
-    filename = f"is_emirleri_{data['view']}_{data['period_label'].replace(' ', '_').lower()}.pdf"
+    filename = f"is_emirleri_{data['view']}.pdf"
     return Response(
         pdf_bytes,
         mimetype="application/pdf",
@@ -506,10 +513,26 @@ def detail_party(party_id):
     view = request.args.get("view", "month")
     year = request.args.get("year", today.year, type=int)
 
-    if view == "year":
+    if view == "all":
+        month = None
+        period_work_orders = db.session.execute(
+            db.select(WorkOrder)
+            .where(WorkOrder.party_id == party_id)
+            .order_by(WorkOrder.work_date.desc(), WorkOrder.id.desc())
+        ).scalars().all()
+    elif view == "year":
         month = None
         period_start = date(year, 1, 1)
         period_end = date(year + 1, 1, 1)
+        period_work_orders = db.session.execute(
+            db.select(WorkOrder)
+            .where(
+                WorkOrder.party_id == party_id,
+                WorkOrder.work_date >= period_start,
+                WorkOrder.work_date < period_end,
+            )
+            .order_by(WorkOrder.work_date.desc(), WorkOrder.id.desc())
+        ).scalars().all()
     else:
         view = "month"
         month = request.args.get("month", today.month, type=int)
@@ -519,16 +542,15 @@ def detail_party(party_id):
             year, month = today.year, today.month
             period_start = date(year, month, 1)
         period_end = date(year + (month == 12), month % 12 + 1, 1)
-
-    period_work_orders = db.session.execute(
-        db.select(WorkOrder)
-        .where(
-            WorkOrder.party_id == party_id,
-            WorkOrder.work_date >= period_start,
-            WorkOrder.work_date < period_end,
-        )
-        .order_by(WorkOrder.work_date.desc(), WorkOrder.id.desc())
-    ).scalars().all()
+        period_work_orders = db.session.execute(
+            db.select(WorkOrder)
+            .where(
+                WorkOrder.party_id == party_id,
+                WorkOrder.work_date >= period_start,
+                WorkOrder.work_date < period_end,
+            )
+            .order_by(WorkOrder.work_date.desc(), WorkOrder.id.desc())
+        ).scalars().all()
 
     search = request.args.get("search", "").strip()
     if search:
@@ -604,12 +626,15 @@ def detail_party(party_id):
 
     if view == "month":
         period_label = f"{MONTHS[month - 1][1]} {year}"
+    elif view == "all":
+        period_label = "Tüm Zamanlar"
     else:
         period_label = f"{year} Yılı"
 
     return render_template(
         "parties/detail.html",
         party=party,
+        today=today,
         work_orders=work_orders,
         period_work_order_count=len(period_work_orders),
         search=search,

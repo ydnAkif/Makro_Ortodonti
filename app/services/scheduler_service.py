@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.constants import MONTH_NAMES
+from app.constants import MONTH_NAMES, VAT_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,15 @@ def _generate_monthly_drafts(app) -> None:
             if existing:
                 continue
             try:
-                generate_makbuz(party_id, year, month, vat_applied=False, vat_rate=Decimal("0"))
+                party = db.session.get(Party, party_id)
+                vat_app = bool(party and party.applies_kdv)
+                generate_makbuz(
+                    party_id,
+                    year,
+                    month,
+                    vat_applied=vat_app,
+                    vat_rate=VAT_RATE if vat_app else Decimal("0.00"),
+                )
                 db.session.commit()
                 created += 1
             except ValueError:

@@ -34,17 +34,7 @@ class PartyService:
 
     @staticmethod
     def _refresh_period_summary(party: Party, year: int, month: int) -> None:
-        """Varsa dönem özetini güncel iş emirleri ve doktor KDV tercihiyle yenile."""
-        existing = db.session.execute(
-            db.select(Makbuz).where(
-                Makbuz.party_id == party.id,
-                Makbuz.year == year,
-                Makbuz.month == month,
-            )
-        ).scalar_one_or_none()
-        if not existing:
-            return
-
+        """Dönem özetini güncel iş emirleri ve doktor KDV tercihiyle yenile/oluştur."""
         from app.services.makbuz_service import generate_makbuz
 
         generate_makbuz(
@@ -106,6 +96,7 @@ class PartyService:
         if not name:
             raise ValueError("İsim alanı gereklidir.")
 
+        old_applies_kdv = party.applies_kdv
         party.name = name
         party.phone = normalize_optional_text(form_data.get("phone", ""))
         party.email = normalize_optional_text(form_data.get("email", ""))
@@ -113,6 +104,21 @@ class PartyService:
         party.notes = normalize_optional_text(form_data.get("notes", ""))
         party.is_active = form_data.get("is_active") == "on" or form_data.get("is_active") is True
         party.applies_kdv = form_data.get("applies_kdv") == "on" or form_data.get("applies_kdv") is True
+
+        db.session.flush()
+        if party.applies_kdv != old_applies_kdv:
+            makbuzlar = db.session.execute(
+                db.select(Makbuz).where(Makbuz.party_id == party.id)
+            ).scalars().all()
+            from app.services.makbuz_service import generate_makbuz
+            for m in makbuzlar:
+                generate_makbuz(
+                    party.id,
+                    m.year,
+                    m.month,
+                    vat_applied=bool(party.applies_kdv),
+                    vat_rate=VAT_RATE if party.applies_kdv else Decimal("0.00"),
+                )
 
         db.session.commit()
         return party

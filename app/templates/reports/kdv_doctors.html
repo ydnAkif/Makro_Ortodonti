@@ -45,7 +45,7 @@
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Doktor</th><th>Vergi no</th><th class="text-center">İş emri</th><th class="text-end">Matrah</th><th class="text-end">KDV</th><th class="text-end">Toplam</th><th class="text-center">Durum</th></tr></thead>
+      <thead><tr><th>Doktor</th><th>Vergi no</th><th class="text-center">İş emri</th><th class="text-end">Matrah</th><th class="text-end">KDV (%10)</th><th class="text-end">Toplam</th><th class="text-center">Durum</th></tr></thead>
       <tbody>
         {% for row in rows %}
         <tr>
@@ -53,9 +53,17 @@
           <td>{{ row.tax_id }}</td>
           <td class="text-center">{{ row.work_order_count }}</td>
           <td class="text-end">₺{{ "{:,.2f}".format(row.net_total) }}</td>
-          <td class="text-end"><span class="text-muted">%{{ "{:g}".format(row.vat_rate) }}</span> <strong>₺{{ "{:,.2f}".format(row.vat_total) }}</strong></td>
+          <td class="text-end"><strong>₺{{ "{:,.2f}".format(row.vat_total) }}</strong></td>
           <td class="text-end fw-bold">₺{{ "{:,.2f}".format(row.grand_total) }}</td>
-          <td class="text-center"><span class="badge-tint {{ 'badge-tint-success' if row.status == 'Özet hazır' else 'badge-tint-secondary' }}">{{ row.status }}</span></td>
+          <td class="text-center">
+            {% if row.status in ('Özet hazır', 'Özet bekliyor') or row.work_order_count > 0 %}
+            <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=row.party_id, year=year, month=month) }}" class="badge-tint badge-tint-success text-decoration-none" title="Doktor hesap özetini görüntüle">
+              <i class="bi bi-arrow-right-short me-1"></i>{{ row.status }}
+            </a>
+            {% else %}
+            <span class="badge-tint badge-tint-secondary">{{ row.status }}</span>
+            {% endif %}
+          </td>
         </tr>
         {% else %}
         <tr><td colspan="7"><div class="empty-state-card"><div class="empty-state-icon"><i class="bi bi-percent"></i></div><h5>KDV uygulanan doktor yok</h5><p>Doktor düzenleme ekranından “KDV uygulanır” seçeneğini açabilirsiniz.</p></div></td></tr>

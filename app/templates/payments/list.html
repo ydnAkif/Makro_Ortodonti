@@ -246,8 +246,8 @@
                                         </div>
                                         <div>
                                             <a href="{{ url_for('parties.detail_party', party_id=r.party.id) }}" class="fw-bold text-decoration-none d-block">{{ r.party.name }}</a>
-                                            {% if r.previous_balance > 0 %}
-                                            <small class="text-muted" style="font-size:0.75rem;"><i class="bi bi-clock-history me-1"></i>Devreden borç: ₺{{ "{:,.2f}".format(r.previous_balance) }}</small>
+                                            {% if r.carried_over_balance > 0 %}
+                                            <small class="text-muted" style="font-size:0.75rem;"><i class="bi bi-clock-history me-1"></i>Devreden borç: ₺{{ "{:,.2f}".format(r.carried_over_balance) }}</small>
                                             {% endif %}
                                         </div>
                                     </div>

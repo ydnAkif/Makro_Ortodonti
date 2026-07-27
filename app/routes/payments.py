@@ -22,6 +22,9 @@ METHOD_LABELS = {
 @login_required
 @permissions_required("billing.view")
 def list_payments():
+    from app.services.makbuz_service import sync_all_missing_makbuzlar
+
+    sync_all_missing_makbuzlar()
     search = request.args.get("search", "").strip()
     year = request.args.get("year", type=int)
     active_tab = request.args.get("tab", "pending")
@@ -82,9 +85,13 @@ def list_payments():
             Decimal("0.00"),
         ))
         prev_bal = party.previous_balance_outstanding
-        # Açık bakiye, gerçek tahsilattan bağımsız olarak henüz
-        # kapanmamış makbuzlar ve kalan devreden borçtan oluşur. Billed -
-        # paid hesabı, devreden borca uygulanan tahsilatı ikinci kez düşürür.
+        current_year, current_month = date.today().year, date.today().month
+        prior_makbuzlar_outstanding = money(sum(
+            (m.outstanding_amount for m in financial_makbuzlar if (m.year * 100 + m.month) < (current_year * 100 + current_month)),
+            Decimal("0.00")
+        ))
+        carried_over_balance = money(prior_makbuzlar_outstanding + prev_bal)
+
         outstanding = money(sum(
             (m.outstanding_amount for m in financial_makbuzlar),
             Decimal("0.00"),
@@ -94,6 +101,7 @@ def list_payments():
             "billed": billed,
             "paid": paid,
             "previous_balance": prev_bal,
+            "carried_over_balance": carried_over_balance,
             "outstanding": outstanding,
             "makbuz_count": len(m_list),
         })
@@ -188,7 +196,11 @@ def list_payments():
 @login_required
 @permissions_required("billing.edit")
 def mark_paid(makbuz_id):
-    makbuz = db.get_or_404(Makbuz, makbuz_id)
+    makbuz = db.session.get(Makbuz, makbuz_id)
+    if not makbuz:
+        from app.services.makbuz_service import sync_all_missing_makbuzlar
+        sync_all_missing_makbuzlar()
+        makbuz = db.get_or_404(Makbuz, makbuz_id)
     if makbuz.outstanding_amount <= 0:
         flash("Bu aylık hesap özetinin açık bakiyesi bulunmuyor.", "info")
         return redirect(url_for("payments.list_payments", tab="paid"))

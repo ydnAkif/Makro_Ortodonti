@@ -257,7 +257,7 @@ block content %}
           </h5>
           <small class="text-muted"
             >{{ period_label }} · {{ work_orders|length }} iş emri{% if view ==
-            'month' and period_makbuz %} · {{ period_makbuz_status }} aylık özet{%
+            'month' and period_makbuz %} · {% if period_makbuz.status == 'paid' %}<span class="text-success fw-bold"><i class="bi bi-check-circle-fill text-success me-1"></i>Ödendi</span>{% else %}<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill text-danger me-1"></i>Ödenmedi</span>{% endif %}{%
             endif %}</small
           >
         </div>
@@ -294,7 +294,7 @@ block content %}
         >
           <nav class="period-switch" aria-label="Görünüm">
             <a
-              href="{{ url_for('parties.detail_party', party_id=party.id, view='month', year=year, month=1, search=search) }}"
+              href="{{ url_for('parties.detail_party', party_id=party.id, view='month', year=year, month=month or (today.month if today is defined else 1), search=search) }}"
               class="{% if view == 'month' %}active{% endif %}"
               >Ay</a
             >
@@ -303,7 +303,17 @@ block content %}
               class="{% if view == 'year' %}active{% endif %}"
               >Yıl</a
             >
+            <a
+              href="{{ url_for('parties.detail_party', party_id=party.id, view='all', search=search) }}"
+              class="{% if view == 'all' %}active{% endif %}"
+              >Tümü</a
+            >
           </nav>
+          {% if view == 'all' %}
+          <div class="period-stepper-group">
+            <span class="px-3 text-muted fw-semibold" style="font-size: 13px;">Tüm Zamanlar</span>
+          </div>
+          {% else %}
           <div class="period-stepper-group">
             <a
               href="{{ url_for('parties.detail_party', party_id=party.id, view=view, year=previous_year, month=previous_month, search=search) }}"
@@ -364,6 +374,7 @@ block content %}
               ><i class="bi bi-chevron-right" aria-hidden="true"></i
             ></a>
           </div>
+          {% endif %}
           <input type="hidden" name="view" value="{{ view }}" />
           <div class="doctor-workorder-search ms-auto">
             <i class="bi bi-search" aria-hidden="true"></i>
@@ -430,6 +441,11 @@ block content %}
                 </td>
                 <td class="text-end text-nowrap fw-bold text-dark">
                   ₺{{ "{:,.2f}".format(wo.total_price) }}
+                  {% if period_makbuz and period_makbuz.status == 'paid' %}
+                  <i class="bi bi-check-circle-fill text-success ms-1" title="Ödendi"></i>
+                  {% else %}
+                  <i class="bi bi-x-circle-fill text-danger ms-1" title="Ödenmedi (Ödeme Bekliyor)"></i>
+                  {% endif %}
                 </td>
                 <td class="text-end pe-3">
                   <div class="btn-group btn-group-sm">
