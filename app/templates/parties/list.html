@@ -18,6 +18,10 @@ endblock %} {% block content %}
 </header>
 
 <!-- Top Metric Cards -->
+{% set c_doctors = total_doctors_count if total_doctors_count is defined and total_doctors_count is not none else (pagination.total if pagination is defined else 0) %}
+{% set c_work = current_month_work_total if current_month_work_total is defined and current_month_work_total is not none else 0 %}
+{% set c_balance = total_clinic_balance if total_clinic_balance is defined and total_clinic_balance is not none else 0 %}
+
 <div class="parties-summary-grid">
   <div class="parties-metric-card">
     <div class="parties-metric-icon parties-metric-icon--primary">
@@ -25,7 +29,7 @@ endblock %} {% block content %}
     </div>
     <div class="parties-metric-info">
       <span class="parties-metric-label">Kayıtlı Hekim</span>
-      <span class="parties-metric-value">{{ total_doctors_count }} Hekim</span>
+      <span class="parties-metric-value">{{ c_doctors }} Hekim</span>
     </div>
   </div>
   <div class="parties-metric-card">
@@ -34,7 +38,7 @@ endblock %} {% block content %}
     </div>
     <div class="parties-metric-info">
       <span class="parties-metric-label">Bu Ayki İş Hacmi</span>
-      <span class="parties-metric-value">₺{{ "{:,.2f}".format(current_month_work_total) }}</span>
+      <span class="parties-metric-value">₺{{ "{:,.2f}".format(c_work) }}</span>
     </div>
   </div>
   <div class="parties-metric-card">
@@ -44,7 +48,7 @@ endblock %} {% block content %}
     </div>
     <div class="parties-metric-info">
       <span class="parties-metric-label">Toplam Açık Bakiye</span>
-      <span class="parties-metric-value text-warning">₺{{ "{:,.2f}".format(total_clinic_balance) }}</span>
+      <span class="parties-metric-value text-warning">₺{{ "{:,.2f}".format(c_balance) }}</span>
     </div>
   </div>
 </div>
