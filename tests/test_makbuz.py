@@ -168,7 +168,9 @@ def test_party_detail_reflects_persisted_receipt_vat_and_formats_phone(client, a
 
     html = client.get(f"/parties/{party_id}?year=2026&month=6").get_data(as_text=True)
     assert "+90 533 769 44 69" in html
-    assert "KDV (makbuzlar): ₺200.00" in html
+    # Label and amount render in separate <span> elements, not one string.
+    assert "KDV (makbuzlar):" in html
+    assert "₺200.00" in html
     assert "₺1,200.00" in html
 
 

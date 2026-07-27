@@ -313,6 +313,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ── Scrollable table wrappers must be keyboard-reachable ──
+    // (axe-core: scrollable-region-focusable)
+    document.querySelectorAll('.table-responsive').forEach(function(el) {
+        if (!el.hasAttribute('tabindex')) {
+            el.setAttribute('tabindex', '0');
+        }
+    });
+
     // ── Inline form validation feedback ──────────────────────
     document.querySelectorAll('form.needs-validation').forEach(function(form) {
         form.addEventListener('submit', function(e) {
