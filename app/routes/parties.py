@@ -83,7 +83,7 @@ def list_parties():
         for p in parties:
             party_makbuzlar = makbuzlar_by_party.get(p.id, [])
             financial_makbuzlar = [m for m in party_makbuzlar if m.affects_balance]
-            prev_bal = money(p.previous_balance or Decimal("0.00"))
+            prev_bal = p.previous_balance_outstanding
             # Açık bakiye gerçek açık dönemlerden hesaplanır. Tahsilatı toplam
             # iş hacminden çıkarmak, devreden borca ayrılan fazla ödemeyi ikinci
             # kez düşürüp negatif bakiye üretiyordu.
@@ -112,7 +112,7 @@ def list_parties():
                 "work_total": Decimal("0.00"),
                 "vat_total": None,
                 "payment_total": Decimal("0.00"),
-                "balance": money(p.previous_balance or Decimal("0.00")),
+                "balance": p.previous_balance_outstanding,
             }
 
     # System-wide overall metrics for top summary cards
@@ -154,10 +154,13 @@ def list_parties():
     current_month_work_total = money(current_month_makbuz_sum + current_month_wo_without_makbuz_sum)
 
     all_active_parties = db.session.execute(
-        db.select(Party.id, Party.previous_balance).where(Party.party_type == PartyType.DENTIST, Party.is_active.is_(True))
-    ).all()
+        db.select(Party).where(Party.party_type == PartyType.DENTIST, Party.is_active.is_(True))
+    ).scalars().all()
     all_party_ids = [p.id for p in all_active_parties]
-    sum_prev_balances = money(sum((p.previous_balance or Decimal("0.00") for p in all_active_parties), Decimal("0.00")))
+    sum_prev_balances = money(sum(
+        (p.previous_balance_outstanding for p in all_active_parties),
+        Decimal("0.00"),
+    ))
 
     if all_party_ids:
         active_summaries = db.session.execute(
@@ -579,7 +582,7 @@ def detail_party(party_id):
 
     previous_periods_debt = _compute_previous_debt(party_id, year, month, view)
 
-    devreden_total = previous_periods_debt + party.previous_balance
+    devreden_total = previous_periods_debt + party.previous_balance_outstanding
 
     oldest_work_date = db.session.scalar(
         db.select(db.func.min(WorkOrder.work_date)).where(WorkOrder.party_id == party_id)
@@ -652,7 +655,7 @@ def _get_party_outstanding(party: Party) -> Decimal:
         db.select(Makbuz).where(Makbuz.party_id == party.id)
     ).scalars().all()
 
-    prev_bal = money(party.previous_balance or Decimal("0.00"))
+    prev_bal = party.previous_balance_outstanding
     return money(sum(
         (m.outstanding_amount for m in makbuzlar if m.affects_balance),
         Decimal("0.00"),

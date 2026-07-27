@@ -55,7 +55,9 @@ def account_statement(makbuz: Makbuz) -> AccountStatement:
     previous_balance = money(sum((row.outstanding for row in previous_periods), Decimal("0.00")))
     current_collected = makbuz.collected_amount
     current_outstanding = makbuz.outstanding_amount
-    party_previous_balance = money(makbuz.party.previous_balance if makbuz.party else Decimal("0.00"))
+    party_previous_balance = money(
+        makbuz.party.previous_balance_outstanding if makbuz.party else Decimal("0.00")
+    )
     total_due = money(previous_balance + current_outstanding + party_previous_balance)
     return AccountStatement(
         previous_periods=previous_periods,
@@ -115,10 +117,10 @@ def record_payment(
                 sync_makbuz_collection(prev_makbuz)
                 excess -= apply_to_prev
 
-    if excess > 0 and makbuz.party and makbuz.party.previous_balance:
-        prev_bal = money(makbuz.party.previous_balance)
+    if excess > 0 and makbuz.party and makbuz.party.previous_balance_outstanding:
+        prev_bal = makbuz.party.previous_balance_outstanding
         deduct = min(excess, prev_bal)
-        makbuz.party.previous_balance = money(prev_bal - deduct)
+        makbuz.party.previous_balance = money(makbuz.party.previous_balance - deduct)
         excess -= deduct
 
     return entry

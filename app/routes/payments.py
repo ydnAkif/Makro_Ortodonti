@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.extensions import db
-from app.models.models import Party, PartyType, Makbuz, MakbuzPayment, money
+from app.models.models import Party, PartyType, Makbuz, MakbuzPayment, PartyPayment, money
 from app.authz import permissions_required
 
 payments_bp = Blueprint("payments", __name__)
@@ -48,6 +48,16 @@ def list_payments():
     for m in all_makbuzlar:
         by_party.setdefault(m.party_id, []).append(m)
 
+    party_payment_query = db.select(PartyPayment)
+    if year:
+        party_payment_query = party_payment_query.where(
+            db.extract("year", PartyPayment.payment_date) == year
+        )
+    all_party_payments = db.session.execute(party_payment_query).scalars().all()
+    party_payments_by_party: dict[int, list[PartyPayment]] = {}
+    for payment in all_party_payments:
+        party_payments_by_party.setdefault(payment.party_id, []).append(payment)
+
     rows = []
     for party in doctors:
         m_list = by_party.get(party.id, [])
@@ -67,8 +77,11 @@ def list_payments():
                 for m in m_list
             ),
             Decimal("0.00"),
+        ) + sum(
+            (payment.amount for payment in party_payments_by_party.get(party.id, [])),
+            Decimal("0.00"),
         ))
-        prev_bal = money(party.previous_balance or Decimal("0.00"))
+        prev_bal = party.previous_balance_outstanding
         # Açık bakiye, gerçek tahsilattan bağımsız olarak henüz
         # kapanmamış makbuzlar ve kalan devreden borçtan oluşur. Billed -
         # paid hesabı, devreden borca uygulanan tahsilatı ikinci kez düşürür.
@@ -134,10 +147,23 @@ def list_payments():
         key=lambda entry: (entry.payment_date, entry.id),
         reverse=True,
     )
+    party_payment_entries = sorted(
+        (
+            payment for payment in all_party_payments
+            if payment.party_id in visible_party_ids
+        ),
+        key=lambda payment: (payment.payment_date, payment.id),
+        reverse=True,
+    )
 
     years = sorted({m.year for m in db.session.execute(db.select(Makbuz)).scalars().all()} | {date.today().year}, reverse=True)
 
     pending_doctors = [r for r in rows if r["outstanding"] > 0]
+    previous_balance_rows = [
+        {"party": doctor, "outstanding": doctor.previous_balance_outstanding}
+        for doctor in doctors
+        if doctor.previous_balance_outstanding > 0
+    ]
 
     return render_template(
         "payments/list.html",
@@ -145,6 +171,8 @@ def list_payments():
         pending_doctors=pending_doctors,
         pending_makbuzlar=pending_makbuzlar,
         payment_entries=payment_entries,
+        party_payment_entries=party_payment_entries,
+        previous_balance_rows=previous_balance_rows,
         method_labels=METHOD_LABELS,
         grand_billed=grand_billed,
         grand_paid=grand_paid,
@@ -225,6 +253,64 @@ def mark_paid(makbuz_id):
     )
 
 
+@payments_bp.route("/parties/<int:party_id>/previous-balance", methods=["GET", "POST"])
+@login_required
+@permissions_required("billing.edit")
+def pay_previous_balance(party_id):
+    party = db.get_or_404(Party, party_id)
+    outstanding = party.previous_balance_outstanding
+    if outstanding <= 0:
+        flash("Bu doktorun açık devreden borcu bulunmuyor.", "info")
+        return redirect(url_for("payments.list_payments"))
+
+    if request.method == "POST":
+        from app.services.validation_service import parse_date, parse_decimal
+
+        payment_date = parse_date(request.form.get("paid_at", "")) or date.today()
+        amount = parse_decimal(request.form.get("paid_amount", ""))
+        method = request.form.get("payment_method", "cash")
+        reference = request.form.get("payment_reference", "").strip() or None
+        notes = request.form.get("notes", "").strip() or None
+
+        if amount is None or amount <= 0:
+            flash("Geçerli bir ödeme tutarı girin.", "danger")
+            return redirect(url_for("payments.pay_previous_balance", party_id=party.id))
+        if amount > outstanding:
+            flash(f"Ödeme ₺{outstanding:,.2f} devreden borcu aşamaz.", "danger")
+            return redirect(url_for("payments.pay_previous_balance", party_id=party.id))
+        if method not in METHOD_LABELS:
+            flash("Geçerli bir ödeme yöntemi seçin.", "danger")
+            return redirect(url_for("payments.pay_previous_balance", party_id=party.id))
+
+        db.session.add(PartyPayment(
+            party=party,
+            payment_date=payment_date,
+            amount=amount,
+            method=method,
+            reference=reference,
+            notes=notes,
+        ))
+        db.session.commit()
+        remaining = party.previous_balance_outstanding
+        if remaining > 0:
+            flash(
+                f"Devreden borç tahsilatı kaydedildi: ₺{amount:,.2f}. "
+                f"Kalan: ₺{remaining:,.2f}",
+                "success",
+            )
+        else:
+            flash(f"Devreden borç tamamen kapatıldı: ₺{amount:,.2f}", "success")
+        return redirect(url_for("payments.list_payments", tab="paid"))
+
+    return render_template(
+        "payments/previous_balance_form.html",
+        party=party,
+        outstanding=outstanding,
+        method_labels=METHOD_LABELS,
+        today=date.today(),
+    )
+
+
 @payments_bp.route("/<int:makbuz_id>/unmark-paid", methods=["POST"])
 @login_required
 @permissions_required("billing.cancel_makbuz")
@@ -258,6 +344,21 @@ def delete_payment(payment_id):
     flash(
         f"₺{payment.amount:,.2f} tutarındaki tahsilat hareketi silindi. "
         f"Güncel kalan: ₺{makbuz.outstanding_amount:,.2f}",
+        "warning",
+    )
+    return redirect(url_for("payments.list_payments", tab="paid"))
+
+
+@payments_bp.route("/party-entries/<int:payment_id>/delete", methods=["POST"])
+@login_required
+@permissions_required("billing.delete_payment")
+def delete_party_payment(payment_id):
+    payment = db.get_or_404(PartyPayment, payment_id)
+    amount = payment.amount
+    db.session.delete(payment)
+    db.session.commit()
+    flash(
+        f"₺{amount:,.2f} tutarındaki devreden borç tahsilatı silindi; borç yeniden açıldı.",
         "warning",
     )
     return redirect(url_for("payments.list_payments", tab="paid"))

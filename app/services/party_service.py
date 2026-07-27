@@ -149,9 +149,6 @@ class PartyService:
         if not work_date:
             raise ValueError("Geçersiz tarih.")
 
-        if cls.is_period_locked(party_id, work_date.year, work_date.month):
-            raise PermissionError("Bu dönemde tahsilat hareketi bulunduğu için iş emri eklenemez. Önce tahsilat kaydını geri alın.")
-
         apparatus_price, extra_price, exchange_rate_applied = cls._parse_work_order_money(form_data)
 
         wo = WorkOrder(

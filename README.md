@@ -12,6 +12,8 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 
 - **💰 Gerçek Tahsilat ve Açık Bakiye Ayrımı**: Girilen tutarın tamamı (`MakbuzPayment.amount`) tahsilat hareketi olarak gösterilir. Açık bakiye ise kapanmamış dönemler ile devreden borçtan hesaplanır; fazla tahsilat artık negatif bakiye üretmez.
 - **📋 Borçlu Doktorların Listede Kalması**: Cari dönem kapanmış olsa bile devreden borcu (`total_due > 0`) bulunan doktorlar *Ödeme Bekleyenler* listesinde ve “Kimden?” dağılımında görünür.
+- **💳 Devreden Borç Tahsilatı**: Hiç aylık özeti bulunmayan fakat veritabanında başlangıç/devreden borcu olan doktorlar için doğrudan kısmi veya tam tahsilat girilebilir. Hareket silinirse borç yeniden açılır.
+- **➕ Ay İçinde Çalışmaya Devam**: Doktor ay içinde ödeme yaptıktan sonra aynı döneme yeni iş emri eklenebilir; mevcut tahsilat korunur ve kalan bakiye yeni dönem toplamına göre güncellenir.
 - **✏️ Aylık Hesap Özeti Esnekliği**: WhatsApp'tan gönderilmiş bilgilendirme özetleri düzenlenebilir, yeniden üretilebilir ve silinebilir. Tahsilat hareketi bağlanmış özetler muhasebe geçmişini korumak için silinmez; önce tahsilat hareketinin kaldırılması gerekir.
 - **🧮 Tutarlı KDV Hesabı**: Aylık ve yıllık özetler aynı KDV kaynağını kullanır; KDV satırı yıllık özette de gösterilir.
 - **📑 KDV Uygulanan Doktorlar Raporu**: Doktor profiline kalıcı `applies_kdv` ayarı eklendi. Geçmişte KDV uygulanmış doktorlar otomatik taşınır; `/reports/kdv-doctors` ekranından ay seçilerek yalnızca bu doktorların HTML ve PDF raporu alınır.

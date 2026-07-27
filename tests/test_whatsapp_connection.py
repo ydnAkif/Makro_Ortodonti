@@ -439,6 +439,7 @@ class TestSending:
         makbuz.party.phone = "+905551112233"
         makbuz.party.id = 7
         makbuz.party.previous_balance = Decimal("0.00")
+        makbuz.party.previous_balance_outstanding = Decimal("0.00")
         makbuz.month = 6
         makbuz.year = 2026
         makbuz.work_order_count = 3
@@ -460,6 +461,7 @@ class TestSending:
         makbuz.party.phone = "+905551112233"
         makbuz.party.id = 7
         makbuz.party.previous_balance = Decimal("0.00")
+        makbuz.party.previous_balance_outstanding = Decimal("0.00")
         makbuz.month = 6
         makbuz.year = 2026
         makbuz.work_order_count = 3

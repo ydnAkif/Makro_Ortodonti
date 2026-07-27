@@ -533,7 +533,9 @@ Makro Ortodonti"""
                 previous_balance=Decimal("0.00"),
                 total_due=current_total,
             )
-        party_previous_balance = money(makbuz.party.previous_balance if makbuz.party else Decimal("0.00"))
+        party_previous_balance = money(
+            makbuz.party.previous_balance_outstanding if makbuz.party else Decimal("0.00")
+        )
         balance_lines = []
         if statement.previous_balance > 0:
             balance_lines.append(f"Önceki Açık Dönem Devri: ₺{statement.previous_balance:,.2f}")

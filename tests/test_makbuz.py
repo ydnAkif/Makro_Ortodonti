@@ -6,7 +6,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Makbuz, MakbuzPayment
+from app.models.models import Party, PartyType, WorkOrder, Makbuz, MakbuzPayment, PartyPayment
 
 from conftest import login
 
@@ -961,3 +961,97 @@ def test_partial_payment_on_draft_is_included_in_all_balance_totals(client, app)
 
     parties_html = client.get("/parties/").get_data(as_text=True)
     assert "₺960.66" in parties_html
+
+
+def test_previous_balance_only_doctor_can_be_collected_and_reopened(client, app):
+    login(client, "admin", "admin-pass")
+    party_id = _make_doctor(app, name="Dr. Sadece Devreden")
+    with app.app_context():
+        db.session.get(Party, party_id).previous_balance = Decimal("320.00")
+        db.session.commit()
+
+    pending_html = client.get("/payments/").get_data(as_text=True)
+    assert "Dr. Sadece Devreden" in pending_html
+    assert "Devreden borç" in pending_html
+    assert f"/payments/parties/{party_id}/previous-balance" in pending_html
+
+    response = client.post(
+        f"/payments/parties/{party_id}/previous-balance",
+        data={
+            "paid_at": "2026-07-27",
+            "paid_amount": "320.00",
+            "payment_method": "cash",
+            "notes": "Başlangıç borcu kapandı",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "Devreden borç tamamen kapatıldı" in response.get_data(as_text=True)
+
+    with app.app_context():
+        party = db.session.get(Party, party_id)
+        payment = db.session.execute(
+            db.select(PartyPayment).where(PartyPayment.party_id == party_id)
+        ).scalar_one()
+        payment_id = payment.id
+        assert party.previous_balance == Decimal("320.00")
+        assert party.previous_balance_outstanding == Decimal("0.00")
+
+    paid_html = client.get("/payments/?tab=paid").get_data(as_text=True)
+    assert "Başlangıç borcu kapandı" in paid_html
+    assert "₺320.00" in paid_html
+
+    client.post(f"/payments/party-entries/{payment_id}/delete", follow_redirects=True)
+    with app.app_context():
+        assert db.session.get(Party, party_id).previous_balance_outstanding == Decimal("320.00")
+
+
+def test_new_work_order_after_partial_payment_preserves_collection(client, app):
+    login(client, "admin", "admin-pass")
+    party_id = _make_doctor(app, name="Dr. Ay İçinde Ödeyen")
+    _add_work_order(app, party_id, date(2026, 7, 5), 100)
+    client.post(
+        f"/makbuzlar/{party_id}/generate",
+        data={"year": 2026, "month": 7},
+    )
+
+    with app.app_context():
+        summary = db.session.execute(
+            db.select(Makbuz).where(
+                Makbuz.party_id == party_id,
+                Makbuz.year == 2026,
+                Makbuz.month == 7,
+            )
+        ).scalar_one()
+        from app.services.makbuz_account_service import record_payment
+
+        record_payment(
+            summary,
+            payment_date=date(2026, 7, 10),
+            amount=Decimal("50.00"),
+            method="cash",
+        )
+        db.session.commit()
+        summary_id = summary.id
+        payment_id = summary.payment_entries[0].id
+
+    response = client.post(
+        f"/parties/{party_id}/work-orders/add",
+        data={
+            "work_date": "2026-07-20",
+            "patient_name": "Yeni Hasta",
+            "apparatus_type": "Yeni işlem",
+            "apparatus_price": "75.00",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "tahsilat kaydını geri alın" not in response.get_data(as_text=True)
+
+    with app.app_context():
+        summary = db.session.get(Makbuz, summary_id)
+        assert summary.work_order_count == 2
+        assert summary.grand_total == Decimal("175.00")
+        assert summary.collected_amount == Decimal("50.00")
+        assert summary.outstanding_amount == Decimal("125.00")
+        assert [entry.id for entry in summary.payment_entries] == [payment_id]

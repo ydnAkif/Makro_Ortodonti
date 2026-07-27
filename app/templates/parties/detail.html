@@ -132,10 +132,10 @@ block content %}
             <span>Önceki Dönemler Borcu:</span>
             <span>₺{{ "{:,.2f}".format(previous_periods_debt) }}</span>
           </div>
-          {% endif %} {% if party.previous_balance > 0 %}
+          {% endif %} {% if party.previous_balance_outstanding > 0 %}
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>Önceden Devreden Borç:</span>
-            <span>₺{{ "{:,.2f}".format(party.previous_balance) }}</span>
+            <span>₺{{ "{:,.2f}".format(party.previous_balance_outstanding) }}</span>
           </div>
           {% endif %}
           <div
@@ -183,10 +183,10 @@ block content %}
             <span>Önceki Dönemler Borcu:</span>
             <span>₺{{ "{:,.2f}".format(previous_periods_debt) }}</span>
           </div>
-          {% endif %} {% if party.previous_balance > 0 %}
+          {% endif %} {% if party.previous_balance_outstanding > 0 %}
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>Önceden Devreden Borç:</span>
-            <span>₺{{ "{:,.2f}".format(party.previous_balance) }}</span>
+            <span>₺{{ "{:,.2f}".format(party.previous_balance_outstanding) }}</span>
           </div>
           {% endif %}
           <div

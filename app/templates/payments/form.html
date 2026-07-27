@@ -25,7 +25,7 @@
                     · Bu dönem kalan: <strong>₺{{ "{:,.2f}".format(makbuz.outstanding_amount) }}</strong>
                     · Toplam açık bakiye: <strong>₺{{ "{:,.2f}".format(effective_outstanding) }}</strong>
                     {% if statement and statement.previous_balance > 0 %}<br><small>Önceki açık dönem devri: ₺{{ "{:,.2f}".format(statement.previous_balance) }}</small>{% endif %}
-                    {% if makbuz.party and makbuz.party.previous_balance > 0 %}<br><small>Devreden borç: ₺{{ "{:,.2f}".format(makbuz.party.previous_balance) }}</small>{% endif %}
+                    {% if makbuz.party and makbuz.party.previous_balance_outstanding > 0 %}<br><small>Devreden borç: ₺{{ "{:,.2f}".format(makbuz.party.previous_balance_outstanding) }}</small>{% endif %}
                     {% if makbuz.vat_applied %}<br><small>(Matrah ₺{{ "{:,.2f}".format(makbuz.subtotal) }} + KDV %{{ '{:.2f}'.format(makbuz.vat_rate) }})</small>{% endif %}
                 </div>
                 <form method="POST" action="{{ url_for('payments.mark_paid', makbuz_id=makbuz.id) }}">

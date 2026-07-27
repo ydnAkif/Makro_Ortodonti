@@ -36,13 +36,13 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'pending' %}active{% endif %} fw-bold py-2 px-3" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'pending' else 'false' }}">
             <i class="bi bi-clock-history text-warning me-1"></i> Ödeme Bekleyen Dönemler
-            <span class="badge bg-warning text-dark ms-1">{{ pending_makbuzlar|length }}</span>
+            <span class="badge bg-warning text-dark ms-1">{{ pending_makbuzlar|length + previous_balance_rows|length }}</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'paid' %}active{% endif %} fw-bold py-2 px-3" id="paid-tab" data-bs-toggle="tab" data-bs-target="#paid-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'paid' else 'false' }}">
             <i class="bi bi-check-circle me-1"></i> Tahsil edilenler
-            <span class="badge bg-success ms-1">{{ payment_entries|length }}</span>
+            <span class="badge bg-success ms-1">{{ payment_entries|length + party_payment_entries|length }}</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -60,8 +60,8 @@
             <div class="work-panel__header">
                 <div><h2>Ödeme bekleyenler</h2><p>Ödemeyi aldığınızda kaydı tamamlayın.</p></div>
             </div>
-            <div class="card-body {% if pending_makbuzlar %}p-0{% endif %}">
-                {% if pending_makbuzlar %}
+            <div class="card-body {% if pending_makbuzlar or previous_balance_rows %}p-0{% endif %}">
+                {% if pending_makbuzlar or previous_balance_rows %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -104,6 +104,21 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                            {% for row in previous_balance_rows %}
+                            <tr>
+                                <td class="fw-bold">{{ row.party.display_name }}</td>
+                                <td><span class="badge bg-warning-subtle text-dark border border-warning-subtle">Devreden borç</span></td>
+                                <td>-</td>
+                                <td class="text-end text-muted">-</td>
+                                <td class="text-end text-muted">-</td>
+                                <td class="text-end fw-bold text-danger">₺{{ "{:,.2f}".format(row.outstanding) }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('payments.pay_previous_balance', party_id=row.party.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-plus-circle"></i> Ödeme Kaydet
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -127,6 +142,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead><tr><th>Doktor</th><th>Kaynak dönem</th><th>Ödeme tarihi</th><th>Yöntem</th><th>Referans / Not</th><th class="text-end">Tahsil edilen</th><th class="text-end">İşlem</th></tr></thead>
                     <tbody>
+                        {% if payment_entries or party_payment_entries %}
                         {% for entry in payment_entries %}
                         {% set m = entry.makbuz %}
                         <tr>
@@ -145,6 +161,22 @@
                                 </form>
                             </td>
                         </tr>
+                        {% endfor %}
+                        {% for entry in party_payment_entries %}
+                        <tr>
+                            <td><strong>{{ entry.party.display_name }}</strong></td>
+                            <td><span class="badge bg-warning-subtle text-dark border border-warning-subtle">Devreden borç</span></td>
+                            <td>{{ entry.payment_date.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ method_labels.get(entry.method, entry.method) }}</td>
+                            <td>{{ entry.reference or entry.notes or '-' }}</td>
+                            <td class="text-end fw-bold text-success">₺{{ "{:,.2f}".format(entry.amount) }}</td>
+                            <td class="text-end text-nowrap">
+                                <form method="POST" action="{{ url_for('payments.delete_party_payment', payment_id=entry.id) }}" class="d-inline" data-confirm="Bu devreden borç tahsilatı silinsin mi? Borç yeniden açılacaktır.">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Sil</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
                         {% else %}
                         <tr><td colspan="7">
                             <div class="empty-state-card">
@@ -153,7 +185,7 @@
                                 <p>Bu filtrelerde tahsilat hareketi bulunmuyor.</p>
                             </div>
                         </td></tr>
-                        {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

@@ -135,6 +135,12 @@ class Party(Base, TimestampMixin):
     work_orders: Mapped[list["WorkOrder"]] = relationship(
         back_populates="party", lazy="selectin"
     )
+    previous_balance_payments: Mapped[list["PartyPayment"]] = relationship(
+        back_populates="party",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="PartyPayment.payment_date.desc(), PartyPayment.id.desc()",
+    )
 
     __table_args__ = (
         UniqueConstraint("name", "phone", "party_type", name="uq_party_identity"),
@@ -143,6 +149,20 @@ class Party(Base, TimestampMixin):
     @property
     def display_name(self) -> str:
         return self.name
+
+    @property
+    def previous_balance_collected(self) -> Decimal:
+        return money(sum(
+            (payment.amount for payment in self.previous_balance_payments),
+            Decimal("0.00"),
+        ))
+
+    @property
+    def previous_balance_outstanding(self) -> Decimal:
+        return money(max(
+            money(self.previous_balance or Decimal("0.00")) - self.previous_balance_collected,
+            Decimal("0.00"),
+        ))
 
     def __repr__(self) -> str:
         return f"<Party {self.display_name} ({self.party_type.value})>"
@@ -641,6 +661,25 @@ class MakbuzPayment(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<MakbuzPayment {self.makbuz_id} ₺{self.amount:.2f} {self.payment_date}>"
+
+
+class PartyPayment(Base, TimestampMixin):
+    """A collection movement applied directly to a doctor's opening debt."""
+
+    __tablename__ = "party_payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    party_id: Mapped[int] = mapped_column(ForeignKey("parties.id"), nullable=False, index=True)
+    payment_date: Mapped[date] = mapped_column(nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    method: Mapped[str] = mapped_column(String(30), nullable=False, default=PaymentMethod.CASH.value)
+    reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    party: Mapped["Party"] = relationship(back_populates="previous_balance_payments", lazy="selectin")
+
+    def __repr__(self) -> str:
+        return f"<PartyPayment {self.party_id} ₺{self.amount:.2f} {self.payment_date}>"
 
 
 class MakbuzSendLog(Base, TimestampMixin):

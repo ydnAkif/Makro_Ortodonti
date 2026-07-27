@@ -214,7 +214,7 @@ def reset_defaults():
 def purge_demo_data():
     """Doktor/işlem kataloğu ve kullanıcılara dokunmadan tüm operasyonel veriyi siler."""
     from app.models.models import (
-        WorkOrder, Makbuz, MakbuzPayment, MakbuzSendLog, Payment, ExchangeRate,
+        WorkOrder, Makbuz, MakbuzPayment, PartyPayment, MakbuzSendLog, Payment, ExchangeRate,
         AuditLog, Invoice, InvoiceItem,
     )
 
@@ -224,6 +224,7 @@ def purge_demo_data():
 
     # Sıralama önemli: FK bağımlılıkları aşağıdan yukarıya silinir
     db.session.execute(db.delete(MakbuzPayment))
+    db.session.execute(db.delete(PartyPayment))
     db.session.execute(db.delete(MakbuzSendLog))
     db.session.execute(db.delete(Makbuz))
     db.session.execute(db.delete(Payment))

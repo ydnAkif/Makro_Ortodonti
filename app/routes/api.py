@@ -52,6 +52,7 @@ def _serialize_party(p: Party) -> dict:
         "tax_id": p.tax_id,
         "is_active": p.is_active,
         "previous_balance": _json_safe(p.previous_balance),
+        "previous_balance_outstanding": _json_safe(p.previous_balance_outstanding),
     }
 
 

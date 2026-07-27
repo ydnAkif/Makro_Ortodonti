@@ -10,6 +10,8 @@
 
 - [x] **Tam Ödeme Hareketi Kaydı**: Tahsil edilen nakit/havale tutarı (`MakbuzPayment.amount`) eksiksiz olarak hareket geçmişine kaydedilir; ekranda dönem tutarıyla sınırlandırılmaz.
 - [x] **Devreden Borçlu Doktor Görünürlüğü**: Cari makbuzu kapansa dahi devreden borcu (`total_due > 0`) bulunan hekimler *"Ödeme Bekleyenler"* sekmesinde görünmeye devam eder.
+- [x] **Devreden Borç Tahsilat Hareketleri**: Aylık özeti olmayan doktorun başlangıç borcu doğrudan kısmi/tam tahsil edilebilir ve silindiğinde borç yeniden açılır.
+- [x] **Tahsilat Sonrası Yeni İş Emri**: Aynı ayda tahsilat yapılmış olsa bile yeni iş emri eklenebilir; ödeme korunarak kalan bakiye yeniden hesaplanır.
 - [x] **Negatif Açık Bakiye Düzeltmesi**: Doktor listesi, tahsilatlar ve “Kimden?” dağılımı aynı açık dönem + devreden borç hesabını kullanır.
 - [x] **Gönderilmiş Aylık Özetleri Düzenleme & Silme**: Resmi belge olmayan gönderilmiş özetler değiştirilebilir; tahsilat hareketi bulunan özetler geçmiş bütünlüğü için korunur.
 - [x] **Aylık / Yıllık KDV Tutarlılığı**: KDV hem aylık hem yıllık hesap özetinde aynı hesapla gösterilir.

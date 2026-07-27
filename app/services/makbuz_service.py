@@ -19,9 +19,9 @@ STATUS_LABELS = {
 def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat_rate: Decimal) -> Makbuz:
     """Belirtilen döneme ait iş emirlerini aylık hesap özetine dönüştür / günceller.
 
-    Gönderilmiş özetler resmi belge olmadığı için yeniden taslağa
-    alınıp güncellenebilir. Tahsilat hareketi bulunan bir özet ise finansal
-    geçmişi korumak için önce tahsilatı geri alınmadan değiştirilemez.
+    Gönderilmiş özetler resmi belge olmadığı için güncellenebilir. Tahsilat
+    hareketi varsa hareket korunur; yeni toplam üzerinden kalan bakiye ve
+    ödeme durumu yeniden hesaplanır.
 
     NOT: Fonksiyon db.session.flush() yapar ama commit() ağaç sahibi koda bırakılır.
     """
@@ -30,11 +30,6 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
             Makbuz.party_id == party_id, Makbuz.year == year, Makbuz.month == month
         )
     ).scalar_one_or_none()
-
-    if existing and (existing.payment_entries or existing.collected_amount > 0):
-        raise ValueError(
-            "Bu hesap özetinde tahsilat hareketi var. Düzenlemek için önce tahsilat kaydını geri alın."
-        )
 
     work_orders = db.session.execute(
         db.select(WorkOrder).where(
@@ -51,10 +46,19 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
     makbuz.subtotal = subtotal
     makbuz.vat_applied = vat_applied
     makbuz.vat_rate = vat_rate if vat_applied else Decimal("0.00")
-    makbuz.status = Makbuz.STATUS_DRAFT
-    makbuz.sent_at = None
+    has_collection = bool(existing and existing.collected_amount > 0)
+    if not has_collection:
+        makbuz.status = Makbuz.STATUS_DRAFT
+        makbuz.sent_at = None
     makbuz.generated_at = datetime.now().astimezone()
     makbuz.recalculate_totals()
+
+    if has_collection:
+        makbuz.status = (
+            Makbuz.STATUS_PAID
+            if makbuz.collected_amount >= makbuz.grand_total and makbuz.grand_total > 0
+            else Makbuz.STATUS_SENT if makbuz.sent_at else Makbuz.STATUS_DRAFT
+        )
 
     if not existing:
         db.session.add(makbuz)

@@ -212,8 +212,8 @@ class MakbuzPDF(BasePDF):
 
         x_label = 112
         carried_forward_balance = statement.previous_balance
-        if makbuz.party and makbuz.party.previous_balance > 0:
-            carried_forward_balance += makbuz.party.previous_balance
+        if makbuz.party and makbuz.party.previous_balance_outstanding > 0:
+            carried_forward_balance += makbuz.party.previous_balance_outstanding
 
         rows = [("Bu dönem işlem toplamı", f"₺{makbuz.grand_total:,.2f}", False)]
         if carried_forward_balance > 0:

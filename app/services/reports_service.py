@@ -333,7 +333,7 @@ def build_doctor_summaries(
     if has_app_context():
         all_parties = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST)).scalars().all()
         for p in all_parties:
-            prev = money(p.previous_balance or Decimal("0.00"))
+            prev = p.previous_balance_outstanding
             if prev > 0:
                 d = _get(p.id, p.name)
                 d.previous_debt += prev
@@ -402,7 +402,7 @@ def build_aging_buckets(
     if has_app_context():
         all_parties = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST)).scalars().all()
         for p in all_parties:
-            prev = money(p.previous_balance or Decimal("0.00"))
+            prev = p.previous_balance_outstanding
             if prev > 0:
                 buckets[4].count += 1
                 buckets[4].amount += prev
@@ -618,7 +618,7 @@ def build_doctor_detail(
         if outstanding > 0:
             doctor.previous_debt += outstanding
 
-    doctor.previous_debt += money(party.previous_balance or Decimal("0.00"))
+    doctor.previous_debt += party.previous_balance_outstanding
 
     # Aging
     aging = build_aging_buckets(end_date, [m for m in all_makbuzlar if m.party_id == party_id])
