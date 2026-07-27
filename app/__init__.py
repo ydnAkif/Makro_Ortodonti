@@ -10,7 +10,7 @@ from .extensions import db, login_manager, csrf, migrate
 from . import user_loader  # noqa: F401 - registers user_loader
 
 
-__version__ = "1.8.0"
+__version__ = "2.0.0"
 
 
 logger = logging.getLogger(__name__)

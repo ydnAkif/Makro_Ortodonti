@@ -1,4 +1,4 @@
-# Makro Ortodonti (v1.8.0) 🌟
+# Makro Ortodonti (v2.0.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
@@ -8,14 +8,14 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 
 ---
 
-## 🚀 v1.8.0 Yeni Özellikler & İyileştirmeler
+## 🚀 v2.0.0 Yeni Özellikler & İyileştirmeler
 
 - **🔌 JSON API Katmanı (`/api/v1/`)**: Salt okunur REST API endpoint'leri eklendi — parties, work-orders, makbuzlar, treatments, exchange-rate, dashboard. Gelecekteki mobil uygulama ve dış entegrasyonlar için hazır altyapı.
 - **⚡ Arka Plan PDF Üretim Kuyruğu**: `PdfQueue` servisi ile büyük PDF'ler (çok sayıda makbuz/is emri) arka plan iş parçacığında üretilir; HTTP istek yanıtı engellenmez.
 - **🌙 Dark Mode Toggle**: Navbar'daki tema değiştirme düğmesi ile açık/koyu tema geçişi. Tercih `localStorage`'da saklanır.
 - **🧪 Kapsamlı Sınır Durumu Testleri**: Permission boundary, kilitli dönem bypass, stale kur uyarıları, category fallback ve KDV sınır testleri (23 yeni test).
 
-### v1.8.0 Hata Düzeltmeleri & Kod Kalitesi
+### v2.0.0 Hata Düzeltmeleri & Kod Kalitesi
 
 - **🔗 `whatsapp.py` Import Düzeltmesi**: `MONTHS` artık `app.constants`'dan, `STATUS_LABELS` yerine `MAKBUZ_STATUS_LABELS` kullanılıyor.
 - **📦 `parties.py` Refactoring**: `_compute_monthly_totals()` ve `_compute_previous_debt()` helper fonksiyonları çıkarıldı; `detail_party` fonksiyonu sadeleştirildi.
@@ -25,7 +25,7 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 - **📝 `Treatment.price_eur` İsim Karmaşası**: Sütun adının historical olduğu, `base_price` property'sinin kullanılması gerektiği açıklandı.
 - **🗂️ Test Dosyası Birleştirme**: `test_makbuz_fixes.py` → `test_makbuz.py`'a taşındı.
 - **📦 requirements-dev.txt Genişletme**: `ruff`, `mypy`, `pre-commit` eklendi.
-- **🔗 `__version__`**: 1.6.0 → 1.8.0
+- **🔗 `__version__`**: 1.8.0 → 2.0.0
 
 ---
 
