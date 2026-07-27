@@ -523,56 +523,43 @@ Makro Ortodonti"""
         if has_app_context():
             statement = account_statement(makbuz)
         else:
-            # Keep this formatter usable in isolated service tests; real sends
-            # run inside an app context and receive the full account history.
             current_total = Decimal(str(makbuz.grand_total))
             statement = SimpleNamespace(
-                current_collected=Decimal("0.00"),
-                current_outstanding=current_total,
                 previous_periods=[],
                 previous_balance=Decimal("0.00"),
+                party_previous_balance=Decimal("0.00"),
+                carried_over_balance=Decimal("0.00"),
+                current_work_subtotal=Decimal(str(makbuz.subtotal)),
+                current_vat_amount=Decimal(str(makbuz.vat_amount)),
+                current_month_total=current_total,
+                current_collected=Decimal("0.00"),
+                current_outstanding=current_total,
                 total_due=current_total,
             )
-        party_previous_balance = money(
-            makbuz.party.previous_balance_outstanding if makbuz.party else Decimal("0.00")
-        )
-        balance_lines = []
-        if statement.previous_balance > 0:
-            balance_lines.append(f"Önceki Açık Dönem Devri: ₺{statement.previous_balance:,.2f}")
-        if party_previous_balance > 0:
-            balance_lines.append(f"Devreden Borç: ₺{party_previous_balance:,.2f}")
-        if statement.current_collected > 0:
-            balance_lines.extend([
-                f"Bu Dönem Tahsil Edilen: -₺{statement.current_collected:,.2f}",
-                f"Bu Dönem Kalan: ₺{statement.current_outstanding:,.2f}",
-            ])
+
+        vat_text = f"• Bu Ayın KDV'si (%{makbuz.vat_rate:g}): ₺{makbuz.vat_amount:,.2f}\n" if makbuz.vat_applied else ""
+        carried_text = f"• Devreden Borç: ₺{statement.carried_over_balance:,.2f}\n" if statement.carried_over_balance > 0 else ""
+        prev_periods_text = ""
         if statement.previous_periods:
-            balance_lines.append("")
-            balance_lines.append("Önceki dönemlerden kalanlar:")
+            lines = ["Önceki dönemlerden kalanlar:"]
             for open_period in statement.previous_periods:
-                balance_lines.append(
-                    f"• {open_period.period_label}: ₺{open_period.original_total:,.2f} hesap özeti"
+                lines.append(
+                    f"{open_period.period_label}: ₺{open_period.original_total:,.2f} hesap özeti"
                     f" - ₺{open_period.collected:,.2f} tahsilat"
                     f" = ₺{open_period.outstanding:,.2f} kalan"
                 )
-        balance_lines.extend(["", f"Toplam Açık Bakiye: ₺{statement.total_due:,.2f}"])
-        balance_text = "\n".join(balance_lines)
-        vat_text = (
-            f"KDV (%{makbuz.vat_rate:,.2f}): ₺{makbuz.vat_amount:,.2f}\n"
-            if makbuz.vat_applied else ""
-        )
+            prev_periods_text = "\n".join(lines) + "\n"
 
-        message = f"""Sayın {party.name},
+        message = f"""Sayın Dr. {party.name},
 
-{period} dönemine ait aylık hesap özetiniz hazırlanmıştır.
+{period} dönemi hesap özetiniz:
 
-İş Emri Sayısı: {makbuz.work_order_count}
-Ara Toplam: ₺{makbuz.subtotal:,.2f}
-{vat_text}Bu Dönem Toplamı: ₺{makbuz.grand_total:,.2f}
-{balance_text}
+• Bu Ayki İşler (KDV Hariç): ₺{makbuz.subtotal:,.2f}
+{vat_text}• Bu Ay Toplamı: ₺{makbuz.grand_total:,.2f}
+{carried_text}{prev_periods_text}------------------------------
+• TOPLAM ÖDENECEK BAKİYE: ₺{statement.total_due:,.2f}
 
-Bu belge yalnızca bilgilendirme amaçlıdır; resmi fatura veya makbuz değildir.
-Ayrıntılı iş ve bakiye dökümü ekteki aylık hesap özetinde yer almaktadır.
+Bu bilgilendirme bilgilendirme amaçlıdır. Ayrıntılı hesap dökümü ekte yer almaktadır.
 
 Saygılarımızla,
 Makro Ortodonti"""
@@ -581,8 +568,8 @@ Makro Ortodonti"""
         if not text_result["success"]:
             return text_result
 
-        filename = f"aylik_hesap_ozeti_{makbuz.year}_{makbuz.month:02d}_{party.id}.pdf"
-        return cls.send_document(party.phone, pdf_bytes, filename=filename, caption=f"{period} Aylık Hesap Özeti")
+        filename = f"hesap_ozeti_{makbuz.year}_{makbuz.month:02d}_{party.id}.pdf"
+        return cls.send_document(party.phone, pdf_bytes, filename=filename, caption=f"{period} Hesap Özeti")
 
     @classmethod
     def send_reminder(cls, patient, message: str) -> dict:

@@ -366,7 +366,7 @@ def test_partial_payment_stays_open_and_carries_to_next_period(client, app):
             WhatsAppService.send_makbuz_message(july, b"pdf")
         message = send_text.call_args.args[1]
         assert "Haziran 2026: ₺2,641.52 hesap özeti - ₺2,500.00 tahsilat = ₺141.52 kalan" in message
-        assert "Toplam Açık Bakiye: ₺241.52" in message
+        assert "TOPLAM ÖDENECEK BAKİYE: ₺241.52" in message
 
     response = client.post(
         f"/payments/{june_id}/mark-paid",

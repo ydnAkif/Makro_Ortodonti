@@ -15,8 +15,8 @@ from app.constants import MONTHS, VAT_RATE
 from app.services.makbuz_service import resolve_makbuzlar_query
 
 STATUS_LABELS = {
-    Makbuz.STATUS_DRAFT: "Taslak",
-    Makbuz.STATUS_SENT: "Tahsilat bekliyor",
+    Makbuz.STATUS_DRAFT: "Açık Bakiye",
+    Makbuz.STATUS_SENT: "Tahsilat Bekliyor",
     Makbuz.STATUS_PAID: "Ödendi",
 }
 

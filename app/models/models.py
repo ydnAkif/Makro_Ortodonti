@@ -636,11 +636,9 @@ class Makbuz(Base, TimestampMixin):
     def affects_balance(self) -> bool:
         """Whether this summary must participate in financial totals.
 
-        A summary can still be ``draft`` when a partial payment was recorded
-        before it was sent over WhatsApp.  The payment makes it a real
-        financial movement even though its communication status is draft.
+        In V3, all work orders and generated summaries participate in financial totals immediately.
         """
-        return self.status in (self.STATUS_SENT, self.STATUS_PAID) or self.collected_amount > 0
+        return True
 
     def __repr__(self) -> str:
         return f"<Makbuz {self.party_id} {self.year}-{self.month:02d} ₺{self.grand_total:.2f} ({self.status})>"

@@ -22,6 +22,11 @@ class OpenPeriod:
 class AccountStatement:
     previous_periods: list[OpenPeriod]
     previous_balance: Decimal
+    party_previous_balance: Decimal
+    carried_over_balance: Decimal
+    current_work_subtotal: Decimal
+    current_vat_amount: Decimal
+    current_month_total: Decimal
     current_collected: Decimal
     current_outstanding: Decimal
     total_due: Decimal
@@ -53,15 +58,26 @@ def open_periods_before(makbuz: Makbuz) -> list[OpenPeriod]:
 def account_statement(makbuz: Makbuz) -> AccountStatement:
     previous_periods = open_periods_before(makbuz)
     previous_balance = money(sum((row.outstanding for row in previous_periods), Decimal("0.00")))
-    current_collected = makbuz.collected_amount
-    current_outstanding = makbuz.outstanding_amount
     party_previous_balance = money(
         makbuz.party.previous_balance_outstanding if makbuz.party else Decimal("0.00")
     )
-    total_due = money(previous_balance + current_outstanding + party_previous_balance)
+    carried_over_balance = money(previous_balance + party_previous_balance)
+
+    current_work_subtotal = money(makbuz.subtotal)
+    current_vat_amount = money(makbuz.vat_amount)
+    current_month_total = money(makbuz.grand_total)
+    current_collected = makbuz.collected_amount
+    current_outstanding = makbuz.outstanding_amount
+    total_due = money(carried_over_balance + current_outstanding)
+
     return AccountStatement(
         previous_periods=previous_periods,
         previous_balance=previous_balance,
+        party_previous_balance=party_previous_balance,
+        carried_over_balance=carried_over_balance,
+        current_work_subtotal=current_work_subtotal,
+        current_vat_amount=current_vat_amount,
+        current_month_total=current_month_total,
         current_collected=current_collected,
         current_outstanding=current_outstanding,
         total_due=total_due,

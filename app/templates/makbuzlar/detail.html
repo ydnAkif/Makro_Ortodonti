@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ party.name }} Aylık Hesap Özeti - {{ clinic_name }}{% endblock %}
+{% block title %}{{ party.name }} Hesap Özeti - {{ clinic_name }}{% endblock %}
 
 {% block content %}
 <div class="mb-4">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}">Aylık Özetler</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}">Hesap Özeti</a></li>
             <li class="breadcrumb-item active">{{ party.name }}</li>
         </ol>
     </nav>

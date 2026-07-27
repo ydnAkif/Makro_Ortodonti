@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Aylık Hesap Özetleri - {{ clinic_name }}{% endblock %}
+{% block title %}Hesap Özeti - {{ clinic_name }}{% endblock %}
 
 {% block content %}
 <header class="workspace-header">
-    <div><h1>Aylık Hesap Özetleri</h1><p>Doktorlara WhatsApp'tan iletilen bilgilendirme özetlerini hazırlayın. Resmi fatura veya makbuz değildir.</p></div>
+    <div><h1>Hesap Özeti</h1><p>Doktorların aylık iş ve cari bakiye özetlerini takip edin, WhatsApp'tan bilgilendirin.</p></div>
     <div class="workspace-actions">
         <a href="{{ url_for('makbuzlar.export_makbuzlar_pdf', view=view, date=selected_date.isoformat() if selected_date else '', year=year, month=month, status_filter=status_filter) }}" class="btn btn-outline-secondary btn-sm me-1" target="_blank">
             <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Özet Listesi PDF
@@ -12,7 +12,7 @@
 </header>
 
 <div class="workorder-period-bar">
-    <nav class="period-switch" aria-label="Aylık hesap özeti dönemi">
+    <nav class="period-switch" aria-label="Hesap özeti dönemi">
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=today.isoformat(), status_filter=status_filter) }}" class="{% if view == 'day' %}active{% endif %}">Gün</a>
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='month', year=today.year, month=today.month, status_filter=status_filter) }}" class="{% if view == 'month' %}active{% endif %}">Ay</a>
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='year', year=today.year, status_filter=status_filter) }}" class="{% if view == 'year' %}active{% endif %}">Yıl</a>
@@ -61,16 +61,15 @@
 <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
     <span class="small text-muted me-1 font-weight-bold">Durum Filtresi:</span>
     <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='all') }}" class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Tümü ({{ doctors|length }})</a>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='draft') }}" class="btn btn-sm {% if status_filter == 'draft' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Taslaklar ({{ draft_count }})</a>
+    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='draft') }}" class="btn btn-sm {% if status_filter == 'draft' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Açık Bakiye Var ({{ draft_count }})</a>
     <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='sent') }}" class="btn btn-sm {% if status_filter == 'sent' %}btn-warning{% else %}btn-outline-secondary{% endif %}">Tahsilat Bekleyenler ({{ awaiting_payment_count }})</a>
     <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='paid') }}" class="btn btn-sm {% if status_filter == 'paid' %}btn-success{% else %}btn-outline-secondary{% endif %}">Ödenenler ({{ paid_count }})</a>
-    <a href="{{ url_for('makbuzlar.list_makbuzlar', view=view, year=year, month=month, date=selected_date.isoformat() if selected_date else '', status_filter='unprepared') }}" class="btn btn-sm {% if status_filter == 'unprepared' %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">Taslağı Oluşmayanlar</a>
 </div>
 
 <div class="summary-line summary-line--four">
     <div><span><i class="bi bi-clipboard2-check text-primary me-1" aria-hidden="true"></i>İş emri</span><strong>{{ grand_total_count }}</strong></div>
     <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Dönem toplamı</span><strong>₺{{ "{:,.2f}".format(grand_total_price) }}</strong></div>
-    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Taslak</span><strong>{{ draft_count }} özet</strong></div>
+    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Açık bakiye</span><strong>{{ draft_count }} doktor</strong></div>
     <div><span><i class="bi bi-clock-history text-warning me-1" aria-hidden="true"></i>Tahsilat bekliyor</span><strong>{{ awaiting_payment_count }} özet</strong></div>
 </div>
 

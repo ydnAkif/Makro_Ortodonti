@@ -10,8 +10,8 @@ from app.models.models import WorkOrder, Party, Makbuz, money
 from app.services.validation_service import parse_date
 
 STATUS_LABELS = {
-    Makbuz.STATUS_DRAFT: "Taslak",
-    Makbuz.STATUS_SENT: "Tahsilat bekliyor",
+    Makbuz.STATUS_DRAFT: "Açık Bakiye",
+    Makbuz.STATUS_SENT: "Tahsilat Bekliyor",
     Makbuz.STATUS_PAID: "Ödendi",
 }
 
