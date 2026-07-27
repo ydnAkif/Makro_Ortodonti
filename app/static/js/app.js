@@ -331,4 +331,90 @@ document.addEventListener('DOMContentLoaded', function() {
             form.classList.add('was-validated');
         });
     });
+
+    // ── Command Palette (Cmd + K / Ctrl + K) ───────────────────
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            var modalEl = document.getElementById('commandPaletteModal');
+            if (modalEl) {
+                var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.toggle();
+            }
+        }
+    });
+
+    var cmdModal = document.getElementById('commandPaletteModal');
+    if (cmdModal) {
+        cmdModal.addEventListener('shown.bs.modal', function() {
+            var input = document.getElementById('cmdPaletteInput');
+            if (input) {
+                input.focus();
+            }
+        });
+
+        var cmdInput = document.getElementById('cmdPaletteInput');
+        var cmdResults = document.getElementById('cmdPaletteResults');
+        if (cmdInput && cmdResults) {
+            var debounceTimer = null;
+            cmdInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                var query = cmdInput.value.trim();
+                if (!query) {
+                    cmdResults.innerHTML = '<div class="text-center text-muted py-3"><small>Doktor, hasta veya iş emri ara...</small></div>';
+                    return;
+                }
+                debounceTimer = setTimeout(function() {
+                    cmdResults.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm me-2"></div>Aranıyor...</div>';
+                    fetch('/api/v1/parties?q=' + encodeURIComponent(query))
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) {
+                            var items = data.data || data.items || data;
+                            cmdResults.innerHTML = '';
+                            if (Array.isArray(items) && items.length > 0) {
+                                var group = document.createElement('div');
+                                group.className = 'list-group list-group-flush';
+                                items.slice(0, 8).forEach(function(item) {
+                                    var a = document.createElement('a');
+                                    a.className = 'list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2';
+                                    a.href = item.id ? '/parties/' + item.id : '#';
+                                    a.innerHTML = '<div><strong>' + (item.name || item.display_name || 'Kayıt') + '</strong></div><span class="badge bg-secondary-subtle text-secondary small">Doktor</span>';
+                                    group.appendChild(a);
+                                });
+                                cmdResults.appendChild(group);
+                            } else {
+                                cmdResults.innerHTML = '<div class="text-center text-muted py-3"><small>Sonuç bulunamadı</small></div>';
+                            }
+                        })
+                        .catch(function() {
+                            cmdResults.innerHTML = '<div class="text-center text-danger py-3"><small>Arama sırasında bir hata oluştu.</small></div>';
+                        });
+                }, 250);
+            });
+        }
+    }
+
+    // ── Mobile FAB Toggle ──────────────────────────────────────
+    var fabBtn = document.getElementById('mobileFabBtn');
+    var fabMenu = document.getElementById('mobileFabMenu');
+    if (fabBtn && fabMenu) {
+        fabBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            fabMenu.classList.toggle('show');
+            var icon = fabBtn.querySelector('i');
+            if (icon) {
+                icon.className = fabMenu.classList.contains('show') ? 'bi bi-x-lg' : 'bi bi-plus-lg';
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (fabMenu.classList.contains('show') && !fabMenu.contains(e.target) && e.target !== fabBtn) {
+                fabMenu.classList.remove('show');
+                var icon = fabBtn.querySelector('i');
+                if (icon) {
+                    icon.className = 'bi bi-plus-lg';
+                }
+            }
+        });
+    }
 });

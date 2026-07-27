@@ -2909,3 +2909,335 @@ textarea.form-control {
         display: none !important;
     }
 }
+
+/* ── v2.1.0 Design System Components ────────────────────────── */
+
+/* 1. Soft Tint Badges & Status Indicators */
+.badge-tint {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .6rem;
+    font-size: .75rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: all .2s ease;
+}
+
+.badge-tint i {
+    font-size: .82rem;
+}
+
+.badge-tint-success {
+    background: rgba(32, 166, 162, 0.12);
+    color: var(--aqua-700);
+    border-color: rgba(32, 166, 162, 0.25);
+}
+
+[data-bs-theme="dark"] .badge-tint-success,
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) .badge-tint-success {
+        background: rgba(57, 191, 179, 0.18);
+        color: #5ec4e0;
+        border-color: rgba(57, 191, 179, 0.35);
+    }
+}
+
+.badge-tint-warning {
+    background: rgba(216, 160, 59, 0.14);
+    color: #92620e;
+    border-color: rgba(216, 160, 59, 0.3);
+}
+
+[data-bs-theme="dark"] .badge-tint-warning,
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) .badge-tint-warning {
+        background: rgba(232, 185, 104, 0.18);
+        color: #e8b968;
+        border-color: rgba(232, 185, 104, 0.35);
+    }
+}
+
+.badge-tint-info {
+    background: rgba(53, 175, 208, 0.12);
+    color: #0f6c88;
+    border-color: rgba(53, 175, 208, 0.25);
+}
+
+[data-bs-theme="dark"] .badge-tint-info,
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) .badge-tint-info {
+        background: rgba(94, 196, 224, 0.18);
+        color: #5ec4e0;
+        border-color: rgba(94, 196, 224, 0.35);
+    }
+}
+
+.badge-tint-secondary {
+    background: rgba(88, 113, 123, 0.12);
+    color: var(--ink-800);
+    border-color: var(--line-strong);
+}
+
+.badge-tint-danger {
+    background: rgba(207, 91, 98, 0.12);
+    color: var(--danger-500);
+    border-color: rgba(207, 91, 98, 0.25);
+}
+
+/* 2. Glassmorphic Notice Strips & Pulsing Dots */
+.notice-strip--glass {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    padding: .75rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: .88rem;
+}
+
+[data-bs-theme="dark"] .notice-strip--glass,
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) .notice-strip--glass {
+        background: rgba(20, 40, 49, 0.75);
+        border-color: var(--line);
+    }
+}
+
+.status-pulse-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.status-pulse-dot::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    animation: pulse-ring 1.8s infinite ease-out;
+    opacity: 0;
+}
+
+.status-pulse-dot.warning {
+    background-color: var(--amber-500);
+    color: var(--amber-500);
+}
+
+.status-pulse-dot.success {
+    background-color: var(--aqua-600);
+    color: var(--aqua-600);
+}
+
+.status-pulse-dot.danger {
+    background-color: var(--danger-500);
+    color: var(--danger-500);
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.5);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(2.2);
+        opacity: 0;
+    }
+}
+
+/* 3. Apparatus Workflow Stepper */
+.stepper-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .6rem .8rem;
+    background: var(--surface-raised, var(--surface));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    margin: .5rem 0;
+}
+
+.stepper-step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    position: relative;
+}
+
+.stepper-step:not(:last-child)::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--line);
+    margin: 0 .4rem;
+}
+
+.stepper-step--completed:not(:last-child)::after {
+    background: var(--aqua-500);
+}
+
+.stepper-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .7rem;
+    font-weight: 700;
+    background: var(--line);
+    color: var(--ink-600);
+    flex-shrink: 0;
+}
+
+.stepper-step--completed .stepper-badge {
+    background: var(--aqua-600);
+    color: #ffffff;
+}
+
+.stepper-step--active .stepper-badge {
+    background: var(--sky-500);
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(53, 175, 208, 0.25);
+}
+
+.stepper-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--ink-800);
+    white-space: nowrap;
+}
+
+/* 4. Payment Progress Bar */
+.payment-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: .3rem;
+}
+
+.payment-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--aqua-600) 0%, var(--aqua-500) 100%);
+    border-radius: 3px;
+    transition: width .4s ease;
+}
+
+/* 5. Mobile Floating Action Button (FAB) */
+.mobile-fab-container {
+    position: fixed;
+    bottom: 76px;
+    right: 18px;
+    z-index: 1040;
+}
+
+@media (min-width: 769px) {
+    .mobile-fab-container {
+        display: none !important;
+    }
+}
+
+.mobile-fab-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--aqua-700);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 6px 16px rgba(11, 111, 112, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    transition: transform .2s ease, background .2s ease;
+}
+
+.mobile-fab-btn:active {
+    transform: scale(0.92);
+}
+
+.mobile-fab-menu {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    display: none;
+    flex-direction: column;
+    gap: .5rem;
+    min-width: 160px;
+}
+
+.mobile-fab-menu.show {
+    display: flex;
+    animation: fab-fade-in .15s ease-out;
+}
+
+.mobile-fab-item {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .6rem .9rem;
+    background: var(--surface);
+    color: var(--ink-950);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+    font-size: .85rem;
+    font-weight: 600;
+    border: 1px solid var(--line);
+}
+
+@keyframes fab-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 6. Command Palette (Cmd + K) */
+.cmd-k-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .3rem .7rem;
+    background: var(--surface-raised, var(--surface));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--ink-600);
+    font-size: .78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color .2s ease;
+}
+
+.cmd-k-trigger:hover {
+    border-color: var(--aqua-600);
+    color: var(--ink-950);
+}
+
+.cmd-k-badge {
+    background: var(--line);
+    padding: .15rem .35rem;
+    border-radius: 4px;
+    font-size: .7rem;
+    font-weight: 700;
+}

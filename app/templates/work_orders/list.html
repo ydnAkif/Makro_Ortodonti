@@ -121,6 +121,12 @@
                         </div>
                         {% set note_value = wo.notes|clean_optional %}
                         {% if note_value %}<div class="workorder-note"><i class="bi bi-journal-text" aria-hidden="true"></i><span>{{ note_value }}</span></div>{% endif %}
+                        <div class="stepper-bar my-1 py-1 px-2" style="font-size: 0.72rem;">
+                            <div class="stepper-step stepper-step--completed"><span class="stepper-badge"><i class="bi bi-check"></i></span><span class="stepper-label">Sipariş</span></div>
+                            <div class="stepper-step stepper-step--completed"><span class="stepper-badge"><i class="bi bi-check"></i></span><span class="stepper-label">Üretim</span></div>
+                            <div class="stepper-step stepper-step--active"><span class="stepper-badge">3</span><span class="stepper-label">Kontrol</span></div>
+                            <div class="stepper-step stepper-step--pending"><span class="stepper-badge">4</span><span class="stepper-label">Teslim</span></div>
+                        </div>
                     </td>
                     <td class="text-end">
                         <div class="workorder-amounts">

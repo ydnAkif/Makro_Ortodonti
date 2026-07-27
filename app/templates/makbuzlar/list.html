@@ -138,18 +138,27 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-center"><span class="badge bg-primary">{{ d.count }}</span></td>
-                            <td class="text-end fw-bold">₺{{ "{:,.2f}".format((m.grand_total if m else d.total_price)) }}</td>
+                            <td class="text-center"><span class="badge-tint badge-tint-info">{{ d.count }} iş</span></td>
+                            <td class="text-end">
+                                <div class="fw-bold">₺{{ "{:,.2f}".format((m.grand_total if m else d.total_price)) }}</div>
+                                {% if m and m.grand_total > 0 %}
+                                {% set pct = [((m.collected_amount / m.grand_total) * 100)|int, 100]|min %}
+                                <div class="payment-progress-bar ms-auto" style="max-width: 100px;" title="%{{ pct }} tahsil edildi">
+                                    <div class="payment-progress-fill" style="width: {{ pct }}%;"></div>
+                                </div>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if not m %}
-                                <span class="badge bg-light text-muted border">Gönderilmedi</span>
-                                <small class="d-block text-muted mt-1">Taslak oluşturulmadı</small>
-                                {% elif m.status == 'draft' %}
-                                <span class="badge bg-secondary">Gönderilmedi</span>
-                                <small class="d-block text-muted mt-1">Taslak hazır</small>
+                                <span class="badge-tint badge-tint-secondary"><i class="bi bi-dash-circle"></i> OLUŞTURULMADI</span>
+                                {% elif m.status == 'paid' %}
+                                <span class="badge-tint badge-tint-success"><i class="bi bi-check-circle-fill"></i> Ödendi</span>
+                                {% elif m.is_partially_paid %}
+                                <span class="badge-tint badge-tint-warning"><i class="bi bi-pie-chart-fill"></i> Kısmi Ödendi</span>
+                                {% elif m.status == 'sent' %}
+                                <span class="badge-tint badge-tint-info"><i class="bi bi-send-fill"></i> Gönderildi</span>
                                 {% else %}
-                                <span class="badge bg-success">Gönderildi</span>
-                                <small class="d-block text-muted mt-1">{{ 'Ödendi' if m.status == 'paid' else 'Tahsilat bekliyor' }}</small>
+                                <span class="badge-tint badge-tint-secondary"><i class="bi bi-pencil-square"></i> Taslak</span>
                                 {% endif %}
                             </td>
                             <td>

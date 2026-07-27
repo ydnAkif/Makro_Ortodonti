@@ -75,10 +75,40 @@
       <a href="{{ url_for('payments.list_payments') }}" class="{% if 'payment' in request.endpoint|default('') %}active{% endif %}" {% if 'payment' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-wallet2" aria-hidden="true"></i><span>Tahsilat</span></a>
       <a href="{{ url_for('whatsapp.index') }}" class="{% if 'whatsapp' in request.endpoint|default('') %}active{% endif %}" {% if 'whatsapp' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp</span></a>
     </nav>
+
+    <div class="mobile-fab-container">
+      <div class="mobile-fab-menu" id="mobileFabMenu">
+        <a href="{{ url_for('parties.list_parties') }}" class="mobile-fab-item"><i class="bi bi-clipboard2-plus text-primary"></i><span>İş emri gir</span></a>
+        <a href="{{ url_for('parties.add_party') }}" class="mobile-fab-item"><i class="bi bi-person-plus text-success"></i><span>Doktor ekle</span></a>
+        <a href="{{ url_for('payments.list_payments') }}" class="mobile-fab-item"><i class="bi bi-wallet2 text-info"></i><span>Tahsilat al</span></a>
+      </div>
+      <button type="button" class="mobile-fab-btn" id="mobileFabBtn" aria-label="Hızlı eylemler">
+        <i class="bi bi-plus-lg"></i>
+      </button>
+    </div>
     {% endif %}
 
     <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="commandPaletteModal" tabindex="-1" aria-labelledby="commandPaletteLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+          <div class="modal-header border-bottom-0 pb-0">
+            <div class="input-group">
+              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
+              <input type="text" class="form-control border-start-0 shadow-none" id="cmdPaletteInput" placeholder="Doktor, hasta veya iş emri ara... (Cmd+K)" autocomplete="off">
+            </div>
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Kapat"></button>
+          </div>
+          <div class="modal-body pt-2" id="cmdPaletteResults">
+            <div class="text-center text-muted py-3"><small>Doktor, hasta veya iş emri ara...</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <div class="modal fade confirm-delete-modal" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">

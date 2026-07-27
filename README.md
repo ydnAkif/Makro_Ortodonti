@@ -1,4 +1,4 @@
-# Makro Ortodonti (v2.0.0) 🌟
+# Makro Ortodonti (v2.1.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
@@ -8,7 +8,18 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 
 ---
 
-## 🚀 v2.0.0 Yeni Özellikler & İyileştirmeler
+## 🚀 v2.1.0 Yeni Tasarım & UX Dönüşümü
+
+- **🏷️ Soft Tint Badges & İkonlar**: Durum rozetleri yumuşak HSL saydam renk tonları, ikonlar ve mikro parlama efektleriyle yenilendi.
+- **🔔 Glassmorphic Notice Strips**: Canlı yanıp sönen uyarı noktaları (`status-pulse-dot`) ve cam efektli duyuru bantları.
+- **📊 İş Emri Süreç Steppers**: 4 adımlı görsel iş emri durum ilerleme göstergesi (`Sipariş` ➔ `Üretim` ➔ `Kontrol` ➔ `Teslim`).
+- **💳 Makbuz Ödeme Doluluk Çubukları**: Makbuz listesinde tahsilat oranını gösteren canlı yeşil gradient progress bar.
+- **🔍 `Cmd + K` Hızlı Arama Paleti**: Tüm sistemde `Cmd+K` / `Ctrl+K` kısayoluyla tetiklenen modal arama ekranı.
+- **📱 Mobilde Floating Action Button (FAB)**: Mobil cihazlarda hızlı erişim sağlayan dairesel `+` eylem butonu.
+
+---
+
+## 🚀 v2.0.0 Önceki Özellikler & İyileştirmeler
 
 - **🔌 JSON API Katmanı (`/api/v1/`)**: Salt okunur REST API endpoint'leri eklendi — parties, work-orders, makbuzlar, treatments, exchange-rate, dashboard. Gelecekteki mobil uygulama ve dış entegrasyonlar için hazır altyapı.
 - **⚡ Arka Plan PDF Üretim Kuyruğu**: `PdfQueue` servisi ile büyük PDF'ler (çok sayıda makbuz/is emri) arka plan iş parçacığında üretilir; HTTP istek yanıtı engellenmez.

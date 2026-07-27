@@ -2,17 +2,15 @@
 endblock %} {% block content %} {% if whatsapp_state != 'connected' %}
 <div
   id="wa-connect-banner"
-  class="notice-strip notice-strip--warning mb-3"
+  class="notice-strip notice-strip--glass mb-3"
   role="status"
 >
-  <i class="bi bi-whatsapp" aria-hidden="true"></i
-  ><span
-    ><strong>WhatsApp bağlı değil.</strong> Makbuz göndermek için bağlantıyı
-    kurun.</span
-  >
+  <span class="status-pulse-dot warning"></span>
+  <i class="bi bi-whatsapp text-warning" aria-hidden="true"></i>
+  <span><strong>WhatsApp bağlı değil.</strong> Makbuz göndermek için bağlantıyı kurun.</span>
   <a
     href="{{ url_for('whatsapp.index') }}"
-    class="btn btn-sm btn-outline-secondary ms-auto"
+    class="btn btn-sm btn-outline-warning ms-auto"
     >Bağlan</a
   >
 </div>

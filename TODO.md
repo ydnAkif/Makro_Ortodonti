@@ -1,6 +1,6 @@
-# Makro Ortodonti — Yapılacaklar (TODO) ve v2.0 Yol Haritası
+# Makro Ortodonti — Yapılacaklar (TODO) ve Yol Haritası
 
-> **Sürüm**: v2.0.0  
+> **Sürüm**: v2.1.0  
 > **Mimari Seviye**: A+ (95+)  
 > **Test Durumu**: 484 Passed | 0 Error | 0 Warning | %89+ Coverage
 

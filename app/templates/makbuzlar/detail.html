@@ -95,12 +95,26 @@
     <div class="card-body">
         {% if makbuz %}
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-            <div>
-                <span class="badge {{ 'bg-success' if makbuz.status == 'paid' else ('bg-warning text-dark' if makbuz.is_partially_paid else ('bg-primary' if makbuz.status == 'sent' else 'bg-secondary')) }} mb-2">{{ 'Kısmi ödendi' if makbuz.is_partially_paid else status_labels.get(makbuz.status, makbuz.status) }}</span>
+            <div style="min-width: 260px;">
+                {% if makbuz.status == 'paid' %}
+                <span class="badge-tint badge-tint-success mb-2"><i class="bi bi-check-circle-fill"></i> Ödendi</span>
+                {% elif makbuz.is_partially_paid %}
+                <span class="badge-tint badge-tint-warning mb-2"><i class="bi bi-pie-chart-fill"></i> Kısmi Ödendi</span>
+                {% elif makbuz.status == 'sent' %}
+                <span class="badge-tint badge-tint-info mb-2"><i class="bi bi-send-fill"></i> Gönderildi</span>
+                {% else %}
+                <span class="badge-tint badge-tint-secondary mb-2"><i class="bi bi-pencil-square"></i> Taslak</span>
+                {% endif %}
                 <p class="mb-1">Matrah: <strong>₺{{ "{:,.2f}".format(makbuz.subtotal) }}</strong>
                     {% if makbuz.vat_applied %} + KDV (%{{ '{:.2f}'.format(makbuz.vat_rate) }}): <strong>₺{{ "{:,.2f}".format(makbuz.vat_amount) }}</strong>{% endif %}
                 </p>
                 <p class="mb-1">Dönem Toplamı: <strong class="fs-5">₺{{ "{:,.2f}".format(makbuz.grand_total) }}</strong></p>
+                {% if makbuz.grand_total > 0 %}
+                {% set pct = [((makbuz.collected_amount / makbuz.grand_total) * 100)|int, 100]|min %}
+                <div class="payment-progress-bar mb-2" title="%{{ pct }} tahsil edildi">
+                    <div class="payment-progress-fill" style="width: {{ pct }}%;"></div>
+                </div>
+                {% endif %}
                 {% if makbuz.collected_amount > 0 %}
                 <p class="mb-1">Tahsil edilen: <strong class="text-success">₺{{ "{:,.2f}".format(makbuz.collected_amount) }}</strong> · Dönemden kalan: <strong class="text-danger">₺{{ "{:,.2f}".format(makbuz.outstanding_amount) }}</strong></p>
                 {% endif %}
