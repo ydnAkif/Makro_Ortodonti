@@ -104,9 +104,44 @@ def list_parties():
                 "balance": money(p.previous_balance or Decimal("0.00")),
             }
 
-    kasa_page_total_work = money(sum((row["work_total"] for row in kasa_by_party.values()), Decimal("0.00")))
-    kasa_page_total_payment = money(sum((row["payment_total"] for row in kasa_by_party.values()), Decimal("0.00")))
-    kasa_page_total_balance = money(sum((row["balance"] for row in kasa_by_party.values()), Decimal("0.00")))
+    # System-wide overall metrics for top summary cards
+    total_doctors_count = db.session.scalar(
+        db.select(db.func.count(Party.id)).where(Party.party_type == PartyType.DENTIST, Party.is_active.is_(True))
+    ) or 0
+
+    current_month_start = date(today.year, today.month, 1)
+    next_month_start = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+
+    current_month_work_total = db.session.scalar(
+        db.select(db.func.coalesce(db.func.sum(WorkOrder.total_price), Decimal("0.00")))
+        .where(
+            WorkOrder.work_date >= current_month_start,
+            WorkOrder.work_date < next_month_start,
+        )
+    ) or Decimal("0.00")
+
+    all_active_parties = db.session.execute(
+        db.select(Party.id, Party.previous_balance).where(Party.party_type == PartyType.DENTIST, Party.is_active.is_(True))
+    ).all()
+    all_party_ids = [p.id for p in all_active_parties]
+    sum_prev_balances = money(sum((p.previous_balance or Decimal("0.00") for p in all_active_parties), Decimal("0.00")))
+
+    total_billed = db.session.scalar(
+        db.select(db.func.coalesce(db.func.sum(Makbuz.grand_total), Decimal("0.00")))
+        .where(
+            Makbuz.party_id.in_(all_party_ids),
+            Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID))
+        )
+    ) if all_party_ids else Decimal("0.00")
+
+    total_collected = db.session.scalar(
+        db.select(db.func.coalesce(db.func.sum(Makbuz.collected_amount), Decimal("0.00")))
+        .where(
+            Makbuz.party_id.in_(all_party_ids)
+        )
+    ) if all_party_ids else Decimal("0.00")
+
+    total_clinic_balance = money(total_billed - total_collected + sum_prev_balances)
 
     # Canlı arama yalnızca sonuç tablosunu ister; sayfa yeniden yüklenmez.
     template = (
@@ -124,6 +159,9 @@ def list_parties():
         kasa_page_total_work=kasa_page_total_work,
         kasa_page_total_payment=kasa_page_total_payment,
         kasa_page_total_balance=kasa_page_total_balance,
+        total_doctors_count=total_doctors_count,
+        current_month_work_total=current_month_work_total,
+        total_clinic_balance=total_clinic_balance,
     )
 
 
