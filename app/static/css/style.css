@@ -3478,3 +3478,61 @@ textarea.form-control {
     color: #ffffff;
     box-shadow: var(--shadow-sm);
 }
+
+/* ── Universal Table Header & Precision Alignment System ───────────── */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.table > thead > tr > th,
+.table-light > thead > tr > th {
+    background-color: var(--surface-raised, #f4f7f7) !important;
+    color: var(--ink-600, #58717b) !important;
+    font-size: 0.72rem !important;
+    font-weight: 750 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    padding: 0.85rem 1rem !important;
+    border-top: none !important;
+    border-bottom: 2px solid var(--line-strong, #cbdadc) !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+}
+
+[data-bs-theme="dark"] .table > thead > tr > th,
+[data-bs-theme="dark"] .table-light > thead > tr > th {
+    background-color: var(--surface-raised, #1a323d) !important;
+    color: var(--ink-800, #c2d0d6) !important;
+    border-bottom-color: var(--line-strong, #2e5565) !important;
+}
+
+.table > tbody > tr > td {
+    padding: 0.85rem 1rem !important;
+    vertical-align: middle !important;
+    border-bottom: 1px solid var(--line, #dce8e9);
+    font-size: 0.875rem;
+}
+
+.table > tfoot > tr > td {
+    padding: 0.85rem 1rem !important;
+    vertical-align: middle !important;
+    background-color: var(--surface-raised, #f4f7f7) !important;
+    border-top: 2px solid var(--line-strong) !important;
+    font-weight: 700;
+}
+
+/* Tabular numeric alignment for financial columns */
+.num-cell,
+.table .text-end {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* Column width utility classes */
+.col-w-date { width: 110px; min-width: 110px; }
+.col-w-phone { width: 150px; min-width: 150px; }
+.col-w-balance { width: 140px; min-width: 140px; }
+.col-w-actions { width: 160px; min-width: 160px; text-align: right !important; }
+.col-w-checkbox { width: 44px; min-width: 44px; text-align: center !important; }

@@ -60,13 +60,13 @@
       <table class="table party-table-modern align-middle mb-0">
         <thead>
           <tr>
-            <th>Doktor / İletişim</th>
+            <th class="text-start">Doktor / İletişim</th>
             <th class="text-end">İş Toplamı</th>
             <th class="text-end">KDV</th>
             <th class="text-end">Tahsilat</th>
-            <th class="text-center">Bakiye Durumu</th>
-            <th>Vergi No / TC</th>
-            <th class="text-end">İşlem</th>
+            <th class="text-center col-w-balance">Bakiye Durumu</th>
+            <th class="text-start">Vergi No / TC</th>
+            <th class="text-end col-w-actions">İşlem</th>
           </tr>
         </thead>
         <tbody>
@@ -75,7 +75,7 @@
           {% set initials = (p.display_name[:2] if p.display_name else 'DH')|upper %}
           {% set bal = finance.balance if finance else 0 %}
           <tr>
-            <td>
+            <td class="text-start">
               <div class="d-flex align-items-center gap-3">
                 <div class="party-avatar" style="width:36px;height:36px;font-size:0.8rem;">{{ initials }}</div>
                 <div>
@@ -86,26 +86,28 @@
                 </div>
               </div>
             </td>
-            <td class="text-end fw-semibold">₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}</td>
-            <td class="text-end text-muted small">
+            <td class="text-end num-cell fw-semibold">₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}</td>
+            <td class="text-end num-cell text-muted small">
               {% if finance and finance.vat_total is not none %}₺{{ "{:,.2f}".format(finance.vat_total) }}{% else %}-{% endif %}
             </td>
-            <td class="text-end text-success fw-semibold">₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}</td>
-            <td class="text-center">
+            <td class="text-end num-cell text-success fw-semibold">₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}</td>
+            <td class="text-center col-w-balance">
               {% if bal > 0 %}
               <span class="badge-tint badge-tint-warning"><i class="bi bi-exclamation-circle me-1"></i>₺{{ "{:,.2f}".format(bal) }}</span>
               {% else %}
               <span class="badge-tint badge-tint-success"><i class="bi bi-check-circle-fill me-1"></i>Borçsuz</span>
               {% endif %}
             </td>
-            <td class="small text-muted font-monospace">{{ p.tax_id or '—' }}</td>
-            <td class="text-end">
-              <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary me-1" title="İş Emri Gir">
-                <i class="bi bi-clipboard2-plus"></i> İş Emri
-              </a>
-              <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="Detay">
-                Detay
-              </a>
+            <td class="text-start small text-muted font-monospace">{{ p.tax_id or '—' }}</td>
+            <td class="text-end col-w-actions">
+              <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+                <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary" title="İş Emri Gir">
+                  <i class="bi bi-clipboard2-plus me-1"></i>İş Emri
+                </a>
+                <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="Detay">
+                  Detay
+                </a>
+              </div>
             </td>
           </tr>
           {% endfor %}

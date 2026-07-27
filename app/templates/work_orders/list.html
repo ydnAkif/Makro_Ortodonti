@@ -78,11 +78,20 @@
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle workorder-ledger">
-            <thead><tr><th>Tarih</th><th>Doktor</th><th>Hasta</th><th>İşlem detayı</th><th class="text-end">Tutar dökümü</th><th class="text-end">İşlem</th></tr></thead>
+            <thead>
+                <tr>
+                    <th class="text-start col-w-date">Tarih</th>
+                    <th class="text-start">Doktor</th>
+                    <th class="text-start">Hasta</th>
+                    <th class="text-start">İşlem detayı</th>
+                    <th class="text-end">Tutar dökümü</th>
+                    <th class="text-end col-w-actions">İşlem</th>
+                </tr>
+            </thead>
             <tbody>
                 {% for wo in work_orders %}
                 <tr>
-                    <td><time class="workorder-date" datetime="{{ wo.work_date.isoformat() }}">{{ wo.work_date.strftime('%d.%m.%Y') }}</time></td>
+                    <td class="text-start col-w-date"><time class="workorder-date" datetime="{{ wo.work_date.isoformat() }}">{{ wo.work_date.strftime('%d.%m.%Y') }}</time></td>
                     <td>
                         <a href="{{ url_for('parties.detail_party', party_id=wo.party_id) }}">{{ wo.party.display_name if wo.party else '—' }}</a>
                         {% if wo.party and wo.party.phone %}<small class="workorder-doctor-phone">{{ wo.party.phone|phone_display }}</small>{% endif %}

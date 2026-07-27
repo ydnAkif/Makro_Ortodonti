@@ -1,10 +1,18 @@
-# Makro Ortodonti (v2.2.0) 🌟
+# Makro Ortodonti (v2.2.1) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
 [![Test Suite](https://img.shields.io/badge/pytest-passing-success.svg)]()
 
 Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli dinamik/sabit kurlu faturalandırmayı, günlük/aylık/yıllık otomatik makbuzları, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır.
+
+---
+
+## 📐 v2.2.1 Hassas Tablo Hizalaması & Header Dönüşümü
+
+- **📐 Evrensel Header & Hizalama Sistemi**: Tüm tablolarda başlık hücreleri (`<th>`) ile gövde hücreleri (`<td>`) jilet gibi dikey çizgide eşlendi.
+- **🔢 `tabular-nums` Basamak Hizalaması**: Finansal kolonlardaki sayılar (`text-end`) basamak ve virgül hizasına göre dikeyde kusursuz sıralandı.
+- **📌 Sabit Sütun Genişlikleri**: Tarih (`110px`), Telefon (`150px`), Bakiye (`140px`) ve Eylem (`160px`) sütunlarına korumalı genişlikler atandı.
 
 ---
 
