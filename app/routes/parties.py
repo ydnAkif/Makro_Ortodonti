@@ -156,6 +156,10 @@ def list_parties():
 
     total_clinic_balance = money(total_billed - total_collected + sum_prev_balances)
 
+    kasa_page_total_work = money(sum((row["work_total"] for row in kasa_by_party.values()), Decimal("0.00")))
+    kasa_page_total_payment = money(sum((row["payment_total"] for row in kasa_by_party.values()), Decimal("0.00")))
+    kasa_page_total_balance = money(sum((row["balance"] for row in kasa_by_party.values()), Decimal("0.00")))
+
     # Canlı arama yalnızca sonuç tablosunu ister; sayfa yeniden yüklenmez.
     template = (
         "parties/_results.html"
