@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, money
+from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, MakbuzPayment, money
 from app.authz import permissions_required
 from app.services.party_service import PartyService
 from app.services.search_service import tr_contains, tr_order, tr_fold, tr_equals
@@ -126,20 +126,33 @@ def list_parties():
     all_party_ids = [p.id for p in all_active_parties]
     sum_prev_balances = money(sum((p.previous_balance or Decimal("0.00") for p in all_active_parties), Decimal("0.00")))
 
-    total_billed = db.session.scalar(
-        db.select(db.func.coalesce(db.func.sum(Makbuz.grand_total), Decimal("0.00")))
-        .where(
-            Makbuz.party_id.in_(all_party_ids),
-            Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID))
-        )
-    ) if all_party_ids else Decimal("0.00")
+    if all_party_ids:
+        total_billed = db.session.scalar(
+            db.select(db.func.coalesce(db.func.sum(Makbuz.grand_total), Decimal("0.00")))
+            .where(
+                Makbuz.party_id.in_(all_party_ids),
+                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID))
+            )
+        ) or Decimal("0.00")
 
-    total_collected = db.session.scalar(
-        db.select(db.func.coalesce(db.func.sum(Makbuz.collected_amount), Decimal("0.00")))
-        .where(
-            Makbuz.party_id.in_(all_party_ids)
-        )
-    ) if all_party_ids else Decimal("0.00")
+        total_payments_entries = db.session.scalar(
+            db.select(db.func.coalesce(db.func.sum(MakbuzPayment.amount), Decimal("0.00")))
+            .join(Makbuz, MakbuzPayment.makbuz_id == Makbuz.id)
+            .where(Makbuz.party_id.in_(all_party_ids))
+        ) or Decimal("0.00")
+
+        total_legacy_paid = db.session.scalar(
+            db.select(db.func.coalesce(db.func.sum(Makbuz.paid_amount), Decimal("0.00")))
+            .where(
+                Makbuz.party_id.in_(all_party_ids),
+                ~Makbuz.payment_entries.any(),
+            )
+        ) or Decimal("0.00")
+
+        total_collected = money(total_payments_entries + total_legacy_paid)
+    else:
+        total_billed = Decimal("0.00")
+        total_collected = Decimal("0.00")
 
     total_clinic_balance = money(total_billed - total_collected + sum_prev_balances)
 
