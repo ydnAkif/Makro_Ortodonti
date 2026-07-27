@@ -119,14 +119,13 @@ def test_can_edit_work_order_after_summary_is_sent(client, app):
 def test_can_move_work_order_to_sent_summary_period(client, app):
     login(client, "admin", "admin-pass")
     party_id = _make_doctor(app)
-    wo_id = _add_work_order(app, party_id, date(2026, 5, 10))  # May (unlocked)
-    _create_locked_makbuz(app, party_id, 2026, 6)  # June (locked)
+    wo_id = _add_work_order(app, party_id, date(2026, 5, 10))
+    _create_locked_makbuz(app, party_id, 2026, 6)
 
-    # Try POST update moving from May to June
-    response = client.post(
+    client.post(
         f"/parties/{party_id}/work-orders/{wo_id}/edit",
         data={
-            "work_date": "2026-06-10",  # target is locked
+            "work_date": "2026-06-10",
             "patient_name": "Lock Patient",
             "apparatus_type": "Nance",
             "apparatus_price": "1000",
