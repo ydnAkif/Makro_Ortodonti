@@ -104,8 +104,9 @@ def create_app(config_class=Config) -> Flask:
 
     app.jinja_env.filters["currency_symbol"] = _currency_symbol
 
-    from .services.validation_service import format_tr_phone
+    from .services.validation_service import format_tr_phone, format_whatsapp_url
     app.jinja_env.filters["phone_display"] = format_tr_phone
+    app.jinja_env.filters["whatsapp_url"] = format_whatsapp_url
 
     # Register transactional audit listeners before handling requests.
     from .services import audit_service  # noqa: F401

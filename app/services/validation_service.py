@@ -76,6 +76,22 @@ def format_tr_phone(value: object) -> str:
     return f"+90 {local[:3]} {local[3:6]} {local[6:8]} {local[8:]}"
 
 
+def format_whatsapp_url(value: object) -> str:
+    """Format phone number as a direct https://wa.me/ URL for WhatsApp messaging."""
+    raw = str(value or "").strip()
+    digits = "".join(char for char in raw if char.isdigit())
+    if len(digits) == 10:
+        digits = "90" + digits
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = "90" + digits[1:]
+    elif len(digits) == 12 and digits.startswith("90"):
+        pass
+    else:
+        return f"https://wa.me/{digits}" if digits else "#"
+    return f"https://wa.me/{digits}"
+
+
+
 def normalize_treatment_fields(name, description, category, price_eur, currency=None):
     """Validate treatment input identically for forms, JSON and spreadsheets."""
     clean_name = str(name or "").strip()

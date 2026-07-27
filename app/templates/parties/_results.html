@@ -17,7 +17,7 @@
               <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="text-decoration-none text-reset">{{ p.display_name }}</a>
             </h3>
             {% if p.phone %}
-            <a href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}" class="party-card-phone" title="WhatsApp Mesajı Hazırla">
+            <a href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}" class="party-card-phone phone-wa-link" title="WhatsApp Mesajı Gönder">
               <i class="bi bi-whatsapp text-success"></i>
               <span>{{ p.phone|phone_display }}</span>
             </a>
@@ -81,7 +81,9 @@
                 <div>
                   <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="fw-bold text-decoration-none text-reset d-block">{{ p.display_name }}</a>
                   {% if p.phone %}
-                  <small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ p.phone|phone_display }}</small>
+                  <a href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}" class="small phone-wa-link text-decoration-none d-inline-block mt-1" title="WhatsApp Mesajı Gönder">
+                    <i class="bi bi-whatsapp text-success me-1"></i>{{ p.phone|phone_display }}
+                  </a>
                   {% endif %}
                 </div>
               </div>

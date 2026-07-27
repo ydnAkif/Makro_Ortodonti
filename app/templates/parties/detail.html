@@ -50,7 +50,9 @@ block content %}
         <hr class="my-2" />
         {% if party.phone %}
         <p class="text-muted mb-2 small">
-          <i class="bi bi-telephone me-1"></i> {{ party.phone|phone_display }}
+          <a href="{{ url_for('whatsapp.index', message_party_id=party.id, _anchor='message-compose') }}" class="phone-wa-link text-decoration-none" title="WhatsApp Mesajı Gönder">
+            <i class="bi bi-whatsapp text-success me-1"></i>{{ party.phone|phone_display }}
+          </a>
         </p>
         {% endif %} {% if party.email %}
         <p class="text-muted mb-2 small">
