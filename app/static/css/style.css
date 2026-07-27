@@ -3534,5 +3534,14 @@ textarea.form-control {
 .col-w-date { width: 110px; min-width: 110px; }
 .col-w-phone { width: 150px; min-width: 150px; }
 .col-w-balance { width: 140px; min-width: 140px; }
-.col-w-actions { width: 160px; min-width: 160px; text-align: right !important; }
+.col-w-actions { width: 190px !important; min-width: 190px !important; text-align: right !important; white-space: nowrap !important; }
 .col-w-checkbox { width: 44px; min-width: 44px; text-align: center !important; }
+
+/* Ensure all buttons stay strictly single-line */
+.btn, .btn-sm {
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1.2 !important;
+}

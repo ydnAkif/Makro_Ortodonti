@@ -100,12 +100,12 @@
             </td>
             <td class="text-start small text-muted font-monospace">{{ p.tax_id or '—' }}</td>
             <td class="text-end col-w-actions">
-              <div class="d-inline-flex gap-1 align-items-center justify-content-end">
-                <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary" title="İş Emri Gir">
+              <div class="d-inline-flex gap-1 align-items-center justify-content-end text-nowrap">
+                <a href="{{ url_for('parties.add_work_order', party_id=p.id) }}" class="btn btn-sm btn-primary text-nowrap" title="İş Emri Gir">
                   <i class="bi bi-clipboard2-plus me-1"></i>İş Emri
                 </a>
-                <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="Detay">
-                  Detay
+                <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="btn btn-sm btn-outline-secondary text-nowrap" title="Detay">
+                  <i class="bi bi-person me-1"></i>Detay
                 </a>
               </div>
             </td>
