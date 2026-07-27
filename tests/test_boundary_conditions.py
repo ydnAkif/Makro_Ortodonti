@@ -71,7 +71,7 @@ class TestPermissionBoundary:
         """billing.delete_payment admin'e özeldir — staff'ın billing.edit
         yetkisi olması bu tekil, geri dönüşü olmayan silme işlemini kapsamaz."""
         from app.services.makbuz_account_service import record_payment
-        from app.models.models import Makbuz, Party, PartyType
+        from app.models.models import Makbuz, Party
 
         party_id = _make_dentist(app, name="Dr. Payment Delete Perm")
         with app.app_context():

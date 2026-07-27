@@ -42,39 +42,75 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 
 ## 🛠️ Kurulum ve Çalıştırma
 
+Proje `FLASK_APP` ortam değişkeni veya `.flaskenv` kullanmaz; bu yüzden her `flask ...`
+komutunda uygulamayı **`--app run:app`** ile açıkça belirtmek gerekir — aksi hâlde
+`flask` komutu "Could not locate a Flask application" hatası verir.
+
 ### 1. Yerel Geliştirme Ortamı
 
 ```bash
-# Depoyu klonlayın ve sanal ortam oluşturun
+# Depoyu klonlayın ve içine girin
+git clone https://github.com/ydnAkif/Makro_Ortodonti.git
+cd Makro_Ortodonti
+
+# Sanal ortam oluşturun ve etkinleştirin
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 # Bağımlılıkları yükleyin
 python -m pip install -r requirements-dev.txt
 
 # Çevre değişkenlerini kopyalayın
 cp .env.example .env
+```
 
-# İlk kurulumda veritabanını oluşturun ve seed verilerini yükleyin
-flask db-tools seed
+`.env` dosyasını açıp **`SECRET_KEY`** ve **`ENCRYPTION_KEY`** için gerçek, rastgele
+değerler üretip yapıştırın (placeholder değerle bırakırsanız aşağıdaki `flask ...`
+komutlarının hiçbiri çalışmaz — `FLASK_DEBUG=true` bu kontrolü *yalnızca*
+`python run.py` ile başlatırken atlatır, `flask` CLI komutlarında atlatmaz):
+
+```bash
+python -c 'import secrets; print(secrets.token_urlsafe(48))'   # SECRET_KEY için
+python -c 'import secrets; print(secrets.token_urlsafe(48))'   # ENCRYPTION_KEY için
+```
+
+Üretilen iki değeri `.env` içindeki `SECRET_KEY=` ve `ENCRYPTION_KEY=` satırlarına yazın.
+
+> **Not:** Bu depo `data/makroortodonti.db` dosyasını (örnek/demo verisiyle birlikte)
+> doğrudan sürüm kontrolüne dahil eder. Yani depoyu klonladığınızda veritabanı zaten
+> dolu gelir ve `flask db-tools seed` var olan `admin` hesabını bulup **yeni bir şifre
+> üretmez** (idempotent seed — mevcut kullanıcıya dokunmaz). Kendi admin şifrenizi
+> bilmeden başlamak isterseniz önce bu dosyayı silin:
+> ```bash
+> rm -f data/makroortodonti.db data/makroortodonti.db-wal data/makroortodonti.db-shm
+> ```
+
+```bash
+# Veritabanını (yeniden) oluşturun ve seed verilerini yükleyin
+# (üretilen admin şifresi yalnızca bu ilk çalıştırmada terminale yazdırılır — not edin)
+flask --app run:app db-tools seed
 
 # Uygulamayı başlatın
 FLASK_DEBUG=true python run.py
 ```
 
-Uygulama varsayılan olarak `http://127.0.0.1:5001` adresinde açılır.
+Uygulama varsayılan olarak `http://127.0.0.1:5001` adresinde açılır; `admin` kullanıcı adı
+ve az önce terminale yazdırılan şifreyle giriş yapabilirsiniz.
 
 ### 2. CLI Komutları
 
 ```bash
 # Veritabanı ve katalog verilerini yükleme
-flask db-tools seed
+flask --app run:app db-tools seed
+
+# Şema güncellemelerini uygulama (yeni migration eklendiğinde)
+flask --app run:app db upgrade
 
 # Günlük döviz kurunu güncelleme
-flask refresh-exchange-rate
+flask --app run:app refresh-exchange-rate
 
 # Süresi dolmuş denetim kayıtlarını temizleme
-flask purge-expired-audit-logs
+flask --app run:app purge-expired-audit-logs
 ```
 
 ### 3. Production Dağıtımı
@@ -85,7 +121,7 @@ export ENCRYPTION_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(
 export SESSION_COOKIE_SECURE=true
 export FORCE_HSTS=true
 
-flask db upgrade
+flask --app run:app db upgrade
 gunicorn --workers 1 --bind 0.0.0.0:8000 "run:app"
 ```
 
@@ -100,15 +136,24 @@ gunicorn --workers 1 --bind 0.0.0.0:8000 "run:app"
 Tüm iş mantığı, servis katmanı ve kilit kontrolleri Pytest ile kapsanmıştır (%90+ coverage):
 
 ```bash
-# Birim ve entegrasyon testlerini çalıştırma
+# Tüm testler (e2e/Playwright dahil)
 pytest
+
+# Hızlı yol: yalnızca birim/entegrasyon testleri (e2e hariç)
+pytest -m "not e2e"
 
 # Coverage raporu ve baraj kontrolü (%90)
 pytest --cov=app --cov-report=term-missing --cov-fail-under=90
 
-# E2E testleri (Playwright Chromium)
-pytest tests/e2e --browser chromium
+# Yalnızca E2E testleri — iki eşdeğer yol:
+pytest -m e2e --browser chromium          # marker tabanlı (auto-marker ile)
+pytest tests/e2e --browser chromium       # dizin tabanlı
 ```
+
+> **Not:** `tests/e2e/` altındaki tüm testlere `e2e` marker'ı `conftest.py` içindeki
+> `pytest_collection_modifyitems` hook'u tarafından **otomatik olarak uygulanır** —
+> tek tek `@pytest.mark.e2e` yazmak gerekmez. Her iki çalıştırma yöntemi de aynı
+> testleri kapsar.
 
 ---
 
