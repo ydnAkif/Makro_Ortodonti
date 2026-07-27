@@ -26,7 +26,7 @@ from typing import Optional
 from flask import has_app_context
 
 from app.extensions import db
-from app.models.models import WhatsAppSession, money
+from app.models.models import WhatsAppSession
 
 logger = logging.getLogger(__name__)
 
@@ -520,24 +520,40 @@ Makro Ortodonti"""
 
         from app.services.makbuz_account_service import account_statement
 
+        def _safe_decimal(val) -> Decimal:
+            if isinstance(val, Decimal):
+                return val
+            if isinstance(val, (int, float)):
+                return Decimal(str(val))
+            if isinstance(val, str):
+                try:
+                    return Decimal(val)
+                except Exception:
+                    return Decimal("0.00")
+            return Decimal("0.00")
+
         if has_app_context():
             statement = account_statement(makbuz)
         else:
-            current_total = Decimal(str(makbuz.grand_total))
+            current_total = _safe_decimal(getattr(makbuz, 'grand_total', 0))
+            subtotal_val = _safe_decimal(getattr(makbuz, 'subtotal', 0))
+            vat_val = _safe_decimal(getattr(makbuz, 'vat_amount', 0))
             statement = SimpleNamespace(
                 previous_periods=[],
                 previous_balance=Decimal("0.00"),
                 party_previous_balance=Decimal("0.00"),
                 carried_over_balance=Decimal("0.00"),
-                current_work_subtotal=Decimal(str(makbuz.subtotal)),
-                current_vat_amount=Decimal(str(makbuz.vat_amount)),
+                current_work_subtotal=subtotal_val,
+                current_vat_amount=vat_val,
                 current_month_total=current_total,
                 current_collected=Decimal("0.00"),
                 current_outstanding=current_total,
                 total_due=current_total,
             )
 
-        vat_text = f"• Bu Ayın KDV'si (%{makbuz.vat_rate:g}): ₺{makbuz.vat_amount:,.2f}\n" if makbuz.vat_applied else ""
+        vat_rate_val = _safe_decimal(getattr(makbuz, 'vat_rate', 0))
+        vat_amount_val = _safe_decimal(getattr(makbuz, 'vat_amount', 0))
+        vat_text = f"• Bu Ayın KDV'si (%{vat_rate_val:g}): ₺{vat_amount_val:,.2f}\n" if makbuz.vat_applied else ""
         carried_text = f"• Devreden Borç: ₺{statement.carried_over_balance:,.2f}\n" if statement.carried_over_balance > 0 else ""
         prev_periods_text = ""
         if statement.previous_periods:

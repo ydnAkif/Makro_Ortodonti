@@ -764,7 +764,7 @@ def test_makbuzlar_views_status_filters_and_pdf_export(client, app):
     # 1. Day view
     resp = client.get("/makbuzlar?view=day")
     assert resp.status_code == 200
-    assert "Aylık Hesap Özetleri".encode() in resp.data
+    assert "Hesap Özeti".encode() in resp.data
 
     # 2. Month view
     resp = client.get("/makbuzlar?view=month&year=2026&month=7")

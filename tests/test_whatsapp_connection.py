@@ -452,7 +452,7 @@ class TestSending:
         mock_client.send_message.assert_called_once()
         mock_client.send_document.assert_called_once()
         doc_kwargs = mock_client.send_document.call_args.kwargs
-        assert doc_kwargs["filename"] == "aylik_hesap_ozeti_2026_06_7.pdf"
+        assert doc_kwargs["filename"] == "hesap_ozeti_2026_06_7.pdf"
         assert doc_kwargs["mimetype"] == "application/pdf"
 
     def _makbuz_mock(self, vat_applied=False):

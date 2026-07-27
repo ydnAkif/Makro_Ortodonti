@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Makbuz, money
+from app.models.models import Party, PartyType, WorkOrder
 from app.services.makbuz_service import generate_makbuz
 from app.services.makbuz_account_service import account_statement, record_payment
 
@@ -117,3 +117,24 @@ def test_v3_opening_balance_included_in_carried_over_balance(app):
         assert stmt.carried_over_balance == Decimal("1500.00")
         assert stmt.current_month_total == Decimal("2000.00")
         assert stmt.total_due == Decimal("3500.00")
+
+
+def test_v3_resolve_makbuzlar_query_edge_cases(app):
+    from app.services.makbuz_service import resolve_makbuzlar_query
+
+    with app.app_context():
+        res_invalid = resolve_makbuzlar_query({"view": "invalid", "year": "bad", "month": "bad"})
+        assert res_invalid["view"] == "month"
+
+        res_all = resolve_makbuzlar_query({"view": "all", "status_filter": "draft"})
+        assert res_all["period_label"] == "Tüm Zamanlar"
+
+        res_year = resolve_makbuzlar_query({"view": "year", "year": "2026", "status_filter": "sent"})
+        assert res_year["period_label"] == "2026 Yılı"
+
+        res_day = resolve_makbuzlar_query({"view": "day", "date": "2026-07-27", "status_filter": "paid"})
+        assert res_day["period_label"] == "27.07.2026"
+
+        res_unprepared = resolve_makbuzlar_query({"view": "month", "status_filter": "unprepared"})
+        assert isinstance(res_unprepared["doctors"], list)
+
