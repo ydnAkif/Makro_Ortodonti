@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from flask import abort
 
+from app.constants import VAT_RATE
 from app.extensions import db
 from app.models.models import Makbuz, Party, PartyType, RATE_SCALE, WorkOrder, money
 from app.services.validation_service import (
@@ -46,13 +47,12 @@ class PartyService:
 
         from app.services.makbuz_service import generate_makbuz
 
-        rate = existing.vat_rate if existing.vat_rate and existing.vat_rate > 0 else Decimal("20.00")
         generate_makbuz(
             party.id,
             year,
             month,
             vat_applied=bool(party.applies_kdv),
-            vat_rate=rate if party.applies_kdv else Decimal("0.00"),
+            vat_rate=VAT_RATE if party.applies_kdv else Decimal("0.00"),
         )
 
     @staticmethod
@@ -173,7 +173,7 @@ class PartyService:
             work_date.year,
             work_date.month,
             vat_applied=bool(party.applies_kdv),
-            vat_rate=Decimal("20.00") if party.applies_kdv else Decimal("0.00"),
+            vat_rate=VAT_RATE if party.applies_kdv else Decimal("0.00"),
         )
 
         db.session.commit()

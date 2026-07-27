@@ -322,8 +322,8 @@ class TestVatRateBoundary:
             assert makbuz.vat_amount == Decimal("0.00")
             assert makbuz.grand_total == Decimal("100.00")
 
-    def test_high_vat_rate(self, app):
-        """Yüksek vat_rate (örn. %50) ile makbuz hesabı doğru olmalı."""
+    def test_vat_rate_is_forced_to_ten(self, app):
+        """Aylık özette dışarıdan farklı oran verilse bile KDV %10 olmalı."""
         with app.app_context():
             party = Party(party_type=PartyType.DENTIST, name="Dr. Vat High", is_active=True)
             db.session.add(party)
@@ -340,12 +340,12 @@ class TestVatRateBoundary:
                 generated_at=datetime.now().astimezone(),
             )
             makbuz.recalculate_totals()
-            assert makbuz.vat_amount == Decimal("100.00")
-            assert makbuz.grand_total == Decimal("300.00")
+            assert makbuz.vat_rate == Decimal("10.00")
+            assert makbuz.vat_amount == Decimal("20.00")
+            assert makbuz.grand_total == Decimal("220.00")
 
-    def test_absurd_vat_rate_is_clamped_via_route(self, client, app):
-        """A vat_rate above 100 submitted through the generate form must not
-        flow through unclamped into recalculate_totals()."""
+    def test_submitted_vat_rate_is_ignored_via_route(self, client, app):
+        """Formdan gönderilen oran dikkate alınmamalı; sabit %10 kullanılmalı."""
         from conftest import login
         from app.models.models import WorkOrder
 
@@ -373,6 +373,6 @@ class TestVatRateBoundary:
             makbuz = db.session.execute(
                 db.select(Makbuz).where(Makbuz.party_id == party_id, Makbuz.year == 2026, Makbuz.month == 8)
             ).scalar_one()
-            assert makbuz.vat_rate == Decimal("0.00")
-            assert makbuz.vat_amount == Decimal("0.00")
-            assert makbuz.grand_total == Decimal("1000.00")
+            assert makbuz.vat_rate == Decimal("10.00")
+            assert makbuz.vat_amount == Decimal("100.00")
+            assert makbuz.grand_total == Decimal("1100.00")

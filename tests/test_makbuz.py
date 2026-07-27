@@ -111,7 +111,7 @@ def test_generate_makbuz_computes_vat(client, app):
 
     response = client.post(
         f"/makbuzlar/{party_id}/generate",
-        data={"year": 2026, "month": 6, "vat_applied": "on", "vat_rate": "20"},
+        data={"year": 2026, "month": 6, "vat_applied": "on", "vat_rate": "99"},
         follow_redirects=False,
     )
     assert response.status_code == 302
@@ -123,8 +123,9 @@ def test_generate_makbuz_computes_vat(client, app):
         assert makbuz.status == Makbuz.STATUS_DRAFT
         assert makbuz.work_order_count == 2
         assert makbuz.subtotal == Decimal("1500.00")
-        assert makbuz.vat_amount == Decimal("300.00")
-        assert makbuz.grand_total == Decimal("1800.00")
+        assert makbuz.vat_rate == Decimal("10.00")
+        assert makbuz.vat_amount == Decimal("150.00")
+        assert makbuz.grand_total == Decimal("1650.00")
 
 
 def test_adding_work_order_creates_draft_makbuz(client, app):
@@ -165,7 +166,7 @@ def test_party_detail_reflects_persisted_receipt_vat_and_formats_phone(client, a
     _add_work_order(app, party_id, date(2026, 6, 10), 1000)
     client.post(
         f"/makbuzlar/{party_id}/generate",
-        data={"year": 2026, "month": 6, "vat_applied": "on", "vat_rate": "20"},
+        data={"year": 2026, "month": 6, "vat_applied": "on", "vat_rate": "99"},
         follow_redirects=False,
     )
 
@@ -173,15 +174,15 @@ def test_party_detail_reflects_persisted_receipt_vat_and_formats_phone(client, a
     assert "+90 533 769 44 69" in html
     # Label and amount render in separate <span> elements, not one string.
     assert html.count("KDV (aylık özetler):") == 2
-    assert html.count("₺200.00") >= 2
-    assert "₺1,200.00" in html
-    assert html.count("₺1,520.00") >= 2
+    assert html.count("₺100.00") >= 2
+    assert "₺1,100.00" in html
+    assert html.count("₺1,420.00") >= 2
 
     year_html = client.get(
         f"/parties/{party_id}?view=year&year=2026"
     ).get_data(as_text=True)
     # Aylık satır ile yıl toplamı aynı KDV dahil tutarı göstermeli.
-    assert year_html.count("₺1,200.00") >= 2
+    assert year_html.count("₺1,100.00") >= 2
 
 
 def test_generate_makbuz_without_vat(client, app):
@@ -931,7 +932,7 @@ def test_partial_payment_on_draft_is_included_in_all_balance_totals(client, app)
             work_order_count=1,
             subtotal=Decimal("1783.88"),
             vat_applied=True,
-            vat_rate=Decimal("20.00"),
+            vat_rate=Decimal("10.00"),
             status=Makbuz.STATUS_DRAFT,
             generated_at=datetime.now().astimezone(),
         )
@@ -950,17 +951,17 @@ def test_partial_payment_on_draft_is_included_in_all_balance_totals(client, app)
         db.session.commit()
         assert summary.status == Makbuz.STATUS_DRAFT
         assert summary.affects_balance is True
-        assert summary.outstanding_amount == Decimal("640.66")
+        assert summary.outstanding_amount == Decimal("462.27")
 
     html = client.get("/payments/").get_data(as_text=True)
-    assert "₺2,140.66" in html
+    assert "₺1,962.27" in html
     assert "₺1,500.00" in html
-    assert "₺640.66" in html
+    assert "₺462.27" in html
     assert "2 Doktor" in html
-    assert "Toplam <strong>₺960.66</strong> açık bakiye" in html
+    assert "Toplam <strong>₺782.27</strong> açık bakiye" in html
 
     parties_html = client.get("/parties/").get_data(as_text=True)
-    assert "₺960.66" in parties_html
+    assert "₺782.27" in parties_html
 
 
 def test_previous_balance_only_doctor_can_be_collected_and_reopened(client, app):

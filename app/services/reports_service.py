@@ -34,9 +34,7 @@ logger = logging.getLogger(__name__)
 
 VAT_RATES = [
     (Decimal("0"), "%0 (Muaf)"),
-    (Decimal("1"), "%1"),
     (Decimal("10"), "%10"),
-    (Decimal("20"), "%20"),
 ]
 
 

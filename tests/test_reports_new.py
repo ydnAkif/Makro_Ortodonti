@@ -48,7 +48,7 @@ def _create_makbuz(app, party_id, year, month, status=Makbuz.STATUS_SENT, paid_a
             work_order_count=1,
             subtotal=Decimal("200.00"),
             vat_applied=True,
-            vat_rate=Decimal("20.00"),
+            vat_rate=Decimal("10.00"),
             status=status,
             generated_at=datetime.now().astimezone(),
             paid_at=paid_at,
@@ -95,8 +95,8 @@ def test_monthly_kdv_doctors_page_and_pdf_only_include_marked_doctors(client, ap
     assert page.status_code == 200
     assert "Dr. KDV Listesinde" in html
     assert "Dr. KDV Dışında" not in html
-    assert "₺100.00" in html
-    assert "₺600.00" in html
+    assert "₺50.00" in html
+    assert "₺550.00" in html
 
     pdf = client.get("/reports/kdv-doctors/pdf?year=2026&month=7")
     assert pdf.status_code == 200
@@ -452,8 +452,7 @@ class TestReportsPDF:
             period_label="Test",
             summary_rows=[],
             vat_summary=[
-                {"label": "%20", "gross": Decimal("1000.00"), "vat_amount": Decimal("200.00"), "net": Decimal("1000.00")},
-                {"label": "%10", "gross": Decimal("500.00"), "vat_amount": Decimal("50.00"), "net": Decimal("500.00")},
+                {"label": "%10", "gross": Decimal("1000.00"), "vat_amount": Decimal("100.00"), "net": Decimal("1000.00")},
             ],
         )
         assert isinstance(pdf_bytes, bytes)

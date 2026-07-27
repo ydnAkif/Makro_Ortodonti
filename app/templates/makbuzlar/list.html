@@ -165,7 +165,7 @@
                             </td>
                             <td class="text-center">
                                 {% if not m or (not m.payment_entries and m.collected_amount <= 0) %}
-                                {% set saved_vat_rate = m.vat_rate if m and m.vat_applied else 20 %}
+                                {% set saved_vat_rate = 10 %}
                                 <div class="form-check form-switch d-inline-block">
                                     <input class="form-check-input" type="checkbox" name="vat_{{ d.party_id }}_vat_applied" id="vat-{{ d.party_id }}" {% if (m and m.vat_applied) or (not m and d.party.applies_kdv) %}checked{% endif %}>
                                     <label class="form-check-label small" for="vat-{{ d.party_id }}">%{{ '{:g}'.format(saved_vat_rate) }}</label>

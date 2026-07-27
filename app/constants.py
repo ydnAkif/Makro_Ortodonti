@@ -4,6 +4,8 @@ Bu modül tek doğru kaynak (single source of truth) olarak tasarlanmıştır;
 aynı sabitin birden fazla dosyada tanımlanmasını (DRY ihlali) önler.
 """
 
+from decimal import Decimal
+
 # ---------------------------------------------------------------------------
 # Türkçe ay isimleri  (numara, isim) çifti
 # ---------------------------------------------------------------------------
@@ -16,6 +18,9 @@ MONTHS: list[tuple[int, str]] = [
 # İndeks tabanlı erişim için tuple versiyonu: MONTH_NAMES[ay_no] → "Ocak"
 # 0 indeksli boşluk kasıtlıdır; ay numaraları 1'den başlar.
 MONTH_NAMES: tuple[str, ...] = ("", ) + tuple(name for _, name in MONTHS)
+
+# Aylık hesap özetleri ve KDV doktor raporlarında kullanılan sabit oran.
+VAT_RATE = Decimal("10.00")
 
 # ---------------------------------------------------------------------------
 # Durum etiketleri

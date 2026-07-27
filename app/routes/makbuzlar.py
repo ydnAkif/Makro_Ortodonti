@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, make_response
 from flask_login import login_required
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from app.extensions import db
 from app.models.models import WorkOrder, Party, Makbuz, MakbuzSendLog
@@ -11,7 +11,7 @@ from app.services.validation_service import parse_date
 
 makbuzlar_bp = Blueprint("makbuzlar", __name__)
 
-from app.constants import MONTHS
+from app.constants import MONTHS, VAT_RATE
 from app.services.makbuz_service import resolve_makbuzlar_query
 
 STATUS_LABELS = {
@@ -42,13 +42,7 @@ def _existing_makbuzlar(year: int, month: int) -> dict[int, Makbuz]:
 
 def _parse_vat_form(prefix: str = "") -> tuple[bool, Decimal]:
     vat_applied = request.form.get(f"{prefix}vat_applied") in ("on", "true", "1")
-    try:
-        vat_rate = Decimal(str(request.form.get(f"{prefix}vat_rate", "0") or "0").replace(",", "."))
-    except InvalidOperation:
-        vat_rate = Decimal("0")
-    if vat_rate < 0 or vat_rate > 100:
-        vat_rate = Decimal("0")
-    return vat_applied, vat_rate
+    return vat_applied, VAT_RATE if vat_applied else Decimal("0.00")
 
 
 def _generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat_rate: Decimal) -> Makbuz:

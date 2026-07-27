@@ -6,6 +6,7 @@ from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
 from flask_login import UserMixin
+from app.constants import VAT_RATE
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -612,6 +613,7 @@ class Makbuz(Base, TimestampMixin):
     )
 
     def recalculate_totals(self) -> None:
+        self.vat_rate = VAT_RATE if self.vat_applied else Decimal("0.00")
         self.vat_amount = money(self.subtotal * self.vat_rate / Decimal("100")) if self.vat_applied else Decimal("0.00")
         self.grand_total = money(self.subtotal + self.vat_amount)
 

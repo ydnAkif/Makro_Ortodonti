@@ -322,9 +322,9 @@ def test_doctor_kdv_preference_applies_to_auto_created_monthly_summary(app):
             )
         ).scalar_one()
         assert summary.vat_applied is True
-        assert summary.vat_rate == Decimal("20.00")
-        assert summary.vat_amount == Decimal("100.00")
-        assert summary.grand_total == Decimal("600.00")
+        assert summary.vat_rate == Decimal("10.00")
+        assert summary.vat_amount == Decimal("50.00")
+        assert summary.grand_total == Decimal("550.00")
 
 
 # ===========================================================================

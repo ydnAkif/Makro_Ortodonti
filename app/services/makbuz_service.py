@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from sqlalchemy import extract
 
-from app.constants import MONTHS
+from app.constants import MONTHS, VAT_RATE
 from app.extensions import db
 from app.models.models import WorkOrder, Party, Makbuz, money
 from app.services.validation_service import parse_date
@@ -45,7 +45,7 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
     makbuz.work_order_count = len(work_orders)
     makbuz.subtotal = subtotal
     makbuz.vat_applied = vat_applied
-    makbuz.vat_rate = vat_rate if vat_applied else Decimal("0.00")
+    makbuz.vat_rate = VAT_RATE if vat_applied else Decimal("0.00")
     has_collection = bool(existing and existing.collected_amount > 0)
     if not has_collection:
         makbuz.status = Makbuz.STATUS_DRAFT

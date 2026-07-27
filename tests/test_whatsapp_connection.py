@@ -467,9 +467,9 @@ class TestSending:
         makbuz.work_order_count = 3
         makbuz.subtotal = 1000.0
         makbuz.vat_applied = vat_applied
-        makbuz.vat_rate = 20.0
-        makbuz.vat_amount = 200.0
-        makbuz.grand_total = 1200.0 if vat_applied else 1000.0
+        makbuz.vat_rate = 10.0
+        makbuz.vat_amount = 100.0
+        makbuz.grand_total = 1100.0 if vat_applied else 1000.0
         return makbuz
 
     def test_send_makbuz_message_with_vat_line(self, app):

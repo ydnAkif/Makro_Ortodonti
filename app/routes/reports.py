@@ -26,6 +26,7 @@ from app.services.reports_service import (
     resolve_period,
 )
 from app.services.settings_service import get_setting as _get_setting
+from app.constants import VAT_RATE
 
 
 reports_bp = Blueprint("reports", __name__)
@@ -95,7 +96,7 @@ def _build_kdv_doctor_rows(year: int, month: int) -> list[dict]:
             summary.subtotal if summary
             else sum((work_order.total_price for work_order in doctor_work_orders), Decimal("0.00"))
         )
-        vat_rate = money(summary.vat_rate) if summary and summary.vat_applied else Decimal("20.00")
+        vat_rate = VAT_RATE
         vat_amount = money(summary.vat_amount) if summary and summary.vat_applied else money(subtotal * vat_rate / Decimal("100"))
         grand_total = money(subtotal + vat_amount)
         rows.append({
