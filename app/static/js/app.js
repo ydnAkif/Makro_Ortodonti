@@ -251,6 +251,56 @@ document.addEventListener('DOMContentLoaded', function() {
         var pendingSubmitter = null;
         var deleteMessage = document.getElementById('confirmDeleteMessage');
 
+        function prepareConfirmModal(el) {
+            var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
+            var title = el.getAttribute('data-confirm-title');
+            var btnText = el.getAttribute('data-confirm-btn');
+            var btnClass = el.getAttribute('data-confirm-btn-class');
+            var iconClass = el.getAttribute('data-confirm-icon');
+
+            var lowerMsg = msg.toLowerCase();
+            var isDelete = lowerMsg.includes('sil') || lowerMsg.includes('kalıcı') || (el.classList && (el.classList.contains('btn-danger') || el.classList.contains('text-danger')));
+            var isSend = lowerMsg.includes('gönder') || lowerMsg.includes('whatsapp');
+
+            if (!title) {
+                if (isSend) title = 'WhatsApp Gönderim Onayı';
+                else if (isDelete) title = 'Silme Onayı';
+                else title = 'İşlem Onayı';
+            }
+
+            if (!btnText) {
+                if (isSend) btnText = 'Evet, Gönder';
+                else if (isDelete) btnText = 'Evet, Sil';
+                else btnText = 'Evet, Onayla';
+            }
+
+            if (!btnClass) {
+                if (isSend) btnClass = 'btn-success';
+                else if (isDelete) btnClass = 'btn-danger';
+                else btnClass = 'btn-primary';
+            }
+
+            if (!iconClass) {
+                if (isSend) iconClass = 'bi-whatsapp';
+                else if (isDelete) iconClass = 'bi-trash';
+                else iconClass = 'bi-check-circle';
+            }
+
+            var titleEl = document.getElementById('confirmModalTitle');
+            var messageEl = document.getElementById('confirmDeleteMessage');
+            var iconEl = document.getElementById('confirmModalIcon');
+            var confirmBtn = document.getElementById('confirmDeleteBtn');
+            var btnTextEl = document.getElementById('confirmModalBtnText');
+            var btnIconEl = document.getElementById('confirmModalBtnIcon');
+
+            if (messageEl) messageEl.textContent = msg;
+            if (titleEl) titleEl.textContent = title;
+            if (iconEl) iconEl.className = 'bi ' + iconClass + ' me-2';
+            if (confirmBtn) confirmBtn.className = 'btn btn-sm ' + btnClass;
+            if (btnTextEl) btnTextEl.textContent = btnText;
+            if (btnIconEl) btnIconEl.className = 'bi ' + iconClass + ' me-1';
+        }
+
         document.querySelectorAll('form[data-confirm], [data-confirm]').forEach(function(el) {
             if (el.tagName === 'FORM') {
                 el.addEventListener('submit', function(e) {
@@ -261,8 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     pendingForm = el;
                     pendingSubmitter = null;
-                    var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
-                    if (deleteMessage) deleteMessage.textContent = msg;
+                    prepareConfirmModal(el);
                     deleteModal.show();
                 });
             } else if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'INPUT') {
@@ -274,8 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     pendingForm = el.form || null;
                     pendingSubmitter = el;
-                    var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
-                    if (deleteMessage) deleteMessage.textContent = msg;
+                    prepareConfirmModal(el);
                     deleteModal.show();
                 });
             }

@@ -6,7 +6,7 @@
 
 <div class="settings-stack">
     <details class="disclosure-panel" open>
-        <summary><span><i class="bi bi-building" aria-hidden="true"></i><strong>Klinik ve fatura bilgileri</strong><small>Makbuzlarda kullanılan kurum bilgileri</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
+        <summary><span><i class="bi bi-building" aria-hidden="true"></i><strong>Klinik bilgileri</strong><small>Aylık hesap özetlerinde kullanılan kurum bilgileri</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
         <div class="disclosure-content">
             <form method="POST" action="{{ url_for('settings.update_settings') }}">
                 <div class="row g-3">
@@ -139,7 +139,7 @@
         <summary><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><strong>Tehlikeli Alan</strong><small>Geri alınamaz işlemler</small></span><i class="bi bi-chevron-down disclosure-chevron" aria-hidden="true"></i></summary>
         <div class="disclosure-content">
             <div class="alert alert-danger mb-3">
-                <strong>Dikkat:</strong> Aşağıdaki işlem <strong>geri alınamaz</strong>. Doktor listesi ve işlem kataloğu korunur; tüm iş emirleri, makbuzlar, faturalar, tahsilatlar, döviz kurları ve audit logları <strong>kalıcı olarak silinir</strong>.
+                <strong>Dikkat:</strong> Aşağıdaki işlem <strong>geri alınamaz</strong>. Doktor listesi ve işlem kataloğu korunur; tüm iş emirleri, aylık hesap özetleri, tahsilatlar, döviz kurları ve audit logları <strong>kalıcı olarak silinir</strong>.
             </div>
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div>
@@ -147,7 +147,7 @@
                     <p class="text-muted small mb-0">Sistemi canlı kullanıma geçirmeden önce tüm test verilerini siler.</p>
                 </div>
                 <form method="POST" action="{{ url_for('settings.purge_demo_data') }}" class="ms-auto d-flex align-items-center gap-2"
-                      data-confirm="TÜM iş emirleri, makbuzlar, faturalar, tahsilatlar, döviz kurları ve loglar silinecek. Doktor listesi ve işlem kataloğu korunacak. Bu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?">
+                      data-confirm="TÜM iş emirleri, aylık hesap özetleri, tahsilatlar, döviz kurları ve loglar silinecek. Doktor listesi ve işlem kataloğu korunacak. Bu işlem GERİ ALINAMAZ. Devam etmek istiyor musunuz?">
                     <label class="visually-hidden" for="purge-confirm-phrase">Onay için "SİL" yazın</label>
                     <input type="text" class="form-control form-control-sm" id="purge-confirm-phrase"
                            name="confirm_phrase" placeholder='Onaylamak için "SİL" yazın' autocomplete="off" style="width:12rem">

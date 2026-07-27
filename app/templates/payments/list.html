@@ -4,16 +4,38 @@
 {% block content %}
 <header class="workspace-header"><div><h1>Tahsilatlar</h1><p>Bekleyen ödemeleri kaydedin ve doktor bakiyelerini izleyin.</p></div></header>
 <div class="summary-line">
-    <div><span>Faturalanan</span><strong>₺{{ "{:,.2f}".format(grand_billed) }}</strong></div>
-    <div><span>Tahsil edilen</span><strong>₺{{ "{:,.2f}".format(grand_paid) }}</strong></div>
-    <div><span>Bekleyen bakiye</span><strong>₺{{ "{:,.2f}".format(grand_outstanding) }}</strong></div>
+    <div>
+        <span>Aylık özet toplamı</span>
+        <strong>₺{{ "{:,.2f}".format(grand_billed) }}</strong>
+    </div>
+    <div>
+        <span>Tahsil edilen</span>
+        <strong class="text-success">₺{{ "{:,.2f}".format(grand_paid) }}</strong>
+    </div>
+    <div class="summary-card-clickable"
+         data-bs-toggle="modal"
+         data-bs-target="#pendingBalancesModal"
+         role="button"
+         tabindex="0"
+         title="Açık bakiyesi olan doktorları ve detayları görmek için tıklayın">
+        <div class="d-flex align-items-center justify-content-between">
+            <span>Bekleyen bakiye</span>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5 small fw-bold">
+                <i class="bi bi-people-fill me-1"></i>{{ pending_doctors|length if pending_doctors is defined else 0 }} Doktor
+            </span>
+        </div>
+        <div class="d-flex align-items-baseline justify-content-between mt-1">
+            <strong class="text-danger">₺{{ "{:,.2f}".format(grand_outstanding) }}</strong>
+            <span class="small text-primary fw-bold hover-underline">Kimden? <i class="bi bi-chevron-right ms-0.5"></i></span>
+        </div>
+    </div>
 </div>
 
 <!-- Section Tabs -->
 <ul class="nav nav-tabs mb-4" id="paymentsTab" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'pending' %}active{% endif %} fw-bold py-2 px-3" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab" aria-selected="{{ 'true' if active_tab == 'pending' else 'false' }}">
-            <i class="bi bi-clock-history text-warning me-1"></i> Ödeme Bekleyen Makbuzlar
+            <i class="bi bi-clock-history text-warning me-1"></i> Ödeme Bekleyen Dönemler
             <span class="badge bg-warning text-dark ms-1">{{ pending_makbuzlar|length }}</span>
         </button>
     </li>
@@ -47,7 +69,7 @@
                                 <th>Doktor</th>
                                 <th>Dönem</th>
                                 <th>Gönderim Tarihi</th>
-                                <th class="text-end">Makbuz</th>
+                                <th class="text-end">Dönem özeti</th>
                                 <th class="text-end">Tahsil edilen</th>
                                 <th class="text-end">Kalan</th>
                                 <th class="text-end">İşlem</th>
@@ -60,10 +82,20 @@
                                 <td>{{ m.month }}/{{ m.year }}</td>
                                 <td>{{ m.sent_at.strftime('%d.%m.%Y') if m.sent_at else '-' }}</td>
                                 <td class="text-end">₺{{ "{:,.2f}".format(m.grand_total) }}</td>
-                                <td class="text-end text-success">₺{{ "{:,.2f}".format(m.collected_amount) }}</td>
+                                <td class="text-end text-success">₺{{ "{:,.2f}".format(m._payment_total if m._payment_total is defined else m.collected_amount) }}</td>
                                 <td class="text-end fw-bold text-danger">
-                                    ₺{{ "{:,.2f}".format(m._effective_outstanding if m._effective_outstanding is defined else m.outstanding_amount) }}
+                                    {% if m.outstanding_amount > 0 %}
+                                    ₺{{ "{:,.2f}".format(m.outstanding_amount) }}
                                     {% if m.is_partially_paid %}<span class="badge bg-warning text-dark ms-1">Kısmi ödendi</span>{% endif %}
+                                    {% if m._effective_outstanding is defined and m._effective_outstanding > m.outstanding_amount %}
+                                    <br><small class="text-muted fw-normal" style="font-size:0.75rem;">Toplam Açık: ₺{{ "{:,.2f}".format(m._effective_outstanding) }}</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-secondary">₺0.00</span>
+                                    {% if m._effective_outstanding is defined and m._effective_outstanding > 0 %}
+                                    <br><small class="text-danger fw-bold" style="font-size:0.8rem;">Devreden Borç: ₺{{ "{:,.2f}".format(m._effective_outstanding) }}</small>
+                                    {% endif %}
+                                    {% endif %}
                                 </td>
                                 <td class="text-end">
                                     <a href="{{ url_for('payments.mark_paid', makbuz_id=m.id) }}" class="btn btn-sm btn-primary">
@@ -79,7 +111,7 @@
                 <div class="empty-state-card">
                     <div class="empty-state-icon"><i class="bi bi-wallet2"></i></div>
                     <h5>Tahsilat Bulunmuyor</h5>
-                    <p>Ödeme bekleyen makbuz bulunmamaktadır.</p>
+                    <p>Ödeme bekleyen aylık hesap özeti bulunmamaktadır.</p>
                 </div>
                 {% endif %}
             </div>
@@ -89,7 +121,7 @@
     <div class="tab-pane fade {% if active_tab == 'paid' %}show active{% endif %}" id="paid-pane" role="tabpanel">
         <div class="work-panel">
             <div class="work-panel__header">
-                <div><h2>Tahsilat hareketleri</h2><p>Her ödemeyi tarih ve kaynak makbuzuyla birlikte izleyin.</p></div>
+                <div><h2>Tahsilat hareketleri</h2><p>Her ödemeyi tarih ve kaynak aylık özetiyle birlikte izleyin.</p></div>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -165,8 +197,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Doktor</th>
-                                <th class="text-center">Makbuz Sayısı</th>
-                                <th class="text-end">Faturalanan (₺)</th>
+                                <th class="text-center">Özet Sayısı</th>
+                                <th class="text-end">Özet toplamı (₺)</th>
                                 <th class="text-end">Tahsil Edilen (₺)</th>
                                 <th class="text-end">Bakiye (₺)</th>
                                 <th class="text-end">İşlem</th>
@@ -224,6 +256,100 @@
                         {% endif %}
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 📊 Bekleyen Bakiye Dağılımı Modalı -->
+<div class="modal fade" id="pendingBalancesModal" tabindex="-1" aria-labelledby="pendingBalancesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-surface-raised border-bottom">
+                <div>
+                    <h5 class="modal-title fw-bold" id="pendingBalancesModalLabel">
+                        <i class="bi bi-wallet2 text-danger me-2"></i>Bekleyen Bakiye Dağılımı (Kimden Alacak Var?)
+                    </h5>
+                    <p class="text-muted small mb-0 mt-1">
+                        Toplam <strong>₺{{ "{:,.2f}".format(grand_outstanding) }}</strong> açık bakiye bulunan <strong>{{ pending_doctors|length if pending_doctors is defined else 0 }}</strong> doktor aşağıda listelenmiştir.
+                    </p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body p-0">
+                {% if pending_doctors %}
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light text-uppercase small text-muted">
+                            <tr>
+                                <th class="ps-4">Doktor / İletişim</th>
+                                <th class="text-end">Devreden / Aylık Özet</th>
+                                <th class="text-end">Ödenmemiş Bakiye</th>
+                                <th class="text-end pe-4">Hızlı İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in pending_doctors %}
+                            {% set party = r.party %}
+                            {% set initials = (party.display_name[:2] if party.display_name else 'DH')|upper %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="party-avatar" style="width:36px;height:36px;font-size:0.8rem;">{{ initials }}</div>
+                                        <div>
+                                            <a href="{{ url_for('parties.detail_party', party_id=party.id) }}" class="fw-bold text-decoration-none text-reset d-block">
+                                                {{ party.display_name }}
+                                            </a>
+                                            {% if party.phone %}
+                                            <a href="{{ url_for('whatsapp.index', message_party_id=party.id, _anchor='message-compose') }}" class="small phone-wa-link text-decoration-none d-inline-block mt-0.5" title="WhatsApp Mesajı Gönder">
+                                                <i class="bi bi-whatsapp text-success me-1"></i>{{ party.phone|phone_display }}
+                                            </a>
+                                            {% else %}
+                                            <span class="small text-muted">Telefon yok</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-end small">
+                                    {% if r.previous_balance > 0 %}
+                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle mb-1 d-block ms-auto" style="width: fit-content;">
+                                        Devreden: ₺{{ "{:,.2f}".format(r.previous_balance) }}
+                                    </span>
+                                    {% endif %}
+                                    <span class="text-muted">{{ r.makbuz_count }} Özet</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold text-danger tabular-nums" style="font-size: 1.05rem;">
+                                        ₺{{ "{:,.2f}".format(r.outstanding) }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-flex justify-content-end gap-1">
+                                        {% if party.phone %}
+                                        <a href="{{ url_for('whatsapp.index', message_party_id=party.id, _anchor='message-compose') }}" class="btn btn-sm btn-outline-success" title="WhatsApp Mesajı Gönder">
+                                            <i class="bi bi-whatsapp"></i> Mesaj
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('parties.detail_party', party_id=party.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-person me-1"></i>Detay
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success display-4 d-block mb-3"></i>
+                    <h5 class="fw-bold">Harika! Bekleyen Bakiye Yok</h5>
+                    <p class="text-muted small">Şu an için açık bakiyesi bulunan doktor bulunmamaktadır.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer bg-surface-raised border-top py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Kapat</button>
             </div>
         </div>
     </div>

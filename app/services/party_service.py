@@ -21,15 +21,39 @@ class PartyService:
 
     @staticmethod
     def is_period_locked(party_id: int, year: int, month: int) -> bool:
-        """Return True if the given period has a non-draft makbuz (sent or paid)."""
-        return db.session.execute(
+        """Tahsilat hareketi bulunan dönemler finansal tutarlılık için kilitlidir."""
+        summary = db.session.execute(
             db.select(Makbuz).where(
                 Makbuz.party_id == party_id,
                 Makbuz.year == year,
                 Makbuz.month == month,
-                Makbuz.status != Makbuz.STATUS_DRAFT,
             )
-        ).scalar_one_or_none() is not None
+        ).scalar_one_or_none()
+        return bool(summary and (summary.payment_entries or summary.collected_amount > 0))
+
+    @staticmethod
+    def _refresh_period_summary(party: Party, year: int, month: int) -> None:
+        """Varsa dönem özetini güncel iş emirleri ve doktor KDV tercihiyle yenile."""
+        existing = db.session.execute(
+            db.select(Makbuz).where(
+                Makbuz.party_id == party.id,
+                Makbuz.year == year,
+                Makbuz.month == month,
+            )
+        ).scalar_one_or_none()
+        if not existing:
+            return
+
+        from app.services.makbuz_service import generate_makbuz
+
+        rate = existing.vat_rate if existing.vat_rate and existing.vat_rate > 0 else Decimal("20.00")
+        generate_makbuz(
+            party.id,
+            year,
+            month,
+            vat_applied=bool(party.applies_kdv),
+            vat_rate=rate if party.applies_kdv else Decimal("0.00"),
+        )
 
     @staticmethod
     def get_party_or_404(party_id: int) -> Party:
@@ -69,6 +93,7 @@ class PartyService:
             address=normalize_optional_text(form_data.get("address", "")),
             notes=normalize_optional_text(form_data.get("notes", "")),
             is_active=form_data.get("is_active") == "on" or form_data.get("is_active") is True,
+            applies_kdv=form_data.get("applies_kdv") == "on" or form_data.get("applies_kdv") is True,
         )
         db.session.add(party)
         db.session.commit()
@@ -87,6 +112,7 @@ class PartyService:
         party.address = normalize_optional_text(form_data.get("address", ""))
         party.notes = normalize_optional_text(form_data.get("notes", ""))
         party.is_active = form_data.get("is_active") == "on" or form_data.get("is_active") is True
+        party.applies_kdv = form_data.get("applies_kdv") == "on" or form_data.get("applies_kdv") is True
 
         db.session.commit()
         return party
@@ -124,7 +150,7 @@ class PartyService:
             raise ValueError("Geçersiz tarih.")
 
         if cls.is_period_locked(party_id, work_date.year, work_date.month):
-            raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri eklenemez.")
+            raise PermissionError("Bu dönemde tahsilat hareketi bulunduğu için iş emri eklenemez. Önce tahsilat kaydını geri alın.")
 
         apparatus_price, extra_price, exchange_rate_applied = cls._parse_work_order_money(form_data)
 
@@ -144,10 +170,14 @@ class PartyService:
         db.session.flush()
 
         from app.services.makbuz_service import generate_makbuz
-        try:
-            generate_makbuz(party_id, work_date.year, work_date.month, vat_applied=False, vat_rate=Decimal("0"))
-        except ValueError:
-            pass
+        party = cls.get_party_or_404(party_id)
+        generate_makbuz(
+            party_id,
+            work_date.year,
+            work_date.month,
+            vat_applied=bool(party.applies_kdv),
+            vat_rate=Decimal("20.00") if party.applies_kdv else Decimal("0.00"),
+        )
 
         db.session.commit()
         return wo
@@ -163,12 +193,13 @@ class PartyService:
 
         if work_date != wo.work_date:
             if cls.is_period_locked(party_id, work_date.year, work_date.month):
-                raise PermissionError("Hedef döneme ait makbuz kesinleştirildiği için iş emri bu tarihe taşınamaz.")
+                raise PermissionError("Hedef dönemde tahsilat hareketi bulunduğu için iş emri bu tarihe taşınamaz.")
         if cls.is_period_locked(party_id, wo.work_date.year, wo.work_date.month):
-            raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri düzenlenemez.")
+            raise PermissionError("Bu dönemde tahsilat hareketi bulunduğu için iş emri düzenlenemez. Önce tahsilat kaydını geri alın.")
 
         apparatus_price, extra_price, exchange_rate_applied = cls._parse_work_order_money(form_data)
 
+        old_year, old_month = wo.work_date.year, wo.work_date.month
         wo.work_date = work_date
         wo.apparatus_type = str(form_data.get("apparatus_type", "")).strip()
         wo.extra_addons = normalize_optional_text(form_data.get("extra_addons", ""))
@@ -179,6 +210,11 @@ class PartyService:
         wo.exchange_rate_applied = exchange_rate_applied
         wo.notes = normalize_optional_text(form_data.get("notes", ""))
 
+        db.session.flush()
+        party = cls.get_party_or_404(party_id)
+        cls._refresh_period_summary(party, old_year, old_month)
+        if (work_date.year, work_date.month) != (old_year, old_month):
+            cls._refresh_period_summary(party, work_date.year, work_date.month)
         db.session.commit()
         return wo
 
@@ -186,8 +222,12 @@ class PartyService:
     def delete_work_order(cls, party_id: int, wo_id: int) -> bool:
         wo = cls.get_work_order_or_404(party_id, wo_id)
         if cls.is_period_locked(party_id, wo.work_date.year, wo.work_date.month):
-            raise PermissionError("Bu döneme ait makbuz kesinleştirildiği/ödendiği için iş emri silinemez.")
+            raise PermissionError("Bu dönemde tahsilat hareketi bulunduğu için iş emri silinemez. Önce tahsilat kaydını geri alın.")
 
+        year, month = wo.work_date.year, wo.work_date.month
         db.session.delete(wo)
+        db.session.flush()
+        party = cls.get_party_or_404(party_id)
+        cls._refresh_period_summary(party, year, month)
         db.session.commit()
         return True

@@ -104,6 +104,7 @@ class Party(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     previous_balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"), nullable=False)
+    applies_kdv: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # Patient-specific fields (used when party_type = PATIENT)
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -597,8 +598,9 @@ class Makbuz(Base, TimestampMixin):
     @property
     def collected_amount(self) -> Decimal:
         if self.payment_entries:
-            return money(sum((entry.amount for entry in self.payment_entries), Decimal("0.00")))
-        return money(self.paid_amount or Decimal("0.00"))
+            raw_total = money(sum((entry.amount for entry in self.payment_entries), Decimal("0.00")))
+            return min(self.grand_total, raw_total) if self.grand_total > 0 else raw_total
+        return min(self.grand_total, money(self.paid_amount or Decimal("0.00"))) if self.grand_total > 0 else money(self.paid_amount or Decimal("0.00"))
 
     @property
     def outstanding_amount(self) -> Decimal:

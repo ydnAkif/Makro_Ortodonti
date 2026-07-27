@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.extensions import db
-from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, MakbuzPayment, money
+from app.models.models import Party, PartyType, WorkOrder, Treatment, TreatmentCategory, ExchangeRate, Makbuz, money
 from app.authz import permissions_required
 from app.services.party_service import PartyService
 from app.services.search_service import tr_contains, tr_order, tr_fold, tr_equals
@@ -82,17 +82,31 @@ def list_parties():
 
         for p in parties:
             party_makbuzlar = makbuzlar_by_party.get(p.id, [])
-            billed = money(sum((m.grand_total for m in party_makbuzlar if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)), Decimal("0.00")))
-            paid = money(sum((m.collected_amount for m in party_makbuzlar), Decimal("0.00")))
+            issued_makbuzlar = [
+                m for m in party_makbuzlar
+                if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
+            ]
             prev_bal = money(p.previous_balance or Decimal("0.00"))
-            total_balance = money(billed - paid + prev_bal)
+            # Açık bakiye gerçek açık dönemlerden hesaplanır. Tahsilatı toplam
+            # iş hacminden çıkarmak, devreden borca ayrılan fazla ödemeyi ikinci
+            # kez düşürüp negatif bakiye üretiyordu.
+            total_balance = money(sum(
+                (m.outstanding_amount for m in issued_makbuzlar),
+                Decimal("0.00"),
+            ) + prev_bal)
 
             current_m = next((m for m in party_makbuzlar if m.year == today.year and m.month == today.month), None)
 
             kasa_by_party[p.id] = {
                 "work_total": money(current_m.grand_total) if current_m else Decimal("0.00"),
                 "vat_total": (money(current_m.vat_amount) if current_m.vat_applied else None) if current_m else None,
-                "payment_total": money(current_m.collected_amount) if current_m else Decimal("0.00"),
+                "payment_total": money(sum(
+                    (entry.amount for entry in current_m.payment_entries),
+                    Decimal("0.00"),
+                )) if current_m and current_m.payment_entries else (
+                    money(current_m.paid_amount or Decimal("0.00"))
+                    if current_m else Decimal("0.00")
+                ),
                 "balance": total_balance,
             }
     else:
@@ -112,13 +126,35 @@ def list_parties():
     current_month_start = date(today.year, today.month, 1)
     next_month_start = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
 
-    current_month_work_total = db.session.scalar(
-        db.select(db.func.coalesce(db.func.sum(WorkOrder.total_price), Decimal("0.00")))
+    current_month_makbuz_sum = db.session.scalar(
+        db.select(db.func.coalesce(db.func.sum(Makbuz.grand_total), Decimal("0.00")))
+        .join(Party, Makbuz.party_id == Party.id)
         .where(
-            WorkOrder.work_date >= current_month_start,
-            WorkOrder.work_date < next_month_start,
+            Party.party_type == PartyType.DENTIST,
+            Party.is_active.is_(True),
+            Makbuz.year == today.year,
+            Makbuz.month == today.month,
         )
     ) or Decimal("0.00")
+
+    parties_with_current_makbuz = db.select(Makbuz.party_id).where(
+        Makbuz.year == today.year,
+        Makbuz.month == today.month,
+    )
+
+    current_month_wo_without_makbuz_sum = db.session.scalar(
+        db.select(db.func.coalesce(db.func.sum(WorkOrder.total_price), Decimal("0.00")))
+        .join(Party, WorkOrder.party_id == Party.id)
+        .where(
+            Party.party_type == PartyType.DENTIST,
+            Party.is_active.is_(True),
+            WorkOrder.work_date >= current_month_start,
+            WorkOrder.work_date < next_month_start,
+            ~WorkOrder.party_id.in_(parties_with_current_makbuz),
+        )
+    ) or Decimal("0.00")
+
+    current_month_work_total = money(current_month_makbuz_sum + current_month_wo_without_makbuz_sum)
 
     all_active_parties = db.session.execute(
         db.select(Party.id, Party.previous_balance).where(Party.party_type == PartyType.DENTIST, Party.is_active.is_(True))
@@ -127,34 +163,20 @@ def list_parties():
     sum_prev_balances = money(sum((p.previous_balance or Decimal("0.00") for p in all_active_parties), Decimal("0.00")))
 
     if all_party_ids:
-        total_billed = db.session.scalar(
-            db.select(db.func.coalesce(db.func.sum(Makbuz.grand_total), Decimal("0.00")))
-            .where(
+        active_summaries = db.session.execute(
+            db.select(Makbuz).where(
                 Makbuz.party_id.in_(all_party_ids),
-                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID))
+                Makbuz.status.in_((Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
             )
-        ) or Decimal("0.00")
-
-        total_payments_entries = db.session.scalar(
-            db.select(db.func.coalesce(db.func.sum(MakbuzPayment.amount), Decimal("0.00")))
-            .join(Makbuz, MakbuzPayment.makbuz_id == Makbuz.id)
-            .where(Makbuz.party_id.in_(all_party_ids))
-        ) or Decimal("0.00")
-
-        total_legacy_paid = db.session.scalar(
-            db.select(db.func.coalesce(db.func.sum(Makbuz.paid_amount), Decimal("0.00")))
-            .where(
-                Makbuz.party_id.in_(all_party_ids),
-                ~Makbuz.payment_entries.any(),
-            )
-        ) or Decimal("0.00")
-
-        total_collected = money(total_payments_entries + total_legacy_paid)
+        ).scalars().all()
+        total_summary_outstanding = money(sum(
+            (summary.outstanding_amount for summary in active_summaries),
+            Decimal("0.00"),
+        ))
     else:
-        total_billed = Decimal("0.00")
-        total_collected = Decimal("0.00")
+        total_summary_outstanding = Decimal("0.00")
 
-    total_clinic_balance = money(total_billed - total_collected + sum_prev_balances)
+    total_clinic_balance = money(total_summary_outstanding + sum_prev_balances)
 
     kasa_page_total_work = money(sum((row["work_total"] for row in kasa_by_party.values()), Decimal("0.00")))
     kasa_page_total_payment = money(sum((row["payment_total"] for row in kasa_by_party.values()), Decimal("0.00")))
@@ -376,6 +398,7 @@ def add_party():
             tax_id=request.form.get("tax_id", "").strip() or None,
             notes=request.form.get("notes", "").strip() or None,
             is_active=request.form.get("is_active") == "on",
+            applies_kdv=request.form.get("applies_kdv") == "on",
             previous_balance=money(request.form.get("previous_balance", "0") or "0"),
         )
         db.session.add(party)
@@ -548,6 +571,11 @@ def detail_party(party_id):
     year_work_order_count = len(year_work_orders)
 
     monthly_totals = _compute_monthly_totals(party_id, year, year_work_orders)
+    year_total_vat = money(sum(
+        (month_total["vat"] for month_total in monthly_totals),
+        Decimal("0.00"),
+    ))
+    year_total_with_vat = money(year_total_overall + year_total_vat)
 
     previous_periods_debt = _compute_previous_debt(party_id, year, month, view)
 
@@ -600,6 +628,8 @@ def detail_party(party_id):
         year_total_apparatus=year_total_apparatus,
         year_total_extra=year_total_extra,
         year_total_overall=year_total_overall,
+        year_total_vat=year_total_vat,
+        year_total_with_vat=year_total_with_vat,
         year_work_order_count=year_work_order_count,
         monthly_totals=monthly_totals,
         previous_periods_debt=previous_periods_debt,
@@ -699,6 +729,7 @@ def edit_party(party_id):
         party.tax_id = request.form.get("tax_id", "").strip() or None
         party.notes = request.form.get("notes", "").strip() or None
         party.is_active = new_is_active
+        party.applies_kdv = request.form.get("applies_kdv") == "on"
         party.previous_balance = money(request.form.get("previous_balance", "0") or "0")
 
         db.session.commit()

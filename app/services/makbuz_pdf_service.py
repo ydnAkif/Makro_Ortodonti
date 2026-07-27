@@ -88,9 +88,9 @@ class MakbuzPDF(BasePDF):
         self.cell(104, 5, "  |  ".join(contacts) or "Ortodonti ve klinik hizmetleri")
 
         self.set_xy(145, 10)
-        self.set_font(self.default_font, "B", 16)
+        self.set_font(self.default_font, "B", 10)
         self.set_text_color(*self.AQUA_DARK)
-        self.cell(53, 8, "MAKBUZ", align="R")
+        self.cell(53, 8, "AYLIK HESAP ÖZETİ", align="R")
 
         self.set_draw_color(*self.LINE)
         self.set_line_width(.35)
@@ -104,7 +104,7 @@ class MakbuzPDF(BasePDF):
         self.ln(2)
         self.set_font(self.default_font, "", 6.5)
         self.set_text_color(*self.MUTED)
-        self.cell(140, 6, "Bu belge elektronik ortamda oluşturulmuştur.")
+        self.cell(140, 6, "Bilgilendirme amaçlıdır; resmi fatura veya makbuz değildir.")
         self.cell(46, 6, f"Sayfa {self.page_no()}/{{nb}}", align="R")
 
     def add_summary(self, makbuz, doctor_name):
@@ -116,7 +116,7 @@ class MakbuzPDF(BasePDF):
         self.set_xy(18, y + 5)
         self.set_font(self.default_font, "B", 7)
         self.set_text_color(*self.AQUA_DARK)
-        self.cell(90, 5, "MAKBUZ EDİLEN DOKTOR")
+        self.cell(90, 5, "HESAP ÖZETİ GÖNDERİLEN DOKTOR")
         self.set_xy(18, y + 11)
         self.set_font(self.default_font, "B", 11)
         self.set_text_color(*self.INK)
@@ -215,7 +215,7 @@ class MakbuzPDF(BasePDF):
         if makbuz.party and makbuz.party.previous_balance > 0:
             carried_forward_balance += makbuz.party.previous_balance
 
-        rows = [("Bu dönem makbuz tutarı", f"₺{makbuz.grand_total:,.2f}", False)]
+        rows = [("Bu dönem işlem toplamı", f"₺{makbuz.grand_total:,.2f}", False)]
         if carried_forward_balance > 0:
             rows.append(("Devreden borç", f"₺{carried_forward_balance:,.2f}", False))
         if statement.current_collected > 0:
@@ -236,7 +236,7 @@ class MakbuzPDF(BasePDF):
             self.set_text_color(*self.INK)
             self.set_font(self.default_font, "B", 7.5)
             self.cell(48, 8, "Önceki açık dönem", fill=True)
-            self.cell(46, 8, "Makbuz tutarı", fill=True, align="R")
+            self.cell(46, 8, "Dönem toplamı", fill=True, align="R")
             self.cell(46, 8, "Tahsil edilen", fill=True, align="R")
             self.cell(46, 8, "Kalan", fill=True, align="R")
             self.ln()

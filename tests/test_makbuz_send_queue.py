@@ -119,7 +119,7 @@ class TestQueue:
             ):
                 started, message = MakbuzSendQueue.start_batch([m1, m2])
                 assert started is True
-                assert "2 makbuz" in message
+                assert "2 aylık hesap özeti" in message
                 assert _wait_until(lambda: not MakbuzSendQueue.is_running())
 
         job = MakbuzSendQueue.current_job()
@@ -488,7 +488,7 @@ class TestWhatsAppMakbuzPanel:
         assert response.status_code == 200
         assert "Dr. Panel".encode() in response.data
         assert b"wa-select-all" in response.data
-        assert "Makbuz Gönderimi".encode() in response.data
+        assert "Aylık Hesap Özeti Gönderimi".encode() in response.data
 
     def test_bulk_message_recipients_default_to_all_selected(self, client, app):
         login(client, "admin", "admin-pass")
@@ -513,7 +513,7 @@ class TestWhatsAppMakbuzPanel:
         login(client, "admin", "admin-pass")
         response = client.get("/whatsapp/?year=2020&month=2")
         assert response.status_code == 200
-        assert "oluşturulmuş makbuz bulunmuyor".encode() in response.data
+        assert "oluşturulmuş aylık hesap özeti bulunmuyor".encode() in response.data
 
     def test_index_counts_doctors_without_makbuz(self, client, app):
         login(client, "admin", "admin-pass")
@@ -528,7 +528,7 @@ class TestWhatsAppMakbuzPanel:
             ))
             db.session.commit()
         response = client.get("/whatsapp/?year=2026&month=5")
-        assert "makbuzu henüz".encode() in response.data
+        assert "aylık hesap özeti henüz".encode() in response.data
 
     def test_batch_route_starts_queue(self, client, app):
         login(client, "admin", "admin-pass")
@@ -551,7 +551,7 @@ class TestWhatsAppMakbuzPanel:
             data={"year": "2026", "month": "6"},
             follow_redirects=True,
         )
-        assert "makbuz seçilmedi".encode() in response.data
+        assert "aylık hesap özeti seçilmedi".encode() in response.data
 
     def test_status_endpoint_includes_job(self, client, app):
         login(client, "admin", "admin-pass")

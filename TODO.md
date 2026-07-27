@@ -1,8 +1,20 @@
 # Makro Ortodonti — Yapılacaklar (TODO) ve Yol Haritası
 
-> **Sürüm**: v2.2.1  
+> **Sürüm**: v2.3.0
 > **Mimari Seviye**: A+ (95+)  
-> **Test Durumu**: 484 Passed | 0 Error | 0 Warning | %89+ Coverage
+> **Test Durumu**: Pytest birim ve entegrasyon paketiyle doğrulanır | %90+ Coverage hedefi
+
+---
+
+## ✅ v2.3.0 Sürümünde Tamamlananlar
+
+- [x] **Tam Ödeme Hareketi Kaydı**: Tahsil edilen nakit/havale tutarı (`MakbuzPayment.amount`) eksiksiz olarak hareket geçmişine kaydedilir; ekranda dönem tutarıyla sınırlandırılmaz.
+- [x] **Devreden Borçlu Doktor Görünürlüğü**: Cari makbuzu kapansa dahi devreden borcu (`total_due > 0`) bulunan hekimler *"Ödeme Bekleyenler"* sekmesinde görünmeye devam eder.
+- [x] **Negatif Açık Bakiye Düzeltmesi**: Doktor listesi, tahsilatlar ve “Kimden?” dağılımı aynı açık dönem + devreden borç hesabını kullanır.
+- [x] **Gönderilmiş Aylık Özetleri Düzenleme & Silme**: Resmi belge olmayan gönderilmiş özetler değiştirilebilir; tahsilat hareketi bulunan özetler geçmiş bütünlüğü için korunur.
+- [x] **Aylık / Yıllık KDV Tutarlılığı**: KDV hem aylık hem yıllık hesap özetinde aynı hesapla gösterilir.
+- [x] **KDV Uygulanan Doktor Profili & PDF Raporu**: `Party.applies_kdv` alanı, geçmiş KDV kayıtlarının otomatik taşınması, doktor kartı rozeti, aylık filtre ekranı ve `/reports/kdv-doctors/pdf` çıktısı.
+- [x] **Resmi Belge Terminolojisi**: Kullanıcı arayüzü, WhatsApp metni ve PDF çıktıları “Aylık Hesap Özeti” olarak adlandırılır; resmi fatura/makbuz olmadığı belirtilir.
 
 ---
 
@@ -27,12 +39,12 @@
 - [ ] **Admin ve Kullanıcı (Staff) Rol Kısıtlamaları**:
   - Şu anda Admin tüm yetkilere (`*`) sahip olup sınırsız işlem yapabilmektedir.
   - İleride eklenecek `staff` (sekreter/muhasebeci) rolü için:
-    - Manuel ödeme hareketi silme ve geçmiş makbuz iptali yetkileri sınırlandırılacak.
+    - Manuel ödeme hareketi silme ve geçmiş aylık hesap özeti iptali yetkileri sınırlandırılacak.
     - Sadece onaylı süreçlerde kayıt girebilme imkanı sunulacak.
 
 ### 🎨 1. Arayüz ve Kullanıcı Deneyimi (UI/UX)
 - [ ] **Diğer Listelerde Mobil Kart Dönüşümü**:
-  - `makbuzlar/list.html` ve `reports/index.html` sayfalarındaki geniş tablolar için mobilde dikey kart görünümü eklenecek.
+  - Aylık hesap özeti ve rapor sayfalarındaki geniş tablolar için mobilde dikey kart görünümü eklenecek.
 - [x] **Dark Mode Tema Değiştirici Düğmesi (UI Toggle)**: ✅ v1.8.0'da tamamlandı.
 - [ ] **Ciro & Tahsilat Trend Grafikleri**:
   - Raporlar paneline Chart.js / ApexCharts entegrasyonu ile grafiksel görselleştirme eklenecek.
@@ -51,6 +63,6 @@
 
 ### 📱 3. Müşteri Portalı ve Bildirimler (Customer Portal & Reminders)
 - [ ] **Diş Hekimi Müşteri Portalı (Dentist Self-Service)**:
-  - Diş hekimlerinin kendi kullanıcı hesaplarıyla sisteme girip iş emirlerini ve makbuzlarını izleyebilecekleri müşteri portalı eklenecek.
+  - Diş hekimlerinin kendi kullanıcı hesaplarıyla sisteme girip iş emirlerini ve aylık hesap özetlerini izleyebilecekleri müşteri portalı eklenecek.
 - [ ] **Otomatik Ödeme Hatırlatıcı Cron Job**:
   - Vadesi geçen alacaklar için periyodik otomatik WhatsApp / SMS hatırlatma altyapısı kurulacak.

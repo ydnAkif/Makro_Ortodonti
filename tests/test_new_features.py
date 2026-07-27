@@ -174,13 +174,13 @@ class TestBulkDeleteMakbuzlar:
             follow_redirects=True,
         )
         assert resp.status_code == 200
-        assert "taslak makbuz silindi".encode() in resp.data
+        assert "aylık hesap özeti silindi".encode() in resp.data.lower()
 
         with app.app_context():
             assert db.session.get(Makbuz, mid) is None
 
-    def test_sent_makbuz_silinemez(self, client, app):
-        """Gönderilmiş makbuzlar seçilse bile silinmemeli."""
+    def test_sent_makbuz_silinebilir(self, client, app):
+        """Gönderilmiş makbuzlar da silinebilmeli."""
         login(client, "admin", "admin-pass")
         pid = _make_doctor(app, "Dr. Gönderilmiş")
         mid = _make_sent_makbuz(app, pid, year=2026, month=2)
@@ -191,10 +191,9 @@ class TestBulkDeleteMakbuzlar:
             follow_redirects=True,
         )
         assert resp.status_code == 200
-        # Uyarı mesajı + makbuz hâlâ var olmalı
-        assert "silinebilir taslak makbuz yok".encode() in resp.data
+        assert "aylık hesap özeti silindi".encode() in resp.data.lower()
         with app.app_context():
-            assert db.session.get(Makbuz, mid) is not None
+            assert db.session.get(Makbuz, mid) is None
 
     def test_bos_secim_uyari_verir(self, client, app):
         """Hiç doktor seçilmezse uyarı flash'ı görünmeli."""
@@ -219,11 +218,10 @@ class TestBulkDeleteMakbuzlar:
             follow_redirects=True,
         )
         # staff billing.edit yetkisine sahip; 200 dönmeli ama silme başarılı olmalı
-        # (staff'ın billing.edit yetkisi var — authz matrisine göre)
         assert resp.status_code == 200
 
-    def test_yalnizca_draft_silinir_sent_korunur(self, client, app):
-        """Aynı ay hem draft hem sent makbuz varken yalnızca draft silinmeli."""
+    def test_bulk_delete_hem_draft_hem_sent_siler(self, client, app):
+        """Aynı ay hem draft hem sent makbuz varken ikisi de silinebilmeli."""
         login(client, "admin", "admin-pass")
         pid1 = _make_doctor(app, "Dr. Draft")
         pid2 = _make_doctor(app, "Dr. Sent", phone="+905550000002")
@@ -238,7 +236,7 @@ class TestBulkDeleteMakbuzlar:
         assert resp.status_code == 200
         with app.app_context():
             assert db.session.get(Makbuz, mid_draft) is None
-            assert db.session.get(Makbuz, mid_sent) is not None
+            assert db.session.get(Makbuz, mid_sent) is None
 
 
 class TestSingleDeleteMakbuz:
@@ -251,27 +249,82 @@ class TestSingleDeleteMakbuz:
 
         resp = client.post(f"/makbuzlar/{mid}/delete", follow_redirects=True)
         assert resp.status_code == 200
-        assert "Makbuz silindi".encode() in resp.data
+        assert "Aylık hesap özeti silindi".encode() in resp.data
         with app.app_context():
             assert db.session.get(Makbuz, mid) is None
 
-    def test_sent_makbuz_silinemez(self, client, app):
-        """Gönderilmiş makbuz silinememeli."""
+    def test_sent_makbuz_silinebilir(self, client, app):
+        """Gönderilmiş makbuz tekil silme ile de silinebilmeli."""
         login(client, "admin", "admin-pass")
-        pid = _make_doctor(app, "Dr. Sent Cannot Delete")
+        pid = _make_doctor(app, "Dr. Sent Can Delete")
         mid = _make_sent_makbuz(app, pid, year=2026, month=4)
 
         resp = client.post(f"/makbuzlar/{mid}/delete", follow_redirects=True)
         assert resp.status_code == 200
-        assert "Yalnızca taslak" in resp.data.decode("utf-8")
+        assert "Aylık hesap özeti silindi".encode() in resp.data
         with app.app_context():
-            assert db.session.get(Makbuz, mid) is not None
+            assert db.session.get(Makbuz, mid) is None
 
     def test_var_olmayan_makbuz_404_verir(self, client, app):
         """Var olmayan makbuz ID'si 404 döndürmeli."""
         login(client, "admin", "admin-pass")
         resp = client.post("/makbuzlar/99999/delete")
         assert resp.status_code == 404
+
+    def test_tahsilat_hareketi_bulunan_ozet_silinmez(self, client, app):
+        """Aylık özet silme, tahsilat geçmişini kazara yok etmemeli."""
+        login(client, "admin", "admin-pass")
+        pid = _make_doctor(app, "Dr. Tahsilatlı Özet")
+        mid = _make_sent_makbuz(app, pid, year=2026, month=5)
+        with app.app_context():
+            db.session.add(MakbuzPayment(
+                makbuz_id=mid,
+                payment_date=date(2026, 5, 20),
+                amount=Decimal("100.00"),
+                method="cash",
+            ))
+            db.session.commit()
+
+        resp = client.post(f"/makbuzlar/{mid}/delete", follow_redirects=True)
+        assert "tahsilat hareketi var".encode() in resp.data
+        with app.app_context():
+            assert db.session.get(Makbuz, mid) is not None
+
+
+def test_doctor_kdv_preference_applies_to_auto_created_monthly_summary(app):
+    """Doktor kartındaki KDV tercihi yeni iş emrinin aylık özetine otomatik yansır."""
+    from app.services.party_service import PartyService
+
+    with app.app_context():
+        doctor = Party(
+            party_type=PartyType.DENTIST,
+            name="Dr. Otomatik KDV",
+            is_active=True,
+            applies_kdv=True,
+        )
+        db.session.add(doctor)
+        db.session.commit()
+        doctor_id = doctor.id
+
+        PartyService.create_work_order(doctor_id, {
+            "work_date": "2026-07-10",
+            "apparatus_type": "Nance",
+            "patient_name": "KDV Hasta",
+            "apparatus_price": "500",
+            "extra_price": "0",
+        })
+
+        summary = db.session.execute(
+            db.select(Makbuz).where(
+                Makbuz.party_id == doctor_id,
+                Makbuz.year == 2026,
+                Makbuz.month == 7,
+            )
+        ).scalar_one()
+        assert summary.vat_applied is True
+        assert summary.vat_rate == Decimal("20.00")
+        assert summary.vat_amount == Decimal("100.00")
+        assert summary.grand_total == Decimal("600.00")
 
 
 # ===========================================================================
@@ -711,7 +764,7 @@ def test_makbuzlar_views_status_filters_and_pdf_export(client, app):
     # 1. Day view
     resp = client.get("/makbuzlar?view=day")
     assert resp.status_code == 200
-    assert "Makbuzlar".encode() in resp.data
+    assert "Aylık Hesap Özetleri".encode() in resp.data
 
     # 2. Month view
     resp = client.get("/makbuzlar?view=month&year=2026&month=7")

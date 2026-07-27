@@ -7,7 +7,7 @@ endblock %} {% block content %} {% if whatsapp_state != 'connected' %}
 >
   <span class="status-pulse-dot warning"></span>
   <i class="bi bi-whatsapp text-warning" aria-hidden="true"></i>
-  <span><strong>WhatsApp bağlı değil.</strong> Makbuz göndermek için bağlantıyı kurun.</span>
+  <span><strong>WhatsApp bağlı değil.</strong> Aylık hesap özeti göndermek için bağlantıyı kurun.</span>
   <a
     href="{{ url_for('whatsapp.index') }}"
     class="btn btn-sm btn-outline-warning ms-auto"
@@ -52,7 +52,7 @@ endblock %} {% block content %} {% if whatsapp_state != 'connected' %}
   <a href="{{ url_for('makbuzlar.list_makbuzlar') }}"
     ><span class="workflow-step">3</span
     ><span
-      ><small>Makbuzlar</small
+      ><small>Aylık Özetler</small
       ><strong>{{ monthly_drafts }} taslak</strong></span
     ></a
   >
@@ -181,7 +181,7 @@ endblock %} {% block content %} {% if whatsapp_state != 'connected' %}
         {% else %}
         <tr>
           <td colspan="6" class="empty-state">
-            Bu ay için makbuz özeti bulunmuyor.
+            Bu ay için hesap özeti bulunmuyor.
           </td>
         </tr>
         {% endfor %}

@@ -159,6 +159,9 @@ def test_party_detail_reflects_persisted_receipt_vat_and_formats_phone(client, a
     party_id = _make_doctor(
         app, name="Dr. KDV Özeti", phone="+905337694469"
     )
+    with app.app_context():
+        db.session.get(Party, party_id).previous_balance = Decimal("320.00")
+        db.session.commit()
     _add_work_order(app, party_id, date(2026, 6, 10), 1000)
     client.post(
         f"/makbuzlar/{party_id}/generate",
@@ -169,9 +172,16 @@ def test_party_detail_reflects_persisted_receipt_vat_and_formats_phone(client, a
     html = client.get(f"/parties/{party_id}?year=2026&month=6").get_data(as_text=True)
     assert "+90 533 769 44 69" in html
     # Label and amount render in separate <span> elements, not one string.
-    assert "KDV (makbuzlar):" in html
-    assert "₺200.00" in html
+    assert html.count("KDV (aylık özetler):") == 2
+    assert html.count("₺200.00") >= 2
     assert "₺1,200.00" in html
+    assert html.count("₺1,520.00") >= 2
+
+    year_html = client.get(
+        f"/parties/{party_id}?view=year&year=2026"
+    ).get_data(as_text=True)
+    # Aylık satır ile yıl toplamı aynı KDV dahil tutarı göstermeli.
+    assert year_html.count("₺1,200.00") >= 2
 
 
 def test_generate_makbuz_without_vat(client, app):
@@ -214,14 +224,13 @@ def test_makbuz_pdf_preview_and_download(client, app):
     response = client.get(f"/makbuzlar/{makbuz_id}/pdf?download=1")
     assert response.status_code == 200
     assert "attachment" in response.headers["Content-Disposition"]
-    assert f"makbuz_2026_06_{party_id}.pdf" in response.headers["Content-Disposition"]
+    assert f"aylik_hesap_ozeti_2026_06_{party_id}.pdf" in response.headers["Content-Disposition"]
 
 
-def test_cannot_regenerate_sent_makbuz(client, app):
+def test_can_update_sent_makbuz(client, app):
     login(client, "admin", "admin-pass")
-    party_id = _make_doctor(app, name="Dr. Locked")
+    party_id = _make_doctor(app, name="Dr. Lock Test")
     _add_work_order(app, party_id, date(2026, 6, 1), 1000)
-
     client.post(f"/makbuzlar/{party_id}/generate", data={"year": 2026, "month": 6}, follow_redirects=False)
 
     with app.app_context():
@@ -229,18 +238,18 @@ def test_cannot_regenerate_sent_makbuz(client, app):
         makbuz.status = Makbuz.STATUS_SENT
         db.session.commit()
 
-    # Adding a new work order after send should not silently change the locked makbuz.
+    # Sent makbuzlar can be regenerated/updated when new work orders are added.
     _add_work_order(app, party_id, date(2026, 6, 15), 5000)
     response = client.post(
         f"/makbuzlar/{party_id}/generate",
         data={"year": 2026, "month": 6},
         follow_redirects=True,
     )
-    assert "yeniden oluşturulamaz" in response.get_data(as_text=True)
+    assert response.status_code == 200
 
     with app.app_context():
         makbuz = db.session.execute(db.select(Makbuz).where(Makbuz.party_id == party_id)).scalar_one()
-        assert makbuz.subtotal == Decimal("1000.00")  # unchanged
+        assert makbuz.subtotal == Decimal("6000.00")
 
 
 def test_send_and_mark_paid_flow(client, app):
@@ -261,7 +270,7 @@ def test_send_and_mark_paid_flow(client, app):
 
     payments_html = client.get("/payments/").get_data(as_text=True)
     assert "Dr. Paid Flow" in payments_html
-    assert "Ödeme Bekleyen Makbuzlar" in payments_html
+    assert "Ödeme Bekleyen Dönemler" in payments_html
 
     response = client.post(
         f"/payments/{makbuz_id}/mark-paid",
@@ -355,7 +364,7 @@ def test_partial_payment_stays_open_and_carries_to_next_period(client, app):
         ):
             WhatsAppService.send_makbuz_message(july, b"pdf")
         message = send_text.call_args.args[1]
-        assert "Haziran 2026: ₺2,641.52 makbuz - ₺2,500.00 tahsilat = ₺141.52 kalan" in message
+        assert "Haziran 2026: ₺2,641.52 hesap özeti - ₺2,500.00 tahsilat = ₺141.52 kalan" in message
         assert "Toplam Açık Bakiye: ₺241.52" in message
 
     response = client.post(
@@ -863,3 +872,45 @@ def test_list_makbuzlar_includes_orphan_makbuz(client, app):
 
     assert "Dr. Orphan Test" in html
     assert "500.00" in html
+
+
+def test_overpayment_does_not_double_deduct_outstanding(client, app):
+    login(client, "admin", "admin-pass")
+    with app.app_context():
+        p = Party(party_type=PartyType.DENTIST, name="Dr. Overpay Test", phone="+905559998877", previous_balance=Decimal("1000.00"))
+        db.session.add(p)
+        db.session.commit()
+        party_id = p.id
+
+    _add_work_order(app, party_id, date(2026, 7, 1), 1320)
+    client.post(f"/makbuzlar/{party_id}/generate", data={"year": 2026, "month": 7}, follow_redirects=False)
+
+    with app.app_context():
+        m = db.session.execute(db.select(Makbuz).where(Makbuz.party_id == party_id, Makbuz.year == 2026, Makbuz.month == 7)).scalar_one()
+        m.status = Makbuz.STATUS_SENT
+        mid = m.id
+
+        from app.services.makbuz_account_service import record_payment
+        record_payment(m, payment_date=date(2026, 7, 27), amount=Decimal("2000.00"), method="cash")
+        db.session.commit()
+
+        m_after = db.session.get(Makbuz, mid)
+        p_after = db.session.get(Party, party_id)
+        assert m_after.collected_amount == Decimal("1320.00")
+        assert m_after.outstanding_amount == Decimal("0.00")
+        assert p_after.previous_balance == Decimal("320.00")
+
+    resp_list = client.get("/payments/")
+    assert resp_list.status_code == 200
+    html = resp_list.get_data(as_text=True)
+    assert "-360" not in html
+    assert "Devreden Borç: ₺320.00" in html
+    assert "₺2,000.00" in html
+    assert "1 Doktor" in html
+    assert "Toplam <strong>₺320.00</strong> açık bakiye" in html
+
+    parties_html = client.get("/parties/").get_data(as_text=True)
+    assert "₺-360.00" not in parties_html
+    assert "Toplam Açık Bakiye" in parties_html
+    assert parties_html.count("₺320.00") >= 1
+    assert "₺2,000.00" in parties_html

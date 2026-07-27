@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Aylık KDV Doktorları - {{ clinic_name }}{% endblock %}
+
+{% block content %}
+<header class="workspace-header">
+  <div>
+    <h1>Aylık KDV Doktorları</h1>
+    <p>Yalnızca doktor kartında KDV uygulanan olarak işaretlenen hekimler.</p>
+  </div>
+  <div class="workspace-actions">
+    <a href="{{ url_for('reports.kdv_doctors_pdf', year=year, month=month) }}" class="btn btn-primary" target="_blank" rel="noopener">
+      <i class="bi bi-file-earmark-pdf me-1"></i>PDF indir
+    </a>
+  </div>
+</header>
+
+<div class="notice-strip mb-3" role="note">
+  <i class="bi bi-info-circle" aria-hidden="true"></i>
+  <span>Bu liste muhasebe hazırlığı içindir. Aylık hesap özetleri resmi fatura veya makbuz yerine geçmez.</span>
+</div>
+
+<form method="GET" class="workorder-period-bar mb-3">
+  <div class="workorder-period-form">
+    <label class="form-label mb-0" for="kdv-month">Dönem</label>
+    <select class="form-select stepper-control" id="kdv-month" name="month">
+      {% for month_number, month_name in months %}<option value="{{ month_number }}" {% if month_number == month %}selected{% endif %}>{{ month_name }}</option>{% endfor %}
+    </select>
+    <select class="form-select stepper-control" name="year" aria-label="Yıl">
+      {% for option_year in years %}<option value="{{ option_year }}" {% if option_year == year %}selected{% endif %}>{{ option_year }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-primary" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Göster</button>
+  </div>
+</form>
+
+<div class="summary-line summary-line--four">
+  <div><span>KDV'li doktor</span><strong>{{ rows|length }}</strong></div>
+  <div><span>Toplam matrah</span><strong>₺{{ "{:,.2f}".format(total_net) }}</strong></div>
+  <div><span>Hesaplanan KDV</span><strong class="text-primary">₺{{ "{:,.2f}".format(total_vat) }}</strong></div>
+  <div><span>KDV dahil toplam</span><strong>₺{{ "{:,.2f}".format(total_grand) }}</strong></div>
+</div>
+
+<section class="work-panel">
+  <div class="work-panel__header">
+    <div><h2>{{ months[month - 1][1] }} {{ year }}</h2><p>Doktor kartındaki kalıcı KDV tercihine göre hazırlanır.</p></div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Doktor</th><th>Vergi no</th><th class="text-center">İş emri</th><th class="text-end">Matrah</th><th class="text-end">KDV</th><th class="text-end">Toplam</th><th class="text-center">Durum</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><strong>{{ row.name }}</strong></td>
+          <td>{{ row.tax_id }}</td>
+          <td class="text-center">{{ row.work_order_count }}</td>
+          <td class="text-end">₺{{ "{:,.2f}".format(row.net_total) }}</td>
+          <td class="text-end"><span class="text-muted">%{{ "{:g}".format(row.vat_rate) }}</span> <strong>₺{{ "{:,.2f}".format(row.vat_total) }}</strong></td>
+          <td class="text-end fw-bold">₺{{ "{:,.2f}".format(row.grand_total) }}</td>
+          <td class="text-center"><span class="badge-tint {{ 'badge-tint-success' if row.status == 'Özet hazır' else 'badge-tint-secondary' }}">{{ row.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7"><div class="empty-state-card"><div class="empty-state-icon"><i class="bi bi-percent"></i></div><h5>KDV uygulanan doktor yok</h5><p>Doktor düzenleme ekranından “KDV uygulanır” seçeneğini açabilirsiniz.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

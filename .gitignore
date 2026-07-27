@@ -1,7 +1,10 @@
-# SQLite WAL-mode companion files (see app/extensions.py PRAGMA journal_mode=WAL) —
-# transient, regenerated on every write, never meaningful to commit.
+# SQLite databases & runtime locks
+data/*.db
 data/*.db-wal
 data/*.db-shm
+data/*.lock
+__pycache__/
+*.pyc
 
 # Local environment overrides
 .env
@@ -9,6 +12,8 @@ data/*.db-shm
 # Test/coverage artifacts
 .coverage
 .pytest_cache/
+output/
+tmp/
 
 # Editor/OS noise
 .DS_Store

@@ -51,16 +51,34 @@ def list_payments():
     rows = []
     for party in doctors:
         m_list = by_party.get(party.id, [])
+        issued_makbuzlar = [
+            m for m in m_list
+            if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
+        ]
         billed = money(sum(
-            (m.grand_total for m in m_list if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)),
+            (m.grand_total for m in issued_makbuzlar),
             Decimal("0.00"),
         ))
+        # Tahsil edilen, kasaya giren gerçek hareket toplamıdır. Bir ödeme
+        # hem güncel makbuzu hem de devreden borcu kapatabileceği için bunu
+        # makbuz tutarıyla sınırlamayız.
         paid = money(sum(
-            (m.collected_amount for m in m_list),
+            (
+                sum((entry.amount for entry in m.payment_entries), Decimal("0.00"))
+                if m.payment_entries
+                else (m.paid_amount or Decimal("0.00"))
+                for m in m_list
+            ),
             Decimal("0.00"),
         ))
         prev_bal = money(party.previous_balance or Decimal("0.00"))
-        outstanding = money(billed - paid + prev_bal)
+        # Açık bakiye, gerçek tahsilattan bağımsız olarak henüz
+        # kapanmamış makbuzlar ve kalan devreden borçtan oluşur. Billed -
+        # paid hesabı, devreden borca uygulanan tahsilatı ikinci kez düşürür.
+        outstanding = money(sum(
+            (m.outstanding_amount for m in issued_makbuzlar),
+            Decimal("0.00"),
+        ) + prev_bal)
         rows.append({
             "party": party,
             "billed": billed,
@@ -79,18 +97,37 @@ def list_payments():
     visible_party_ids = {party.id for party in doctors}
     from app.services.makbuz_account_service import account_statement
 
-    pending_makbuzlar = sorted(
-        (
-            m for m in all_makbuzlar
-            if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
-            and m.party_id in visible_party_ids
-        ),
-        key=lambda m: (m.year, m.month),
-        reverse=True,
-    )
+    pending_makbuzlar = [
+        m for m in all_makbuzlar
+        if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)
+        and m.outstanding_amount > 0
+        and m.party_id in visible_party_ids
+    ]
     for m in pending_makbuzlar:
         statement = account_statement(m)
         m._effective_outstanding = statement.total_due
+        m._payment_total = money(sum(
+            (entry.amount for entry in m.payment_entries),
+            Decimal("0.00"),
+        )) if m.payment_entries else money(m.paid_amount or Decimal("0.00"))
+
+    pending_party_ids = {m.party_id for m in pending_makbuzlar}
+    for doctor in doctors:
+        if doctor.id not in pending_party_ids:
+            doc_makbuzlar = [m for m in all_makbuzlar if m.party_id == doctor.id]
+            if doc_makbuzlar:
+                latest_m = max(doc_makbuzlar, key=lambda m: (m.year, m.month))
+                statement = account_statement(latest_m)
+                if statement.total_due > 0:
+                    latest_m._effective_outstanding = statement.total_due
+                    latest_m._payment_total = money(sum(
+                        (entry.amount for entry in latest_m.payment_entries),
+                        Decimal("0.00"),
+                    )) if latest_m.payment_entries else money(latest_m.paid_amount or Decimal("0.00"))
+                    pending_makbuzlar.append(latest_m)
+                    pending_party_ids.add(doctor.id)
+
+    pending_makbuzlar.sort(key=lambda m: (m.year, m.month), reverse=True)
     payment_entries = sorted(
         (
             entry for m in all_makbuzlar
@@ -103,9 +140,12 @@ def list_payments():
 
     years = sorted({m.year for m in db.session.execute(db.select(Makbuz)).scalars().all()} | {date.today().year}, reverse=True)
 
+    pending_doctors = [r for r in rows if r["outstanding"] > 0]
+
     return render_template(
         "payments/list.html",
         rows=rows,
+        pending_doctors=pending_doctors,
         pending_makbuzlar=pending_makbuzlar,
         payment_entries=payment_entries,
         method_labels=METHOD_LABELS,
@@ -125,7 +165,7 @@ def list_payments():
 def mark_paid(makbuz_id):
     makbuz = db.get_or_404(Makbuz, makbuz_id)
     if makbuz.outstanding_amount <= 0:
-        flash("Bu makbuzun açık bakiyesi bulunmuyor.", "info")
+        flash("Bu aylık hesap özetinin açık bakiyesi bulunmuyor.", "info")
         return redirect(url_for("payments.list_payments", tab="paid"))
 
     if request.method == "POST":
@@ -158,6 +198,7 @@ def mark_paid(makbuz_id):
             db.session.commit()
         except (TypeError, ValueError) as exc:
             db.session.rollback()
+            print("MARK PAID EXC:", exc)
             flash(str(exc), "danger")
             return redirect(url_for("payments.mark_paid", makbuz_id=makbuz.id))
 
@@ -169,7 +210,7 @@ def mark_paid(makbuz_id):
             )
             return redirect(url_for("payments.list_payments", tab="pending"))
 
-        flash(f"Ödeme kaydedildi ve makbuz kapandı: ₺{paid_amount:,.2f}", "success")
+        flash(f"Ödeme kaydedildi ve dönem bakiyesi kapandı: ₺{paid_amount:,.2f}", "success")
         return redirect(url_for("payments.list_payments", tab="paid"))
 
     from app.services.makbuz_account_service import account_statement

@@ -549,7 +549,7 @@ Makro Ortodonti"""
             balance_lines.append("Önceki dönemlerden kalanlar:")
             for open_period in statement.previous_periods:
                 balance_lines.append(
-                    f"• {open_period.period_label}: ₺{open_period.original_total:,.2f} makbuz"
+                    f"• {open_period.period_label}: ₺{open_period.original_total:,.2f} hesap özeti"
                     f" - ₺{open_period.collected:,.2f} tahsilat"
                     f" = ₺{open_period.outstanding:,.2f} kalan"
                 )
@@ -562,14 +562,15 @@ Makro Ortodonti"""
 
         message = f"""Sayın {party.name},
 
-{period} dönemine ait makbuzunuz hazırlanmıştır.
+{period} dönemine ait aylık hesap özetiniz hazırlanmıştır.
 
 İş Emri Sayısı: {makbuz.work_order_count}
 Ara Toplam: ₺{makbuz.subtotal:,.2f}
 {vat_text}Bu Dönem Toplamı: ₺{makbuz.grand_total:,.2f}
 {balance_text}
 
-Ayrıntılı iş ve bakiye dökümü ekteki makbuzda yer almaktadır.
+Bu belge yalnızca bilgilendirme amaçlıdır; resmi fatura veya makbuz değildir.
+Ayrıntılı iş ve bakiye dökümü ekteki aylık hesap özetinde yer almaktadır.
 
 Saygılarımızla,
 Makro Ortodonti"""
@@ -578,8 +579,8 @@ Makro Ortodonti"""
         if not text_result["success"]:
             return text_result
 
-        filename = f"makbuz_{makbuz.year}_{makbuz.month:02d}_{party.id}.pdf"
-        return cls.send_document(party.phone, pdf_bytes, filename=filename, caption=f"{period} Makbuzu")
+        filename = f"aylik_hesap_ozeti_{makbuz.year}_{makbuz.month:02d}_{party.id}.pdf"
+        return cls.send_document(party.phone, pdf_bytes, filename=filename, caption=f"{period} Aylık Hesap Özeti")
 
     @classmethod
     def send_reminder(cls, patient, message: str) -> dict:

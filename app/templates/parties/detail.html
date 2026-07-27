@@ -47,6 +47,7 @@ block content %}
       <div class="card-body">
         <h5 class="fw-bold mb-1">{{ party.display_name }}</h5>
         <span class="badge badge-soft-aqua mb-2">Diş Hekimi</span>
+        {% if party.applies_kdv %}<span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1 mb-2"><i class="bi bi-percent me-1"></i>Aylık özetlerde KDV uygulanır</span>{% endif %}
         <hr class="my-2" />
         {% if party.phone %}
         <p class="text-muted mb-2 small">
@@ -92,7 +93,7 @@ block content %}
             >{{ period_work_order_count }} iş emri</span
           >
           {% if period_makbuz %}<span class="badge badge-soft-aqua"
-            >{{ period_makbuz_status }} makbuz</span
+            >{{ period_makbuz_status }} aylık özet</span
           >{% endif %}
         </div>
         <div class="d-flex justify-content-between small mb-1">
@@ -108,7 +109,7 @@ block content %}
           <span>₺{{ "{:,.2f}".format(total_overall) }}</span>
         </div>
         <div class="d-flex justify-content-between small mb-2">
-          <span class="text-muted">KDV (makbuzlar):</span>
+          <span class="text-muted">KDV (aylık özetler):</span>
           <span>₺{{ "{:,.2f}".format(total_vat) }}</span>
         </div>
 
@@ -170,7 +171,7 @@ block content %}
               <td>Yıl Toplamı</td>
               <td class="text-end">{{ year_work_order_count }}</td>
               <td class="text-end">
-                ₺{{ "{:,.2f}".format(year_total_overall) }}
+                ₺{{ "{:,.2f}".format(year_total_with_vat) }}
               </td>
             </tr>
           </tfoot>
@@ -193,7 +194,7 @@ block content %}
           >
             <span class="small fw-bold">Genel Toplam (devreden dahil):</span>
             <strong class="fs-6"
-              >₺{{ "{:,.2f}".format(year_total_overall + devreden_total)
+              >₺{{ "{:,.2f}".format(year_total_with_vat + devreden_total)
               }}</strong
             >
           </div>
@@ -212,16 +213,32 @@ block content %}
           <span class="text-muted">Aparey:</span>
           <span>₺{{ "{:,.2f}".format(year_total_apparatus) }}</span>
         </div>
-        <div class="d-flex justify-content-between small mb-2">
+        <div class="d-flex justify-content-between small mb-1">
           <span class="text-muted">Ekstra:</span>
           <span>₺{{ "{:,.2f}".format(year_total_extra) }}</span>
         </div>
+        <div class="d-flex justify-content-between small mb-2">
+          <span class="text-muted">Matrah:</span>
+          <span>₺{{ "{:,.2f}".format(year_total_overall) }}</span>
+        </div>
+        <div class="d-flex justify-content-between small mb-2">
+          <span class="text-muted">KDV (aylık özetler):</span>
+          <span>₺{{ "{:,.2f}".format(year_total_vat) }}</span>
+        </div>
+
+        {% if devreden_total > 0 %}
+        <div class="d-flex justify-content-between small mb-2 pt-2 border-top">
+          <span class="text-muted">Önceki Dönemlerden Devreden:</span>
+          <span>₺{{ "{:,.2f}".format(devreden_total) }}</span>
+        </div>
+        {% endif %}
+
         <div
           class="pt-2 border-top d-flex justify-content-between align-items-baseline"
         >
-          <span class="fw-bold">Toplam:</span>
+          <span class="fw-bold">{% if devreden_total > 0 %}Genel Toplam:{% else %}Toplam:{% endif %}</span>
           <h5 class="mb-0 fw-bold">
-            ₺{{ "{:,.2f}".format(year_total_overall) }}
+            ₺{{ "{:,.2f}".format(year_total_with_vat + (devreden_total if devreden_total else 0)) }}
           </h5>
         </div>
       </div>
@@ -240,7 +257,7 @@ block content %}
           </h5>
           <small class="text-muted"
             >{{ period_label }} · {{ work_orders|length }} iş emri{% if view ==
-            'month' and period_makbuz %} · {{ period_makbuz_status }} makbuz{%
+            'month' and period_makbuz %} · {{ period_makbuz_status }} aylık özet{%
             endif %}</small
           >
         </div>

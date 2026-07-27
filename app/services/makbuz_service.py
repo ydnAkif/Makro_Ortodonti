@@ -17,10 +17,11 @@ STATUS_LABELS = {
 
 
 def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat_rate: Decimal) -> Makbuz:
-    """Belirtilen döneme ait iş emirlerini taslak makbuza dönüştür / günceller.
+    """Belirtilen döneme ait iş emirlerini aylık hesap özetine dönüştür / günceller.
 
-    Bu fonksiyon önce var olan taslak makbuzu arar; yoksa yeni oluşturur.
-    Kesinleşmiş (sent/paid) makbuzlar değiştirilemez — ValueError fırlatılır.
+    Gönderilmiş özetler resmi belge olmadığı için yeniden taslağa
+    alınıp güncellenebilir. Tahsilat hareketi bulunan bir özet ise finansal
+    geçmişi korumak için önce tahsilatı geri alınmadan değiştirilemez.
 
     NOT: Fonksiyon db.session.flush() yapar ama commit() ağaç sahibi koda bırakılır.
     """
@@ -30,8 +31,10 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
         )
     ).scalar_one_or_none()
 
-    if existing and existing.status != Makbuz.STATUS_DRAFT:
-        raise ValueError("Gönderilmiş veya ödenmiş bir makbuz yeniden oluşturulamaz.")
+    if existing and (existing.payment_entries or existing.collected_amount > 0):
+        raise ValueError(
+            "Bu hesap özetinde tahsilat hareketi var. Düzenlemek için önce tahsilat kaydını geri alın."
+        )
 
     work_orders = db.session.execute(
         db.select(WorkOrder).where(
@@ -49,6 +52,7 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
     makbuz.vat_applied = vat_applied
     makbuz.vat_rate = vat_rate if vat_applied else Decimal("0.00")
     makbuz.status = Makbuz.STATUS_DRAFT
+    makbuz.sent_at = None
     makbuz.generated_at = datetime.now().astimezone()
     makbuz.recalculate_totals()
 
@@ -178,6 +182,12 @@ def resolve_makbuzlar_query(request_args: dict) -> dict:
         1 for d in doctors
         if d["makbuz"] and d["makbuz"].status == Makbuz.STATUS_PAID
     )
+    deletable_count = sum(
+        1 for d in doctors
+        if d["makbuz"]
+        and not d["makbuz"].payment_entries
+        and d["makbuz"].collected_amount <= 0
+    )
 
     return {
         "doctors": doctors,
@@ -194,6 +204,7 @@ def resolve_makbuzlar_query(request_args: dict) -> dict:
         "draft_count": draft_count,
         "awaiting_payment_count": awaiting_payment_count,
         "paid_count": paid_count,
+        "deletable_count": deletable_count,
         "grand_total_apparatus": grand_total_apparatus,
         "grand_total_extra": grand_total_extra,
         "grand_total_price": grand_total_price,

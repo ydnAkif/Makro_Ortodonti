@@ -21,7 +21,7 @@
 {# ——— KPI Kartları ——— #}
 <div class="summary-line summary-line--four" aria-label="Doktor özeti">
     <div><span>İş Emri</span><strong>{{ detail.doctor.work_order_count }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.total_try) }}</small></div>
-    <div><span>Makbuz</span><strong>{{ detail.doctor.makbuz_count }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.makbuz_total_try) }}</small></div>
+    <div><span>Aylık Özet</span><strong>{{ detail.doctor.makbuz_count }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.makbuz_total_try) }}</small></div>
     <div><span>Tahsil Edilen</span><strong>₺{{ "{:,.2f}".format(detail.doctor.collected_try) }}</strong><small>₺{{ "{:,.2f}".format(detail.doctor.outstanding_try) }} açık</small></div>
     <div><span>Devreden Borç</span><strong>₺{{ "{:,.2f}".format(detail.previous_debt) }}</strong><small>{% if detail.previous_debt > 0 %}Önceki dönemlerden{% else %}Borç yok{% endif %}</small></div>
 </div>
@@ -76,7 +76,7 @@
     <div class="col-xl-7">
         <section class="work-panel h-100" aria-labelledby="makbuz-title">
             <div class="work-panel__header">
-                <div><h2 id="makbuz-title">Makbuzlar</h2><p>Dönem içindeki makbuz durumları</p></div>
+                <div><h2 id="makbuz-title">Aylık Hesap Özetleri</h2><p>Dönem içindeki özet durumları</p></div>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -101,7 +101,7 @@
                             <td class="text-end">{{ "{:,.2f}".format(item.collected) }}</td>
                             <td class="text-end {% if item.outstanding > 0 %}text-danger{% endif %}">{{ "{:,.2f}".format(item.outstanding) }}</td>
                         </tr>
-                        {% else %}<tr><td colspan="5" class="empty-state">Makbuz yok.</td></tr>{% endfor %}
+                        {% else %}<tr><td colspan="5" class="empty-state">Aylık hesap özeti yok.</td></tr>{% endfor %}
                     </tbody>
                     {% if detail.makbuzlar %}
                     <tfoot>
@@ -136,7 +136,7 @@
                 {% for b in detail.aging %}
                 {% if b.amount > 0 %}
                 <div class="aging-row">
-                    <div><span>{{ b.label }}</span><small>{{ b.count }} makbuz</small></div>
+                    <div><span>{{ b.label }}</span><small>{{ b.count }} özet</small></div>
                     <strong>₺{{ "{:,.2f}".format(b.amount) }}</strong>
                 </div>
                 {% endif %}

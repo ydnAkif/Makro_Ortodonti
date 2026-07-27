@@ -79,11 +79,20 @@ def record_payment(
     amount = money(amount)
     if amount <= 0:
         raise ValueError("Geçerli bir ödeme tutarı girin.")
-    if amount > makbuz.outstanding_amount:
+
+    statement = account_statement(makbuz)
+    limit = statement.total_due if statement.total_due > 0 else makbuz.outstanding_amount
+
+    if amount > limit:
         raise ValueError(
-            f"Ödeme kalan ₺{makbuz.outstanding_amount:,.2f} bakiyeyi aşamaz."
+            f"Ödeme kalan ₺{limit:,.2f} bakiyeyi aşamaz."
         )
 
+    original_outstanding = makbuz.outstanding_amount
+    makbuz_payment_amount = min(amount, original_outstanding)
+    excess = amount - makbuz_payment_amount
+
+    # 1. Record full payment entry for complete movement tracking
     entry = MakbuzPayment(
         makbuz=makbuz,
         payment_date=payment_date,
@@ -95,6 +104,24 @@ def record_payment(
     db.session.add(entry)
     db.session.flush()
     sync_makbuz_collection(makbuz)
+
+    # 2. Allocate excess over current makbuz to older open periods or party.previous_balance
+    if excess > 0:
+        for prev_period in statement.previous_periods:
+            if excess <= 0:
+                break
+            prev_makbuz = prev_period.makbuz
+            apply_to_prev = min(excess, prev_makbuz.outstanding_amount)
+            if apply_to_prev > 0:
+                sync_makbuz_collection(prev_makbuz)
+                excess -= apply_to_prev
+
+    if excess > 0 and makbuz.party and makbuz.party.previous_balance:
+        prev_bal = money(makbuz.party.previous_balance)
+        deduct = min(excess, prev_bal)
+        makbuz.party.previous_balance = money(prev_bal - deduct)
+        excess -= deduct
+
     return entry
 
 

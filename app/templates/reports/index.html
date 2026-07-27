@@ -34,9 +34,9 @@
 
 {# ——— KPI Kartları ——— #}
 <div class="summary-line summary-line--four" aria-label="Dönem özeti">
-    <div><span>Faturalanan (₺)</span><strong>₺{{ "{:,.2f}".format(overview.issued_try) }}</strong><small>{{ overview.work_order_count }} iş emri · {{ overview.makbuz_count }} makbuz</small></div>
+    <div><span>Dönem özetleri (₺)</span><strong>₺{{ "{:,.2f}".format(overview.issued_try) }}</strong><small>{{ overview.work_order_count }} iş emri · {{ overview.makbuz_count }} aylık özet</small></div>
     <div><span>Tahsil edilen (₺)</span><strong>₺{{ "{:,.2f}".format(overview.collected_try) }}</strong><small>{{ overview.payment_count }} ödeme hareketi</small></div>
-    <div><span>Açık bakiye (₺)</span><strong>₺{{ "{:,.2f}".format(overview.outstanding_try) }}</strong><small>{{ aging|map(attribute='count')|sum }} açık makbuz</small></div>
+    <div><span>Açık bakiye (₺)</span><strong>₺{{ "{:,.2f}".format(overview.outstanding_try) }}</strong><small>{{ aging|map(attribute='count')|sum }} açık aylık özet</small></div>
     <div><span>Tahsilat oranı</span><strong>%{{ "{:.1f}".format(overview.collection_ratio) }}</strong><small>{% if current_rate %}EUR/TRY ₺{{ "{:,.4f}".format(current_rate.eur_to_try) }}{% endif %}</small></div>
 </div>
 
@@ -106,7 +106,7 @@
 <div class="tab-pane fade" id="tab-doctors">
     <section class="work-panel mb-4" aria-labelledby="doctor-summary-title">
         <div class="work-panel__header">
-            <div><h2 id="doctor-summary-title">Doktor Bazlı Özet</h2><p>{{ doctor_summaries|length }} doktor — dönem içi toplam iş emri ve makbuz</p></div>
+            <div><h2 id="doctor-summary-title">Doktor Bazlı Özet</h2><p>{{ doctor_summaries|length }} doktor — dönem içi toplam iş emri ve aylık hesap özeti</p></div>
         </div>
         <div class="table-responsive">
             <table class="table table-hover">
@@ -151,7 +151,7 @@
                 <thead><tr>
                     <th>Tarih</th>
                     <th class="text-center">İş Emri</th>
-                    <th class="text-end">Faturalanan (₺)</th>
+                    <th class="text-end">Aylık özet toplamı (₺)</th>
                     <th class="text-end">Tahsil (₺)</th>
                 </tr></thead>
                 <tbody>
@@ -188,7 +188,7 @@
                 <div class="card-body">
                     {% for row in aging %}
                     <div class="aging-row">
-                        <div><span>{{ row.label }}</span><small>{{ row.count }} makbuz</small></div>
+                        <div><span>{{ row.label }}</span><small>{{ row.count }} özet</small></div>
                         <strong>₺{{ "{:,.2f}".format(row.amount) }}</strong>
                         <div class="aging-bar"><span style="width: {{ (row.amount / max_aging * 100)|round(1) }}%"></span></div>
                     </div>
@@ -200,7 +200,7 @@
             <section class="work-panel h-100" aria-labelledby="rate-title">
                 <div class="work-panel__header"><div><h2 id="rate-title">Kur Bilgisi</h2><p>{% if current_rate %}Son kur: ₺{{ "{:,.4f}".format(current_rate.eur_to_try) }} ({{ current_rate.rate_date.strftime('%d.%m.%Y') }}){% else %}Kur bulunamadı{% endif %}</p></div></div>
                 <div class="card-body">
-                    <div class="status-count-row"><span>Toplam makbuz</span><strong>{{ aging|map(attribute='count')|sum }}</strong></div>
+                    <div class="status-count-row"><span>Toplam aylık özet</span><strong>{{ aging|map(attribute='count')|sum }}</strong></div>
                     <div class="status-count-row"><span>Toplam açık</span><strong>₺{{ "{:,.2f}".format(aging|map(attribute='amount')|sum) }}</strong></div>
                 </div>
             </section>
@@ -212,7 +212,7 @@
 <div class="tab-pane fade" id="tab-vat">
     <section class="work-panel mb-4" aria-labelledby="vat-title">
         <div class="work-panel__header">
-            <div><h2 id="vat-title">KDV Özeti</h2><p>Dönem içindeki makbuzlara göre KDV kırılımı</p></div>
+            <div><h2 id="vat-title">KDV Özeti</h2><p>Dönem içindeki aylık hesap özetlerine göre KDV kırılımı</p></div>
         </div>
         <div class="table-responsive">
             <table class="table table-hover">

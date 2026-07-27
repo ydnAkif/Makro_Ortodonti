@@ -1,10 +1,21 @@
-# Makro Ortodonti (v2.2.1) 🌟
+# Makro Ortodonti (v2.3.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
 [![Test Suite](https://img.shields.io/badge/pytest-passing-success.svg)]()
 
-Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli dinamik/sabit kurlu faturalandırmayı, günlük/aylık/yıllık otomatik makbuzları, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır.
+Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli fiyatlandırmayı, bilgilendirme amaçlı aylık hesap özetlerini, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır. Uygulamadaki aylık hesap özetleri resmi fatura veya makbuz değildir; e-fatura süreçleri uygulama dışında yürütülür.
+
+---
+
+## 🧾 v2.3.0 Ödeme Hareketleri, Aylık Hesap Özeti & KDV Raporlama
+
+- **💰 Gerçek Tahsilat ve Açık Bakiye Ayrımı**: Girilen tutarın tamamı (`MakbuzPayment.amount`) tahsilat hareketi olarak gösterilir. Açık bakiye ise kapanmamış dönemler ile devreden borçtan hesaplanır; fazla tahsilat artık negatif bakiye üretmez.
+- **📋 Borçlu Doktorların Listede Kalması**: Cari dönem kapanmış olsa bile devreden borcu (`total_due > 0`) bulunan doktorlar *Ödeme Bekleyenler* listesinde ve “Kimden?” dağılımında görünür.
+- **✏️ Aylık Hesap Özeti Esnekliği**: WhatsApp'tan gönderilmiş bilgilendirme özetleri düzenlenebilir, yeniden üretilebilir ve silinebilir. Tahsilat hareketi bağlanmış özetler muhasebe geçmişini korumak için silinmez; önce tahsilat hareketinin kaldırılması gerekir.
+- **🧮 Tutarlı KDV Hesabı**: Aylık ve yıllık özetler aynı KDV kaynağını kullanır; KDV satırı yıllık özette de gösterilir.
+- **📑 KDV Uygulanan Doktorlar Raporu**: Doktor profiline kalıcı `applies_kdv` ayarı eklendi. Geçmişte KDV uygulanmış doktorlar otomatik taşınır; `/reports/kdv-doctors` ekranından ay seçilerek yalnızca bu doktorların HTML ve PDF raporu alınır.
+- **📝 Resmi Belge Ayrımı**: Kullanıcı arayüzünde “makbuz” yerine “Aylık Hesap Özeti” kullanılır ve PDF/WhatsApp çıktılarında belgenin resmi fatura veya makbuz olmadığı açıkça belirtilir.
 
 ---
 
@@ -61,8 +72,8 @@ Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve apar
 
 - **Hekim ve İş Emri Yönetimi**: Diş hekimleri, aparey türleri (Ana / Ekstra İşlemler) ve hasta takibi.
 - **TRY / EUR / USD Çoklu Para Birimi**: Sabit fatura kuru, günlük TCMB/ECB otomatik kur güncellemesi.
-- **Aylık / Yıllık Otomatik Makbuz & Dönem Kilidi**: Otomatik taslak makbuz üretimi, kesinleşen dönemlerin kilitlenmesi.
-- **WhatsApp Web Entegrasyonu (Neonize)**: Ücretsiz Go/Neonize altyapısı ile makbuz ve mesaj gönderimi.
+- **Aylık / Yıllık Hesap Özeti**: İş emirlerinden otomatik aylık özet üretimi, devreden borç ve KDV görünümü; tahsilat bağlanana kadar düzenleme/silme.
+- **WhatsApp Web Entegrasyonu (Neonize)**: Ücretsiz Go/Neonize altyapısı ile aylık hesap özeti ve mesaj gönderimi.
 - **Türkçe Karakter / Akıllı Arama (`tr_fold` & `tr_order`)**: İ/ı, Ş/ş, Ğ/ğ harflerine duyarlı sıralama ve canlı arama.
 - **Güvenlik & KVKK Uyumu**: CSRF koruması, bcrypt parola şifreleme, Fernet SMTP şifrelemesi, audit kayıtları ve KVKK anonimleştirme.
 

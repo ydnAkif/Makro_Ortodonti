@@ -1952,6 +1952,19 @@ textarea.form-control {
     border-right: 0;
 }
 
+.summary-card-clickable {
+    cursor: pointer;
+    transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.summary-card-clickable:hover {
+    background-color: var(--surface-raised, rgba(0, 0, 0, 0.03)) !important;
+}
+
+.summary-card-clickable:hover .hover-underline {
+    text-decoration: underline !important;
+}
+
 .summary-line span {
     display: block;
     margin-bottom: .15rem;

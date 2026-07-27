@@ -48,9 +48,13 @@
                             <input type="number" class="form-control" id="previous_balance" name="previous_balance" value="{{ party.previous_balance|default('0.00', true) }}" step="0.01" min="0" inputmode="decimal">
                         </div>
                         <div class="col-md-6 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
+                            <div class="form-check form-switch mb-2 me-4">
                                 <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" {% if not party or party.is_active %}checked{% endif %}>
                                 <label class="form-check-label" for="is_active">Aktif kayıt</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="applies_kdv" name="applies_kdv" {% if party and party.applies_kdv %}checked{% endif %}>
+                                <label class="form-check-label fw-bold text-primary" for="applies_kdv">Aylık özetlerde KDV uygulanır</label>
                             </div>
                         </div>
                     </div>

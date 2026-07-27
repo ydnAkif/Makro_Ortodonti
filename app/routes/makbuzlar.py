@@ -77,7 +77,7 @@ def list_makbuzlar():
 @login_required
 @permissions_required("billing.view")
 def export_makbuzlar_pdf():
-    """PDF export for makbuz summary list."""
+    """Aylık hesap özeti listesini PDF olarak dışa aktar."""
     from flask import Response
     from app.services.reports_pdf_service import generate_makbuz_list_pdf
     from app.services.settings_service import get_clinic_identity
@@ -94,7 +94,7 @@ def export_makbuzlar_pdf():
         grand_total_price=data["grand_total_price"],
     )
 
-    filename = f"makbuzlar_{data['view']}_{data['period_label'].replace(' ', '_').lower()}.pdf"
+    filename = f"aylik_hesap_ozetleri_{data['view']}_{data['period_label'].replace(' ', '_').lower()}.pdf"
     return Response(
         pdf_bytes,
         mimetype="application/pdf",
@@ -152,9 +152,11 @@ def generate_makbuz(party_id):
     vat_applied, vat_rate = _parse_vat_form()
 
     try:
+        party = db.get_or_404(Party, party_id)
+        party.applies_kdv = vat_applied
         makbuz = _generate_makbuz(party_id, year, month, vat_applied, vat_rate)
         db.session.commit()
-        flash(f"Makbuz taslağı oluşturuldu: ₺{makbuz.grand_total:,.2f}", "success")
+        flash(f"Aylık hesap özeti güncellendi: ₺{makbuz.grand_total:,.2f}", "success")
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")
@@ -166,14 +168,14 @@ def generate_makbuz(party_id):
 @login_required
 @permissions_required("billing.view")
 def pdf_makbuz(makbuz_id):
-    """Makbuz PDF'ini göndermeden önce tarayıcıda önizle veya indir."""
+    """Aylık hesap özetini göndermeden önce tarayıcıda önizle veya indir."""
     from app.services.makbuz_pdf_service import generate_makbuz_pdf
 
     makbuz = db.get_or_404(Makbuz, makbuz_id)
     work_orders = _work_orders_for_period(makbuz.party_id, makbuz.year, makbuz.month)
     pdf_bytes = generate_makbuz_pdf(makbuz, work_orders)
 
-    filename = f"makbuz_{makbuz.year}_{makbuz.month:02d}_{makbuz.party_id}.pdf"
+    filename = f"aylik_hesap_ozeti_{makbuz.year}_{makbuz.month:02d}_{makbuz.party_id}.pdf"
     disposition = "attachment" if request.args.get("download") else "inline"
     response = make_response(pdf_bytes)
     response.headers["Content-Type"] = "application/pdf"
@@ -222,7 +224,7 @@ def bulk_send_makbuzlar():
     ).scalars().all()
 
     if not makbuz_ids:
-        flash("Seçilen doktorlar için gönderilmeye hazır taslak yok.", "danger")
+        flash("Seçilen doktorlar için gönderilmeye hazır aylık özet yok.", "danger")
         return redirect(url_for("makbuzlar.list_makbuzlar", year=year, month=month))
 
     started, message = MakbuzSendQueue.start_batch(makbuz_ids)
@@ -260,6 +262,9 @@ def bulk_generate_drafts():
     for pid in party_ids:
         vat_applied, vat_rate = _parse_vat_form(prefix=f"vat_{pid}_")
         try:
+            party = db.session.get(Party, pid)
+            if party:
+                party.applies_kdv = vat_applied
             _generate_makbuz(pid, year, month, vat_applied, vat_rate)
             db.session.commit()
             generated += 1
@@ -267,9 +272,9 @@ def bulk_generate_drafts():
             db.session.rollback()
             failed += 1
 
-    message = f"{generated} taslak makbuz oluşturuldu veya güncellendi."
+    message = f"{generated} aylık hesap özeti oluşturuldu veya güncellendi."
     if failed:
-        message += f" {failed} kilitli makbuz değiştirilemedi."
+        message += f" {failed} tahsilat hareketi bulunan özet değiştirilemedi."
     flash(message, "success" if not failed else "warning")
     return redirect(url_for("makbuzlar.list_makbuzlar", year=year, month=month))
 
@@ -278,7 +283,7 @@ def bulk_generate_drafts():
 @login_required
 @permissions_required("billing.edit")
 def bulk_delete_makbuzlar():
-    """Seçili taslak makbuzları siler. Sadece STATUS_DRAFT olan makbuzlar silinebilir."""
+    """Tahsilat hareketi bulunmayan seçili aylık hesap özetlerini siler."""
     year = request.form.get("year", date.today().year, type=int)
     month = request.form.get("month", date.today().month, type=int)
     party_ids = request.form.getlist("party_ids", type=int)
@@ -292,19 +297,25 @@ def bulk_delete_makbuzlar():
             Makbuz.party_id.in_(party_ids),
             Makbuz.year == year,
             Makbuz.month == month,
-            Makbuz.status == Makbuz.STATUS_DRAFT,
         )
     ).scalars().all()
 
     if not makbuzlar:
-        flash("Seçilen doktorlar için silinebilir taslak makbuz yok. Yalnızca taslak makbuzlar silinebilir.", "warning")
+        flash("Seçilen doktorlar için silinecek aylık özet bulunamadı.", "warning")
         return redirect(url_for("makbuzlar.list_makbuzlar", year=year, month=month))
 
-    count = len(makbuzlar)
-    for m in makbuzlar:
+    deletable = [m for m in makbuzlar if not m.payment_entries and m.collected_amount <= 0]
+    protected_count = len(makbuzlar) - len(deletable)
+    for m in deletable:
+        db.session.execute(
+            db.update(MakbuzSendLog).where(MakbuzSendLog.makbuz_id == m.id).values(makbuz_id=None)
+        )
         db.session.delete(m)
     db.session.commit()
-    flash(f"{count} taslak makbuz silindi.", "success")
+    if deletable:
+        flash(f"{len(deletable)} aylık hesap özeti silindi.", "success")
+    if protected_count:
+        flash(f"{protected_count} özette tahsilat hareketi bulunduğu için silinmedi.", "warning")
     return redirect(url_for("makbuzlar.list_makbuzlar", year=year, month=month))
 
 
@@ -312,23 +323,23 @@ def bulk_delete_makbuzlar():
 @login_required
 @permissions_required("billing.edit")
 def delete_makbuz(makbuz_id):
-    """Tek bir makbuzu siler. Sadece STATUS_DRAFT olan makbuzlar silinebilir."""
+    """Tahsilat hareketi bulunmayan tek bir aylık hesap özetini siler."""
     makbuz = db.get_or_404(Makbuz, makbuz_id)
-
-    if makbuz.status != Makbuz.STATUS_DRAFT:
-        flash("Yalnızca taslak makbuzlar silinebilir. Gönderilmiş veya ödenmiş makbuzlar silinemez.", "danger")
-        return redirect(url_for("makbuzlar.detail_makbuz", party_id=makbuz.party_id, year=makbuz.year, month=makbuz.month))
 
     party_id = makbuz.party_id
     year = makbuz.year
     month = makbuz.month
+
+    if makbuz.payment_entries or makbuz.collected_amount > 0:
+        flash("Bu hesap özetinde tahsilat hareketi var. Silmek için önce tahsilat kaydını geri alın.", "danger")
+        return redirect(url_for("makbuzlar.detail_makbuz", party_id=party_id, year=year, month=month))
 
     db.session.execute(
         db.update(MakbuzSendLog).where(MakbuzSendLog.makbuz_id == makbuz_id).values(makbuz_id=None)
     )
     db.session.delete(makbuz)
     db.session.commit()
-    flash("Makbuz silindi.", "warning")
+    flash("Aylık hesap özeti silindi.", "warning")
     return redirect(url_for("makbuzlar.detail_makbuz", party_id=party_id, year=year, month=month))
 
 

@@ -60,6 +60,50 @@ def _create_makbuz(app, party_id, year, month, status=Makbuz.STATUS_SENT, paid_a
         return makbuz.id
 
 
+def test_monthly_kdv_doctors_page_and_pdf_only_include_marked_doctors(client, app):
+    login(client, "admin", "admin-pass")
+    with app.app_context():
+        kdv_doctor = Party(
+            party_type=PartyType.DENTIST,
+            name="Dr. KDV Listesinde",
+            tax_id="1234567890",
+            is_active=True,
+            applies_kdv=True,
+        )
+        non_kdv_doctor = Party(
+            party_type=PartyType.DENTIST,
+            name="Dr. KDV Dışında",
+            is_active=True,
+            applies_kdv=False,
+        )
+        db.session.add_all([kdv_doctor, non_kdv_doctor])
+        db.session.flush()
+        kdv_id, non_kdv_id = kdv_doctor.id, non_kdv_doctor.id
+        db.session.commit()
+
+    _add_work_order(
+        app, kdv_id, date(2026, 7, 10),
+        [{"name": "KDV'li İş", "price": 500.0, "currency": "TL"}], [],
+    )
+    _add_work_order(
+        app, non_kdv_id, date(2026, 7, 11),
+        [{"name": "KDV'siz İş", "price": 900.0, "currency": "TL"}], [],
+    )
+
+    page = client.get("/reports/kdv-doctors?year=2026&month=7")
+    html = page.get_data(as_text=True)
+    assert page.status_code == 200
+    assert "Dr. KDV Listesinde" in html
+    assert "Dr. KDV Dışında" not in html
+    assert "₺100.00" in html
+    assert "₺600.00" in html
+
+    pdf = client.get("/reports/kdv-doctors/pdf?year=2026&month=7")
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data.startswith(b"%PDF")
+
+
 # ---------------------------------------------------------------------------
 # Reports Service Tests
 # ---------------------------------------------------------------------------

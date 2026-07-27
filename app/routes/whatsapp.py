@@ -156,17 +156,17 @@ def auto_send_toggle():
         row = Settings(
             key=AUTO_SEND_TOGGLE_KEY,
             value="false",
-            description="Ayın 1'inde önceki aya ait iş emirlerinin makbuzlarını WhatsApp'tan otomatik gönder",
+            description="Ayın 1'inde önceki aya ait aylık hesap özetlerini WhatsApp'tan otomatik gönder",
         )
         db.session.add(row)
     row.value = "true" if enabled else "false"
     db.session.commit()
 
     flash(
-        "Otomatik makbuz gönderimi açıldı. Her ayın 1'inde saat 09:30'da, "
-        "yalnızca önceki aya ait iş emirlerinin makbuzları otomatik gönderilecek."
+        "Otomatik aylık hesap özeti gönderimi açıldı. Her ayın 1'inde saat 09:30'da, "
+        "yalnızca önceki aya ait hesap özetleri otomatik gönderilecek."
         if enabled
-        else "Otomatik makbuz gönderimi kapatıldı.",
+        else "Otomatik aylık hesap özeti gönderimi kapatıldı.",
         "success",
     )
     return redirect(url_for("whatsapp.index"))
@@ -186,7 +186,7 @@ def payment_reminder_toggle():
         row = Settings(
             key=PAYMENT_REMINDER_TOGGLE_KEY,
             value="false",
-            description="Vadesi geçmiş, ödenmemiş makbuzlar için günlük WhatsApp hatırlatması gönder",
+            description="Vadesi geçmiş hesap özetleri için günlük WhatsApp hatırlatması gönder",
         )
         db.session.add(row)
     row.value = "true" if enabled else "false"
@@ -194,7 +194,7 @@ def payment_reminder_toggle():
 
     flash(
         "Ödeme hatırlatıcı açıldı. Gönderildikten sonra 15+ gündür ödenmemiş "
-        "makbuzlar için günde bir kez otomatik WhatsApp hatırlatması gönderilecek."
+        "hesap özetleri için günde bir kez otomatik WhatsApp hatırlatması gönderilecek."
         if enabled
         else "Ödeme hatırlatıcı kapatıldı.",
         "success",

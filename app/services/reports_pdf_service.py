@@ -176,7 +176,7 @@ def generate_doctor_report_pdf(
 
     # Makbuzlar tablosu
     if makbuzlar:
-        pdf._section_title("MAKBUZLAR")
+        pdf._section_title("AYLIK HESAP ÖZETLERİ")
         widths = (35, 22, 30, 30, 30, 30)
         labels = ("Dönem", "Durum", "Toplam (₺)", "Tahsil (₺)", "Kalan (₺)", "Durum")
         pdf.set_fill_color(*pdf.INK)
@@ -235,7 +235,7 @@ def generate_doctor_report_pdf(
             amount = row.get("amount", Decimal("0.00"))
             pdf.set_font(pdf.default_font, "", 7)
             pdf.set_text_color(*pdf.INK)
-            pdf.cell(70, 6, f"{label} ({count} makbuz)")
+            pdf.cell(70, 6, f"{label} ({count} aylık özet)")
             pdf.cell(30, 6, f"{amount:,.2f} ₺", align="R")
             pdf.ln()
 
@@ -422,14 +422,19 @@ def generate_makbuz_list_pdf(
     doctors: list,
     grand_total_price: Decimal,
 ) -> bytes:
-    """Makbuz listesi PDF çıktısı üret."""
+    """Aylık hesap özeti listesi PDF çıktısı üret."""
     pdf = ReportPDF(clinic_name=clinic_name, clinic_phone=clinic_phone, clinic_email=clinic_email)
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf.add_report_title(
-        "MAKBUZ ÖZET LİSTESİ",
+        "AYLIK HESAP ÖZETİ LİSTESİ",
         f"Dönem: {period_label}  |  {len(doctors)} Doktor  |  Toplam Tutar: ₺{grand_total_price:,.2f}"
     )
+    pdf.set_fill_color(*pdf.SURFACE)
+    pdf.set_text_color(*pdf.MUTED)
+    pdf.set_font(pdf.default_font, "", 7)
+    pdf.multi_cell(0, 5, "Bilgilendirme amaçlıdır; resmi fatura veya makbuz değildir.", fill=True)
+    pdf.ln(3)
 
     widths = (45, 20, 35, 35, 30)
     labels = ("Doktor", "İş Emri", "Tutar (TL)", "Durum", "KDV Oranı")
@@ -480,6 +485,87 @@ def generate_makbuz_list_pdf(
     pdf.cell(widths[0] + widths[1], 7, f"GENEL TOPLAM ({len(doctors)} Doktor)", fill=True)
     pdf.cell(widths[2], 7, f"{grand_total_price:,.2f} TL", align="R", fill=True)
     pdf.cell(widths[3] + widths[4], 7, "", fill=True)
+
+    output = pdf.output()
+    return bytes(output) if isinstance(output, (bytes, bytearray)) else str(output).encode("latin-1", errors="ignore")
+
+
+def generate_kdv_doctors_pdf(
+    clinic_name: str,
+    clinic_phone: str,
+    clinic_email: str,
+    period_label: str,
+    kdv_doctors_data: list[dict],
+) -> bytes:
+    """Generate a clean PDF report listing KDV-paying doctors and their monthly work volume & VAT amounts."""
+    pdf = ReportPDF(clinic_name=clinic_name, clinic_phone=clinic_phone, clinic_email=clinic_email)
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    total_net = sum((d["net_total"] for d in kdv_doctors_data), Decimal("0.00"))
+    total_vat = sum((d["vat_total"] for d in kdv_doctors_data), Decimal("0.00"))
+    total_grand = sum((d["grand_total"] for d in kdv_doctors_data), Decimal("0.00"))
+
+    pdf.add_report_title(
+        "KDV UYGULANAN DOKTORLAR - AYLIK RAPOR",
+        f"Dönem: {period_label}  |  {len(kdv_doctors_data)} KDV'li Doktor  |  Toplam KDV: ₺{total_vat:,.2f}"
+    )
+
+    pdf.set_fill_color(*pdf.SURFACE)
+    pdf.set_text_color(*pdf.MUTED)
+    pdf.set_font(pdf.default_font, "", 7)
+    pdf.multi_cell(
+        0,
+        5,
+        "Bilgilendirme: Bu rapor muhasebe hazırlığı içindir. Aylık hesap özetleri resmi fatura veya makbuz yerine geçmez.",
+        fill=True,
+    )
+    pdf.ln(3)
+
+    widths = (52, 28, 18, 30, 30, 32)
+    labels = ("Doktor Adı", "Vergi No", "İş Emri", "Matrah (TL)", "KDV (TL)", "Toplam (TL)")
+
+    pdf.set_fill_color(*pdf.AQUA_DARK)
+    pdf.set_text_color(*pdf.WHITE)
+    pdf.set_font(pdf.default_font, "B", 7)
+
+    pdf.cell(widths[0], 7, labels[0], fill=True)
+    pdf.cell(widths[1], 7, labels[1], align="C", fill=True)
+    pdf.cell(widths[2], 7, labels[2], align="R", fill=True)
+    pdf.cell(widths[3], 7, labels[3], align="R", fill=True)
+    pdf.cell(widths[4], 7, labels[4], align="R", fill=True)
+    pdf.cell(widths[5], 7, labels[5], align="C", fill=True)
+    pdf.ln()
+
+    pdf.set_font(pdf.default_font, "", 6.5)
+    pdf.set_text_color(*pdf.INK)
+    fill = False
+
+    for d in kdv_doctors_data:
+        pdf.set_fill_color(*(pdf.SURFACE if fill else (255, 255, 255)))
+        doc_name = (d["name"])[:32]
+        tax_id = (d.get("tax_id") or "-")[:15]
+        work_order_count = d.get("work_order_count", 0)
+        net = d["net_total"]
+        vat = d["vat_total"]
+        grand = d["grand_total"]
+
+        pdf.cell(widths[0], 6, doc_name, border="B", fill=True)
+        pdf.cell(widths[1], 6, tax_id, border="B", fill=True, align="C")
+        pdf.cell(widths[2], 6, str(work_order_count), border="B", fill=True, align="C")
+        pdf.cell(widths[3], 6, f"{net:,.2f}", border="B", fill=True, align="R")
+        pdf.cell(widths[4], 6, f"{vat:,.2f}", border="B", fill=True, align="R")
+        pdf.cell(widths[5], 6, f"{grand:,.2f}", border="B", fill=True, align="R")
+        pdf.ln()
+        fill = not fill
+
+    pdf.ln(2)
+    pdf.set_font(pdf.default_font, "B", 7.5)
+    pdf.set_fill_color(*pdf.SURFACE)
+    pdf.cell(widths[0] + widths[1] + widths[2], 7, f"GENEL TOPLAM ({len(kdv_doctors_data)} Doktor)", fill=True)
+    pdf.cell(widths[3], 7, f"{total_net:,.2f} TL", align="R", fill=True)
+    pdf.cell(widths[4], 7, f"{total_vat:,.2f} TL", align="R", fill=True)
+    pdf.cell(widths[5], 7, f"{total_grand:,.2f} TL", align="R", fill=True)
 
     output = pdf.output()
     return bytes(output) if isinstance(output, (bytes, bytearray)) else str(output).encode("latin-1", errors="ignore")

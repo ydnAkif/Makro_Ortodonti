@@ -68,7 +68,7 @@ class MakbuzSendQueue:
         from app.services.whatsapp_service import WhatsAppService
 
         if not makbuz_ids:
-            return False, "Gönderilecek makbuz seçilmedi."
+            return False, "Gönderilecek aylık hesap özeti seçilmedi."
         if not WhatsAppService.get_status()["connected"]:
             return False, "WhatsApp bağlı değil. Önce bağlantıyı kurun."
 
@@ -93,7 +93,7 @@ class MakbuzSendQueue:
                 "message": None,
             })
         if not items:
-            return False, "Seçilen makbuzlar bulunamadı."
+            return False, "Seçilen aylık hesap özetleri bulunamadı."
 
         with cls._lock:
             if cls._job is not None and cls._job["running"]:
@@ -118,7 +118,7 @@ class MakbuzSendQueue:
             )
             cls._thread.start()
 
-        return True, f"{len(items)} makbuz için gönderim arka planda başlatıldı."
+        return True, f"{len(items)} aylık hesap özeti için gönderim arka planda başlatıldı."
 
     # ------------------------------------------------------------------- run
 
@@ -250,7 +250,7 @@ def send_makbuz_via_whatsapp(makbuz_id: int) -> tuple[bool, str]:
 
     makbuz = db.session.get(Makbuz, makbuz_id)
     if makbuz is None:
-        return False, "Makbuz bulunamadı."
+        return False, "Aylık hesap özeti bulunamadı."
 
     work_orders = db.session.execute(
         db.select(WorkOrder)

@@ -51,8 +51,8 @@ def _create_locked_makbuz(app, party_id, year, month, status=Makbuz.STATUS_SENT)
         return makbuz.id
 
 
-def test_cannot_add_work_order_after_receipt_is_sent(client, app):
-    """Period lock: cannot add work order to a locked period."""
+def test_can_add_work_order_after_summary_is_sent(client, app):
+    """A sent informational summary stays editable until a payment exists."""
     login(client, "admin", "admin-pass")
     party_id = _make_doctor(app)
     _create_locked_makbuz(app, party_id, 2026, 6)
@@ -68,9 +68,6 @@ def test_cannot_add_work_order_after_receipt_is_sent(client, app):
         follow_redirects=True,
     )
     assert response.status_code == 200
-    text = response.get_data(as_text=True)
-    assert "kilitli" in text.lower() or "makbuz" in text.lower()
-
     with app.app_context():
         count = db.session.execute(
             db.select(db.func.count(WorkOrder.id)).where(
@@ -78,11 +75,20 @@ def test_cannot_add_work_order_after_receipt_is_sent(client, app):
                 WorkOrder.work_date == date(2026, 6, 15)
             )
         ).scalar()
-        assert count == 0
+        assert count == 1
+        summary = db.session.execute(
+            db.select(Makbuz).where(
+                Makbuz.party_id == party_id,
+                Makbuz.year == 2026,
+                Makbuz.month == 6,
+            )
+        ).scalar_one()
+        assert summary.status == Makbuz.STATUS_DRAFT
+        assert summary.subtotal == Decimal("100.00")
 
 
-def test_cannot_edit_work_order_after_receipt_is_sent(client, app):
-    """Period lock: cannot edit work order in a locked period."""
+def test_can_edit_work_order_after_summary_is_sent(client, app):
+    """Editing a sent informational summary period refreshes it as draft."""
     login(client, "admin", "admin-pass")
     party_id = _make_doctor(app)
     wo_id = _add_work_order(app, party_id, date(2026, 6, 10))
@@ -99,16 +105,18 @@ def test_cannot_edit_work_order_after_receipt_is_sent(client, app):
         follow_redirects=True,
     )
     assert response.status_code == 200
-    text = response.get_data(as_text=True)
-    assert "kilitli" in text.lower() or "makbuz" in text.lower()
-
     with app.app_context():
         wo = db.session.get(WorkOrder, wo_id)
-        assert wo.patient_name == "Lock Patient"
-        assert wo.apparatus_price == Decimal("1000.00")
+        assert wo.patient_name == "Updated Name"
+        assert wo.apparatus_price == Decimal("2000.00")
+        summary = db.session.execute(
+            db.select(Makbuz).where(Makbuz.party_id == party_id)
+        ).scalar_one()
+        assert summary.status == Makbuz.STATUS_DRAFT
+        assert summary.subtotal == Decimal("2000.00")
 
 
-def test_cannot_move_work_order_to_locked_period(client, app):
+def test_can_move_work_order_to_sent_summary_period(client, app):
     login(client, "admin", "admin-pass")
     party_id = _make_doctor(app)
     wo_id = _add_work_order(app, party_id, date(2026, 5, 10))  # May (unlocked)
@@ -125,11 +133,17 @@ def test_cannot_move_work_order_to_locked_period(client, app):
         },
         follow_redirects=True,
     )
-    assert "Hedef döneme ait makbuz kesinleştirildiği için iş emri bu tarihe taşınamaz" in response.get_data(as_text=True)
-
     with app.app_context():
         wo = db.session.get(WorkOrder, wo_id)
-        assert wo.work_date == date(2026, 5, 10)  # remains in May
+        assert wo.work_date == date(2026, 6, 10)
+        summary = db.session.execute(
+            db.select(Makbuz).where(
+                Makbuz.party_id == party_id,
+                Makbuz.year == 2026,
+                Makbuz.month == 6,
+            )
+        ).scalar_one()
+        assert summary.status == Makbuz.STATUS_DRAFT
 
 
 def test_cannot_add_work_order_with_negative_price(client, app):
@@ -187,8 +201,8 @@ def test_edit_work_order_rejects_mismatched_party_id(client, app):
         assert wo.apparatus_price == Decimal("1000.00")
 
 
-def test_cannot_delete_work_order_after_receipt_is_sent(client, app):
-    """Period lock: cannot delete work order in a locked period."""
+def test_can_delete_work_order_after_summary_is_sent(client, app):
+    """Sent informational summaries do not lock their underlying work orders."""
     login(client, "admin", "admin-pass")
     party_id = _make_doctor(app)
     wo_id = _add_work_order(app, party_id, date(2026, 6, 10))
@@ -199,8 +213,10 @@ def test_cannot_delete_work_order_after_receipt_is_sent(client, app):
         follow_redirects=True,
     )
     assert response.status_code == 200
-    text = response.get_data(as_text=True)
-    assert "kilitli" in text.lower() or "makbuz" in text.lower()
-
     with app.app_context():
-        assert db.session.get(WorkOrder, wo_id) is not None
+        assert db.session.get(WorkOrder, wo_id) is None
+        summary = db.session.execute(
+            db.select(Makbuz).where(Makbuz.party_id == party_id)
+        ).scalar_one()
+        assert summary.status == Makbuz.STATUS_DRAFT
+        assert summary.subtotal == Decimal("0.00")

@@ -71,7 +71,7 @@
       <a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint == 'dashboard.index' %}active{% endif %}" {% if request.endpoint == 'dashboard.index' %}aria-current="page"{% endif %}><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Panel</span></a>
       <a href="{{ url_for('parties.list_parties') }}" class="{% if 'parties' in request.endpoint|default('') and 'work_order' not in request.endpoint|default('') %}active{% endif %}" {% if 'parties' in request.endpoint|default('') and 'work_order' not in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-person-vcard" aria-hidden="true"></i><span>Doktorlar</span></a>
       <a href="{{ url_for('parties.list_work_orders') }}" class="{% if 'work_order' in request.endpoint|default('') %}active{% endif %}" {% if 'work_order' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-clipboard2-check" aria-hidden="true"></i><span>İş emirleri</span></a>
-      <a href="{{ url_for('makbuzlar.list_makbuzlar') }}" class="{% if 'makbuzlar' in request.endpoint|default('') %}active{% endif %}" {% if 'makbuzlar' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-receipt" aria-hidden="true"></i><span>Makbuzlar</span></a>
+      <a href="{{ url_for('makbuzlar.list_makbuzlar') }}" class="{% if 'makbuzlar' in request.endpoint|default('') %}active{% endif %}" {% if 'makbuzlar' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-file-text" aria-hidden="true"></i><span>Aylık Özetler</span></a>
       <a href="{{ url_for('payments.list_payments') }}" class="{% if 'payment' in request.endpoint|default('') %}active{% endif %}" {% if 'payment' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-wallet2" aria-hidden="true"></i><span>Tahsilat</span></a>
       <a href="{{ url_for('whatsapp.index') }}" class="{% if 'whatsapp' in request.endpoint|default('') %}active{% endif %}" {% if 'whatsapp' in request.endpoint|default('') %}aria-current="page"{% endif %}><i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp</span></a>
     </nav>
@@ -112,17 +112,23 @@
 
     <div class="modal fade confirm-delete-modal" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content border-0 shadow">
           <div class="modal-header">
-            <h5 class="modal-title" id="confirmDeleteLabel"><i class="bi bi-exclamation-triangle me-2"></i>Silme Onayı</h5>
+            <h5 class="modal-title fw-bold" id="confirmDeleteLabel">
+              <i class="bi bi-exclamation-triangle me-2" id="confirmModalIcon"></i>
+              <span id="confirmModalTitle">İşlem Onayı</span>
+            </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
           </div>
           <div class="modal-body">
-            <p id="confirmDeleteMessage" class="mb-0">Bu kaydı silmek istediğinize emin misiniz?</p>
+            <p id="confirmDeleteMessage" class="mb-0">Bu işlemi gerçekleştirmek istediğinize emin misiniz?</p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">İptal</button>
-            <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn"><i class="bi bi-trash me-1"></i>Evet, Sil</button>
+            <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn">
+              <i class="bi bi-trash me-1" id="confirmModalBtnIcon"></i>
+              <span id="confirmModalBtnText">Evet, Onayla</span>
+            </button>
           </div>
         </div>
       </div>

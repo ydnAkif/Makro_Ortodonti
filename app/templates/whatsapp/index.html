@@ -3,7 +3,7 @@ endblock %} {% block content %}
 <header class="workspace-header">
   <div>
     <h1>WhatsApp</h1>
-    <p>Bağlantıyı kontrol edin ve aylık makbuzları gönderin.</p>
+    <p>Bağlantıyı kontrol edin ve aylık hesap özetlerini gönderin.</p>
   </div>
 </header>
 
@@ -84,7 +84,7 @@ endblock %} {% block content %}
       <div
         class="work-panel__header"
       >
-        <div><h2>Makbuz Gönderimi</h2><p>{{ months[month - 1][1] }} {{ year }}</p></div>
+        <div><h2>Aylık Hesap Özeti Gönderimi</h2><p>{{ months[month - 1][1] }} {{ year }}</p></div>
         <form method="GET" action="{{ url_for('whatsapp.index') }}" class="d-flex gap-2">
           <select name="month" class="form-select form-select-sm" aria-label="Ay">
             {% for num, name in months %}
@@ -108,7 +108,7 @@ endblock %} {% block content %}
         <div class="notice-strip notice-strip--warning mb-3">
           <i class="bi bi-exclamation-triangle"></i>
           <div>
-            Makbuz göndermek için önce bağlantıyı kurun.
+            Aylık hesap özeti göndermek için önce bağlantıyı kurun.
           </div>
         </div>
         {% endif %}
@@ -118,13 +118,13 @@ endblock %} {% block content %}
           <div>
             <i class="bi bi-info-circle"></i>
             Bu dönemde iş emri olan
-            <strong>{{ missing_makbuz_count }} doktorun</strong> makbuzu henüz
+            <strong>{{ missing_makbuz_count }} doktorun</strong> aylık hesap özeti henüz
             oluşturulmamış.
           </div>
           <a
             href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}"
             class="btn btn-sm btn-outline-primary text-nowrap"
-            >Makbuz Oluştur</a
+            >Aylık Özet Oluştur</a
           >
         </div>
         {% endif %}
@@ -177,7 +177,7 @@ endblock %} {% block content %}
         <form
           method="POST"
           action="{{ url_for('whatsapp.send_makbuz_batch') }}"
-          data-confirm="Seçili makbuzlar WhatsApp üzerinden gönderilecek. Emin misiniz?"
+          data-confirm="Seçili aylık hesap özetleri WhatsApp üzerinden gönderilecek. Emin misiniz?"
         >
           <input type="hidden" name="year" value="{{ year }}" />
           <input type="hidden" name="month" value="{{ month }}" />
@@ -198,7 +198,7 @@ endblock %} {% block content %}
               Temizle
             </button>
             <span id="wa-selected-count" class="small text-muted ms-auto"
-              >0 makbuz seçildi</span
+              >0 özet seçildi</span
             >
           </div>
 
@@ -231,7 +231,7 @@ endblock %} {% block content %}
                       value="{{ c.makbuz.id }}"
                       data-status="{{ c.makbuz.status }}"
                       {% if not c.sendable %}disabled{% endif %}
-                      aria-label="{{ c.party.display_name }} makbuzunu seç"
+                      aria-label="{{ c.party.display_name }} aylık hesap özetini seç"
                     />
                   </td>
                   <td>
@@ -274,11 +274,11 @@ endblock %} {% block content %}
         {% else %}
         <div class="text-center text-muted py-4">
           <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-          <p class="mb-1">Bu dönem için oluşturulmuş makbuz bulunmuyor.</p>
+          <p class="mb-1">Bu dönem için oluşturulmuş aylık hesap özeti bulunmuyor.</p>
           <a
             href="{{ url_for('makbuzlar.list_makbuzlar', year=year, month=month) }}"
             class="btn btn-sm btn-outline-primary mt-1"
-            >Makbuzlar sayfasından oluşturun</a
+            >Aylık Özetler sayfasından oluşturun</a
           >
         </div>
         {% endif %}
@@ -304,7 +304,7 @@ endblock %} {% block content %}
             <label class="form-check-label" for="wa-auto-send">
               <strong>Aylık otomatik gönderim</strong>
               <span class="d-block small text-muted">
-                Her ayın 1’inde 09:30’da, yalnızca önceki aya ait iş emirlerinin makbuzlarını gönderir.
+                Her ayın 1’inde 09:30’da, yalnızca önceki aya ait iş emirlerinin hesap özetlerini gönderir.
               </span>
             </label>
           </div>
@@ -336,7 +336,7 @@ endblock %} {% block content %}
             <label class="form-check-label" for="wa-payment-reminder">
               <strong>Ödeme hatırlatıcı</strong>
               <span class="d-block small text-muted">
-                Gönderildikten sonra 15+ gündür ödenmemiş makbuzlar için günde bir kez
+                Gönderildikten sonra 15+ gündür ödenmemiş aylık özetler için günde bir kez
                 (en fazla 7 günde bir tekrar) otomatik WhatsApp hatırlatması gönderir.
               </span>
             </label>
@@ -569,7 +569,7 @@ endblock %} {% block content %}
       var n = checks.filter(function (c) {
         return c.checked;
       }).length;
-      countLabel.textContent = n + " makbuz seçildi";
+      countLabel.textContent = n + " özet seçildi";
     }
 
     checks.forEach(function (c) {

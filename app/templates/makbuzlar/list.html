@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Makbuzlar - {{ clinic_name }}{% endblock %}
+{% block title %}Aylık Hesap Özetleri - {{ clinic_name }}{% endblock %}
 
 {% block content %}
 <header class="workspace-header">
-    <div><h1>Makbuzlar</h1><p>Günlük, aylık veya yıllık iş emirlerini kontrol edin ve makbuzları yönetin.</p></div>
+    <div><h1>Aylık Hesap Özetleri</h1><p>Doktorlara WhatsApp'tan iletilen bilgilendirme özetlerini hazırlayın. Resmi fatura veya makbuz değildir.</p></div>
     <div class="workspace-actions">
         <a href="{{ url_for('makbuzlar.export_makbuzlar_pdf', view=view, date=selected_date.isoformat() if selected_date else '', year=year, month=month, status_filter=status_filter) }}" class="btn btn-outline-secondary btn-sm me-1" target="_blank">
-            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Dönem PDF
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Özet Listesi PDF
         </a>
     </div>
 </header>
 
 <div class="workorder-period-bar">
-    <nav class="period-switch" aria-label="Makbuz dönemi">
+    <nav class="period-switch" aria-label="Aylık hesap özeti dönemi">
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='day', date=today.isoformat(), status_filter=status_filter) }}" class="{% if view == 'day' %}active{% endif %}">Gün</a>
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='month', year=today.year, month=today.month, status_filter=status_filter) }}" class="{% if view == 'month' %}active{% endif %}">Ay</a>
         <a href="{{ url_for('makbuzlar.list_makbuzlar', view='year', year=today.year, status_filter=status_filter) }}" class="{% if view == 'year' %}active{% endif %}">Yıl</a>
@@ -70,14 +70,14 @@
 <div class="summary-line summary-line--four">
     <div><span><i class="bi bi-clipboard2-check text-primary me-1" aria-hidden="true"></i>İş emri</span><strong>{{ grand_total_count }}</strong></div>
     <div><span><i class="bi bi-cash-stack text-success me-1" aria-hidden="true"></i>Dönem toplamı</span><strong>₺{{ "{:,.2f}".format(grand_total_price) }}</strong></div>
-    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Taslak</span><strong>{{ draft_count }} makbuz</strong></div>
-    <div><span><i class="bi bi-clock-history text-warning me-1" aria-hidden="true"></i>Tahsilat bekliyor</span><strong>{{ awaiting_payment_count }} makbuz</strong></div>
+    <div><span><i class="bi bi-file-earmark-code text-secondary me-1" aria-hidden="true"></i>Taslak</span><strong>{{ draft_count }} özet</strong></div>
+    <div><span><i class="bi bi-clock-history text-warning me-1" aria-hidden="true"></i>Tahsilat bekliyor</span><strong>{{ awaiting_payment_count }} özet</strong></div>
 </div>
 
 {% if sending %}
 <div class="notice-strip mb-3" id="makbuz-send-progress" role="status">
     <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
-    <span>Seçilen makbuzlar gönderiliyor. İşlem tamamlandığında liste yenilenecek.</span>
+    <span>Seçilen aylık hesap özetleri gönderiliyor. İşlem tamamlandığında liste yenilenecek.</span>
 </div>
 {% endif %}
 
@@ -87,19 +87,21 @@
     <input type="hidden" name="month" value="{{ month }}">
     <div class="work-panel">
         <div class="work-panel__header">
-            <div><h2>{{ period_label }}</h2><p>Doktor bazlı makbuz durumu</p></div>
+            <div><h2>{{ period_label }}</h2><p>Doktor bazlı aylık hesap özeti durumu</p></div>
             <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
                 <span class="small text-muted" id="makbuz-selected-count">0 doktor seçildi</span>
                 {% if preparation_count %}
                 <button type="submit" class="btn btn-primary btn-sm" id="bulk-generate-button" disabled>
-                    <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> Seçilenler için taslak oluştur
+                    <i class="bi bi-file-earmark-plus" aria-hidden="true"></i> Seçilenler için özet oluştur
                 </button>
                 {% endif %}
                 {% if draft_count %}
-                <button type="submit" class="btn btn-success btn-sm" id="bulk-send-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_send_makbuzlar') }}" data-confirm="Seçili taslaklar WhatsApp üzerinden gönderilsin mi?" disabled>
+                <button type="submit" class="btn btn-success btn-sm" id="bulk-send-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_send_makbuzlar') }}" data-confirm="Seçili taslaklar WhatsApp üzerinden gönderilsin mi?" data-confirm-title="WhatsApp Gönderim Onayı" data-confirm-btn="Evet, Gönder" data-confirm-btn-class="btn-success" data-confirm-icon="bi-whatsapp" disabled>
                     <i class="bi bi-whatsapp" aria-hidden="true"></i> Seçilenleri WhatsApp'tan gönder
                 </button>
-                <button type="submit" class="btn btn-danger btn-sm" id="bulk-delete-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_delete_makbuzlar') }}" data-confirm="Seçili taslak makbuzlar kalıcı olarak silinecek. Emin misiniz?" disabled>
+                {% endif %}
+                {% if deletable_count %}
+                <button type="submit" class="btn btn-danger btn-sm" id="bulk-delete-button" formmethod="post" formaction="{{ url_for('makbuzlar.bulk_delete_makbuzlar') }}" data-confirm="Seçili aylık hesap özetleri kalıcı olarak silinecek. Gönderim geçmişi korunur. Emin misiniz?" disabled>
                     <i class="bi bi-trash" aria-hidden="true"></i> Seçilenleri sil
                 </button>
                 {% endif %}
@@ -126,7 +128,7 @@
                         {% set m = d.makbuz %}
                         <tr>
                             <td class="col-w-checkbox text-center">
-                                {% if not m or m.status == 'draft' %}
+                                {% if not m or (not m.payment_entries and m.collected_amount <= 0) %}
                                 <input type="checkbox" class="form-check-input" name="party_ids" value="{{ d.party_id }}">
                                 {% endif %}
                             </td>
@@ -162,10 +164,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                {% if not m or m.status == 'draft' %}
+                                {% if not m or (not m.payment_entries and m.collected_amount <= 0) %}
                                 {% set saved_vat_rate = m.vat_rate if m and m.vat_applied else 20 %}
                                 <div class="form-check form-switch d-inline-block">
-                                    <input class="form-check-input" type="checkbox" name="vat_{{ d.party_id }}_vat_applied" id="vat-{{ d.party_id }}" {% if m and m.vat_applied %}checked{% endif %}>
+                                    <input class="form-check-input" type="checkbox" name="vat_{{ d.party_id }}_vat_applied" id="vat-{{ d.party_id }}" {% if (m and m.vat_applied) or (not m and d.party.applies_kdv) %}checked{% endif %}>
                                     <label class="form-check-label small" for="vat-{{ d.party_id }}">%{{ '{:g}'.format(saved_vat_rate) }}</label>
                                     <input type="hidden" name="vat_{{ d.party_id }}_vat_rate" value="{{ '{:.2f}'.format(saved_vat_rate) }}">
                                 </div>
@@ -182,8 +184,13 @@
                                 </a>
                                 {% endif %}
                                 <a href="{{ url_for('makbuzlar.detail_makbuz', party_id=d.party_id, year=year, month=month) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i> Detay
+                                    <i class="bi bi-pencil-square"></i> Gör / Düzenle
                                 </a>
+                                {% if m and not m.payment_entries and m.collected_amount <= 0 %}
+                                <form method="POST" action="{{ url_for('makbuzlar.delete_makbuz', makbuz_id=m.id) }}" class="d-inline" data-confirm="Bu aylık hesap özeti silinsin mi?">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Aylık özeti sil"><i class="bi bi-trash"></i></button>
+                                </form>
+                                {% endif %}
                                 {% if m and m.status == 'sent' %}
                                 <a href="{{ url_for('payments.mark_paid', makbuz_id=m.id) }}" class="btn btn-sm btn-primary">
                                     <i class="bi bi-cash-coin"></i> Tahsilat kaydet
@@ -200,7 +207,7 @@
                             <td colspan="7">
                                 <div class="empty-state-card">
                                     <div class="empty-state-icon"><i class="bi bi-receipt-cutoff"></i></div>
-                                    <h5>Bu Ay Makbuz Bulunmuyor</h5>
+                            <h5>Bu Dönem Aylık Özet Bulunmuyor</h5>
                                     <p>Bu dönem için iş emri girilmedi.</p>
                                 </div>
                             </td>
@@ -265,7 +272,7 @@
             .then(function (payload) {
                 var job = payload.send_job;
                 if (job && job.running) {
-                    progress.querySelector("span").textContent = "Makbuzlar gönderiliyor: " + job.done + "/" + job.total + " tamamlandı.";
+                    progress.querySelector("span").textContent = "Aylık özetler gönderiliyor: " + job.done + "/" + job.total + " tamamlandı.";
                     return;
                 }
                 window.clearInterval(timer);

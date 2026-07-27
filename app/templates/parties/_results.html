@@ -16,6 +16,7 @@
             <h3 class="party-card-title">
               <a href="{{ url_for('parties.detail_party', party_id=p.id) }}" class="text-decoration-none text-reset">{{ p.display_name }}</a>
             </h3>
+            {% if p.applies_kdv %}<span class="badge-tint badge-tint-info"><i class="bi bi-percent"></i> KDV uygulanır</span>{% endif %}
             {% if p.phone %}
             <a href="{{ url_for('whatsapp.index', message_party_id=p.id, _anchor='message-compose') }}" class="party-card-phone phone-wa-link" title="WhatsApp Mesajı Gönder">
               <i class="bi bi-whatsapp text-success"></i>
@@ -90,7 +91,10 @@
             </td>
             <td class="text-end num-cell fw-semibold">₺{{ "{:,.2f}".format(finance.work_total if finance else 0) }}</td>
             <td class="text-end num-cell text-muted small">
-              {% if finance and finance.vat_total is not none %}₺{{ "{:,.2f}".format(finance.vat_total) }}{% else %}-{% endif %}
+              {% if p.applies_kdv %}
+              <span class="badge-tint badge-tint-info"><i class="bi bi-percent"></i> Uygulanır</span>
+              {% if finance and finance.vat_total is not none %}<div class="mt-1">₺{{ "{:,.2f}".format(finance.vat_total) }}</div>{% endif %}
+              {% else %}-{% endif %}
             </td>
             <td class="text-end num-cell text-success fw-semibold">₺{{ "{:,.2f}".format(finance.payment_total if finance else 0) }}</td>
             <td class="text-center col-w-balance">

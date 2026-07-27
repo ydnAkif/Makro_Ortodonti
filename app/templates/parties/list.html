@@ -7,6 +7,11 @@ endblock %} {% block content %}
   </div>
   <div class="workspace-actions">
     <a
+      href="{{ url_for('reports.kdv_doctors') }}"
+      class="btn btn-outline-primary btn-sm"
+      ><i class="bi bi-percent me-1" aria-hidden="true"></i>Aylık KDV Doktorları</a
+    >
+    <a
       href="{{ url_for('parties.import_parties') }}"
       class="btn btn-outline-secondary btn-sm"
       ><i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>İçe aktar</a

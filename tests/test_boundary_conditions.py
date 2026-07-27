@@ -153,8 +153,8 @@ class TestExchangeRateStaleness:
 # ---------------------------------------------------------------------------
 
 class TestMakbuzLockBypass:
-    def test_locked_period_blocks_work_order_edit(self, client, app):
-        """Kilitli dönemde iş emri düzenlenemez."""
+    def test_sent_summary_allows_work_order_edit_and_returns_to_draft(self, client, app):
+        """Gönderilmiş bilgilendirme özeti iş emriyle birlikte güncellenebilir."""
         login(client, "admin", "admin-pass")
         party_id = _make_dentist(app, name="Dr. Lock Test")
 
@@ -190,11 +190,17 @@ class TestMakbuzLockBypass:
             follow_redirects=True,
         )
         assert res.status_code == 200
-        html = res.get_data(as_text=True)
-        assert "kesinleştirildiği" in html.lower() or "düzenlenemez" in html.lower()
+        with app.app_context():
+            updated = db.session.get(WorkOrder, wo_id)
+            summary = db.session.execute(
+                db.select(Makbuz).where(Makbuz.party_id == party_id, Makbuz.year == 2026, Makbuz.month == 1)
+            ).scalar_one()
+            assert updated.apparatus_type == "Updated"
+            assert summary.status == Makbuz.STATUS_DRAFT
+            assert summary.sent_at is None
 
-    def test_locked_period_blocks_work_order_delete(self, client, app):
-        """Kilitli dönemde iş emri silinemez."""
+    def test_sent_summary_allows_work_order_delete_and_refreshes_summary(self, client, app):
+        """Gönderilmiş bilgilendirme özetindeki iş emri silinebilir."""
         login(client, "admin", "admin-pass")
         party_id = _make_dentist(app, name="Dr. Lock Delete")
 
@@ -229,8 +235,14 @@ class TestMakbuzLockBypass:
             follow_redirects=True,
         )
         assert res.status_code == 200
-        html = res.get_data(as_text=True)
-        assert "kesinleştirildiği" in html.lower() or "silinemez" in html.lower()
+        with app.app_context():
+            summary = db.session.execute(
+                db.select(Makbuz).where(Makbuz.party_id == party_id, Makbuz.year == 2026, Makbuz.month == 2)
+            ).scalar_one()
+            assert db.session.get(WorkOrder, wo_id) is None
+            assert summary.status == Makbuz.STATUS_DRAFT
+            assert summary.work_order_count == 0
+            assert summary.subtotal == Decimal("0.00")
 
 
 # ---------------------------------------------------------------------------
