@@ -69,32 +69,39 @@ def list_parties():
     parties = pagination.items
 
     page_party_ids = [p.id for p in parties]
-    kasa_by_party: dict[int, dict] = {
-        p.id: {
-            "work_total": Decimal("0.00"),
-            "vat_total": None,
-            "payment_total": Decimal("0.00"),
-            "balance": Decimal("0.00"),
-        }
-        for p in parties
-    }
+    kasa_by_party: dict[int, dict] = {}
 
     if page_party_ids:
-        monthly_makbuzlar = db.session.execute(
-            db.select(Makbuz)
-            .where(
-                Makbuz.party_id.in_(page_party_ids),
-                Makbuz.year == today.year,
-                Makbuz.month == today.month,
-            )
+        all_makbuzlar = db.session.execute(
+            db.select(Makbuz).where(Makbuz.party_id.in_(page_party_ids))
         ).scalars().all()
 
-        for m in monthly_makbuzlar:
-            kasa_by_party[m.party_id] = {
-                "work_total": money(m.grand_total),
-                "vat_total": money(m.vat_amount) if m.vat_applied else None,
-                "payment_total": money(m.collected_amount),
-                "balance": money(m.outstanding_amount),
+        makbuzlar_by_party: dict[int, list[Makbuz]] = {}
+        for m in all_makbuzlar:
+            makbuzlar_by_party.setdefault(m.party_id, []).append(m)
+
+        for p in parties:
+            party_makbuzlar = makbuzlar_by_party.get(p.id, [])
+            billed = money(sum((m.grand_total for m in party_makbuzlar if m.status in (Makbuz.STATUS_SENT, Makbuz.STATUS_PAID)), Decimal("0.00")))
+            paid = money(sum((m.collected_amount for m in party_makbuzlar), Decimal("0.00")))
+            prev_bal = money(p.previous_balance or Decimal("0.00"))
+            total_balance = money(billed - paid + prev_bal)
+
+            current_m = next((m for m in party_makbuzlar if m.year == today.year and m.month == today.month), None)
+
+            kasa_by_party[p.id] = {
+                "work_total": money(current_m.grand_total) if current_m else Decimal("0.00"),
+                "vat_total": (money(current_m.vat_amount) if current_m.vat_applied else None) if current_m else None,
+                "payment_total": money(current_m.collected_amount) if current_m else Decimal("0.00"),
+                "balance": total_balance,
+            }
+    else:
+        for p in parties:
+            kasa_by_party[p.id] = {
+                "work_total": Decimal("0.00"),
+                "vat_total": None,
+                "payment_total": Decimal("0.00"),
+                "balance": money(p.previous_balance or Decimal("0.00")),
             }
 
     kasa_page_total_work = money(sum((row["work_total"] for row in kasa_by_party.values()), Decimal("0.00")))
