@@ -91,6 +91,23 @@ def format_whatsapp_url(value: object) -> str:
     return f"https://wa.me/{digits}"
 
 
+def normalize_whatsapp_jid(value: object) -> str | None:
+    """Format phone number as a valid WhatsApp JID (e.g. 905321234567@s.whatsapp.net)."""
+    raw = str(value or "").strip()
+    digits = "".join(char for char in raw if char.isdigit())
+    if not digits:
+        return None
+    if len(digits) == 10:
+        digits = "90" + digits
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = "90" + digits[1:]
+    elif len(digits) == 12 and digits.startswith("90"):
+        pass
+    else:
+        return f"{digits}@s.whatsapp.net"
+    return f"{digits}@s.whatsapp.net"
+
+
 
 def normalize_treatment_fields(name, description, category, price_eur, currency=None):
     """Validate treatment input identically for forms, JSON and spreadsheets."""

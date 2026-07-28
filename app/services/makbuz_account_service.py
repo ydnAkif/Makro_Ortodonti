@@ -146,7 +146,18 @@ def record_payment(
     if excess > 0 and makbuz.party and makbuz.party.previous_balance_outstanding:
         prev_bal = makbuz.party.previous_balance_outstanding
         deduct = min(excess, prev_bal)
-        makbuz.party.previous_balance = money(makbuz.party.previous_balance - deduct)
+        from app.models.models import PartyPayment
+        party_payment = PartyPayment(
+            party_id=makbuz.party.id,
+            payment_date=payment_date,
+            amount=deduct,
+            method=method,
+            reference=reference,
+            notes=f"Devreden borç tahsilatı ({makbuz.year}-{makbuz.month:02d})",
+        )
+        db.session.add(party_payment)
+        makbuz.party.previous_balance_payments.append(party_payment)
+        db.session.flush()
         excess -= deduct
 
     return entry

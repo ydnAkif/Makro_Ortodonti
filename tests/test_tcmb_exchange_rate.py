@@ -81,3 +81,12 @@ def test_work_order_apparatus_and_extra_lists():
     wo_json = WorkOrder(apparatus_type='["Hawley", "Expansion"]', extra_addons='["Spring"]')
     assert wo_json.apparatus_list == ["Hawley", "Expansion"]
     assert wo_json.extra_addons_list == ["Spring"]
+
+
+def test_normalize_whatsapp_jid():
+    from app.services.validation_service import normalize_whatsapp_jid
+
+    assert normalize_whatsapp_jid("0532 123 45 67") == "905321234567@s.whatsapp.net"
+    assert normalize_whatsapp_jid("5321234567") == "905321234567@s.whatsapp.net"
+    assert normalize_whatsapp_jid("+90 (532) 123-4567") == "905321234567@s.whatsapp.net"
+    assert normalize_whatsapp_jid("") is None

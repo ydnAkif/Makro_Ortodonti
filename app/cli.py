@@ -32,6 +32,28 @@ def seed_db_command():
     click.echo("Database seeding completed successfully.")
 
 
+@db_cli.command("reset-password")
+@click.option("--username", default="admin", help="Kullanıcı adı (varsayılan: admin)")
+@click.option("--password", prompt=True, hide_input=True, confirmation_prompt=True, help="Yeni şifre")
+def reset_password_command(username, password):
+    """Reset the password for a user (defaults to admin)."""
+    from app.extensions import db
+    from app.models.models import User
+    from werkzeug.security import generate_password_hash
+
+    user = db.session.execute(
+        db.select(User).where(User.username == username)
+    ).scalar_one_or_none()
+
+    if not user:
+        click.echo(f"Hata: '{username}' adında bir kullanıcı bulunamadı.", err=True)
+        return
+
+    user.password_hash = generate_password_hash(password)
+    db.session.commit()
+    click.echo(f"Başarılı: '{username}' kullanıcısının şifresi güncellendi.")
+
+
 def register_cli_commands(app):
     """Register custom CLI commands with the Flask application."""
     app.cli.add_command(db_cli)
