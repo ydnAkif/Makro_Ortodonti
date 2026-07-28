@@ -3,7 +3,6 @@
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-import pytest
 from app.models.models import WorkOrder
 from app.services.exchange_service import (
     fetch_eur_try_rate,
