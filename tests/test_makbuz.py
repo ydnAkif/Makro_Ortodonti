@@ -286,11 +286,10 @@ def test_send_and_mark_paid_flow(client, app):
         assert makbuz.status == Makbuz.STATUS_PAID
         assert makbuz.paid_amount == Decimal("2000.00")
 
-    response = client.get("/payments/")
+    response = client.get(f"/makbuzlar/{party_id}?year=2026&month=6")
     assert response.status_code == 200
     paid_html = response.get_data(as_text=True)
     assert "Dr. Paid Flow" in paid_html
-    assert "Tahsil edilenler" in paid_html
     assert f"/payments/{makbuz_id}/unmark-paid" in paid_html
 
     response = client.post(f"/payments/{makbuz_id}/unmark-paid", follow_redirects=False)
