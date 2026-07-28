@@ -534,7 +534,6 @@ def test_makbuz_list_send_returns_to_list_and_exposes_collection_action(client, 
 
     assert response.status_code == 302
     assert "/makbuzlar/?year=2026&month=6" in response.location
-    html = client.get(response.location).get_data(as_text=True)
     with app.app_context():
         assert db.session.get(Makbuz, makbuz_id).status == Makbuz.STATUS_SENT
 
