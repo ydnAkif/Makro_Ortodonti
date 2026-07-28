@@ -12,7 +12,7 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @dashboard_bp.route("/")
 @login_required
 def index():
-    total_patients = db.session.execute(
+    total_dentists = db.session.execute(
         db.select(db.func.count(Party.id)).where(
             Party.party_type == PartyType.DENTIST,
             Party.is_active.is_(True)
@@ -92,7 +92,7 @@ def index():
 
     return render_template(
         "dashboard/index.html",
-        total_patients=total_patients,
+        total_dentists=total_dentists,
         monthly_work_orders=monthly_work_orders,
         monthly_total_try=monthly_total_try,
         monthly_drafts=monthly_drafts,

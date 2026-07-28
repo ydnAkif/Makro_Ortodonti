@@ -1,7 +1,11 @@
+import logging
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from datetime import date
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from app.extensions import db
 from app.models.models import Party, PartyType, Makbuz, MakbuzPayment, PartyPayment, money
@@ -22,9 +26,6 @@ METHOD_LABELS = {
 @login_required
 @permissions_required("billing.view")
 def list_payments():
-    from app.services.makbuz_service import sync_all_missing_makbuzlar
-
-    sync_all_missing_makbuzlar()
     search = request.args.get("search", "").strip()
     year = request.args.get("year", type=int)
     active_tab = request.args.get("tab", "pending")
@@ -235,7 +236,7 @@ def mark_paid(makbuz_id):
             db.session.commit()
         except (TypeError, ValueError) as exc:
             db.session.rollback()
-            print("MARK PAID EXC:", exc)
+            logger.exception("Ödeme kaydetme hatası (makbuz_id=%s)", makbuz_id)
             flash(str(exc), "danger")
             return redirect(url_for("payments.mark_paid", makbuz_id=makbuz.id))
 

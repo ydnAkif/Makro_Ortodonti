@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.models import AuditLog
 
 
-REDACTED_FIELDS = {"password_hash", "value", "qr_code", "session_data"}
+REDACTED_FIELDS = {"password_hash", "qr_code", "session_data"}
 
 
 def _json_value(value):

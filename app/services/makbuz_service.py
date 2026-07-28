@@ -93,7 +93,6 @@ def sync_all_missing_makbuzlar() -> None:
 
 def resolve_makbuzlar_query(request_args: dict) -> dict:
     """Helper to parse makbuzlar list filters and return period data & aggregated doctor status."""
-    sync_all_missing_makbuzlar()
     today = date.today()
     view = request_args.get("view", "month")
     if view not in ("day", "month", "year", "all"):
@@ -194,7 +193,9 @@ def resolve_makbuzlar_query(request_args: dict) -> dict:
 
         # 1. Period Work Order Net & KDV
         d["subtotal"] = money(d["total_price"])
-        if party.applies_kdv:
+        period_makbuz = d.get("makbuz")
+        makbuz_kdv = period_makbuz.vat_applied if period_makbuz else party.applies_kdv
+        if makbuz_kdv:
             d["vat_amount"] = money(d["subtotal"] * VAT_RATE / Decimal("100"))
         else:
             d["vat_amount"] = Decimal("0.00")
@@ -226,7 +227,7 @@ def resolve_makbuzlar_query(request_args: dict) -> dict:
         d["total_due"] = money(max(raw_due, Decimal("0.00")))
 
         # 5. Remaining Debt Breakdown (Kalan Net & Kalan KDV)
-        if party.applies_kdv and d["total_due"] > 0:
+        if makbuz_kdv and d["total_due"] > 0:
             d["kalan_net"] = money(d["total_due"] / (Decimal("1.00") + (VAT_RATE / Decimal("100"))))
             d["kalan_kdv"] = money(d["total_due"] - d["kalan_net"])
         else:

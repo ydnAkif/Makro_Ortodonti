@@ -88,8 +88,11 @@ def update_settings():
         if key == "smtp_password":
             if not value:
                 continue
-            from app.services.security_service import encrypt_value
-            value = encrypt_value(value)
+            if value.startswith("gAAAAA"):
+                pass
+            else:
+                from app.services.security_service import encrypt_value
+                value = encrypt_value(value)
 
         setting = db.session.execute(
             db.select(Settings).where(Settings.key == key)

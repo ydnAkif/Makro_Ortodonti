@@ -131,7 +131,7 @@ def get_latest_usd_rate() -> Decimal | None:
         usd_rate = fetch_usd_try_rate()
         if usd_rate is not None:
             if rate and rate.usd_to_try is None:
-                rate.usd_to_try = float(usd_rate)
+                rate.usd_to_try = usd_rate
                 db.session.commit()
             return usd_rate
     except Exception:
