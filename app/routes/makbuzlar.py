@@ -146,7 +146,7 @@ def generate_makbuz(party_id):
     vat_applied, vat_rate = _parse_vat_form()
 
     try:
-        party = db.get_or_404(Party, party_id)
+        db.get_or_404(Party, party_id)
         makbuz = _generate_makbuz(party_id, year, month, vat_applied, vat_rate)
         db.session.commit()
         flash(f"Aylık hesap özeti güncellendi: ₺{makbuz.grand_total:,.2f}", "success")
@@ -255,7 +255,6 @@ def bulk_generate_drafts():
     for pid in party_ids:
         vat_applied, vat_rate = _parse_vat_form(prefix=f"vat_{pid}_")
         try:
-            party = db.session.get(Party, pid)
             _generate_makbuz(pid, year, month, vat_applied, vat_rate)
             db.session.commit()
             generated += 1
