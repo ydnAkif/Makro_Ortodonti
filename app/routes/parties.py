@@ -18,7 +18,6 @@ from app.services.settings_service import get_clinic_identity
 from app.constants import MONTHS
 
 logger = logging.getLogger(__name__)
-
 parties_bp = Blueprint("parties", __name__)
 
 

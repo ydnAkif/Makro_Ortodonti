@@ -38,6 +38,7 @@ class TreatmentCategory:
     ]
 
 
+
 class PartyType(PyEnum):
     DENTIST = "dentist"
     PATIENT = "patient"
@@ -171,7 +172,6 @@ class Party(Base, TimestampMixin):
 
 MONEY_SCALE = Decimal("0.01")
 RATE_SCALE = Decimal("0.0001")
-PERCENT_SCALE = Decimal("0.01")
 
 
 def money(value: object) -> Decimal:
@@ -181,10 +181,6 @@ def money(value: object) -> Decimal:
     return Decimal(str(value)).quantize(MONEY_SCALE, rounding=ROUND_HALF_UP)
 
 
-def rate_decimal(value: object) -> Decimal:
-    if value is None:
-        return Decimal("0.0000")
-    return Decimal(str(value)).quantize(RATE_SCALE, rounding=ROUND_HALF_UP)
 
 
 class Treatment(Base, TimestampMixin):

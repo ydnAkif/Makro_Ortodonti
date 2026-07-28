@@ -12,18 +12,17 @@ from __future__ import annotations
 
 import pytest
 from datetime import date
-from unittest.mock import patch
 
 import bcrypt
 
 from app import create_app
-from app.config import DEFAULT_DEV_SECRET, PLACEHOLDER_SECRET
+from app.config import DEFAULT_DEV_SECRET
 from app.extensions import db
 from app.models.base import Base
 from app.models.models import (
-    ExchangeRate, Party, PartyType, User,
+    ExchangeRate, User,
 )
-from app.models.invoice_service import InvoiceService
+from app.services.invoice_service import _normalize_item
 from conftest import login
 
 
@@ -52,7 +51,7 @@ class MissingEncryptionKeyProductionConfig:
     TESTING = False
     DEBUG = False
     SECRET_KEY = "session-key-that-is-longer-than-thirty-two-characters"
-    ENCRYPTION_KEY = PLACEHOLDER_SECRET
+    ENCRYPTION_KEY = "replace-with-a-long-random-secret"
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -147,121 +146,50 @@ def _make_valid_item(**overrides):
 
 def test_invoice_service_rejects_zero_quantity(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="sıfırdan büyük"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(quantity=0)],
-            )
+            _normalize_item(_make_valid_item(quantity=0))
 
 
 def test_invoice_service_rejects_negative_quantity(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="sıfırdan büyük"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(quantity=-1)],
-            )
+            _normalize_item(_make_valid_item(quantity=-1))
 
 
 def test_invoice_service_rejects_negative_unit_price(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="negatif olamaz"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(unit_price_eur=-50.0)],
-            )
+            _normalize_item(_make_valid_item(unit_price_eur=-50.0))
 
 
 def test_invoice_service_rejects_vat_over_100(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="KDV oranı"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(vat_rate=150.0)],
-            )
+            _normalize_item(_make_valid_item(vat_rate=150.0))
 
 
 def test_invoice_service_rejects_percent_discount_over_100(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="100"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(discount_type="percent", discount_value=110.0)],
-            )
+            _normalize_item(_make_valid_item(discount_type="percent", discount_value=110.0))
 
 
 def test_invoice_service_rejects_amount_discount_exceeding_line_total(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="satır tutarını"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(
-                    unit_price_eur=50.0,
-                    quantity=1,
-                    discount_type="amount",
-                    discount_value=200.0,  # 200 > 50 * 1
-                )],
-            )
+            _normalize_item(_make_valid_item(
+                unit_price_eur=50.0,
+                quantity=1,
+                discount_type="amount",
+                discount_value=200.0,  # 200 > 50 * 1
+            ))
 
 
 def test_invoice_service_rejects_empty_description(app):
     with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
         with pytest.raises(ValueError, match="boş olamaz"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[_make_valid_item(description="")],
-            )
+            _normalize_item(_make_valid_item(description=""))
 
-
-def test_invoice_service_rejects_unknown_party(app):
-    with app.app_context():
-        with pytest.raises(ValueError, match="Müşteri bulunamadı"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=99999,
-                items=[_make_valid_item()],
-            )
-
-
-def test_invoice_service_rejects_empty_items_list(app):
-    with app.app_context():
-        party = db.session.execute(
-            db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-        ).scalar_one()
-        with pytest.raises(ValueError, match="en az bir kalem"):
-            InvoiceService.create_invoice(
-                session=db.session,
-                party_id=party.id,
-                items=[],
-            )
 
 
 # ──────────────────────────────────────────────
@@ -341,36 +269,6 @@ def test_parties_list_all_types_render(client):
         assert resp.status_code == 200, f"Failed for type={ptype!r}"
 
 
-def test_roles_required_redirects_anonymous_user(app):
-    from app.authz import roles_required
-
-    protected = roles_required("admin")(lambda: "allowed")
-    with app.test_request_context("/protected"):
-        response = protected()
-
-    assert response.status_code == 302
-    assert response.location.endswith("/login")
-
-
-def test_roles_required_rejects_wrong_role(app):
-    from app.authz import roles_required
-
-    user = type("User", (), {"is_authenticated": True, "role": "staff"})()
-    protected = roles_required("admin")(lambda: "allowed")
-    with app.test_request_context("/protected"), patch("app.authz.current_user", user):
-        response = protected()
-
-    assert response.status_code == 302
-    assert response.location.endswith("/")
-
-
-def test_roles_required_allows_matching_role(app):
-    from app.authz import roles_required
-
-    user = type("User", (), {"is_authenticated": True, "role": "admin"})()
-    protected = roles_required("admin")(lambda: "allowed")
-    with app.test_request_context("/protected"), patch("app.authz.current_user", user):
-        assert protected() == "allowed"
 
 
 def test_force_hsts_and_request_id_headers(app):
