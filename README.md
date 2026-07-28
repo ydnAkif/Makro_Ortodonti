@@ -1,10 +1,18 @@
-# Makro Ortodonti (v3.0.0) 🌟
+# Makro Ortodonti (v3.1.0) 🌟
 
 [![Python Version](https://img.shields.io/badge/python-3.13%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Flask Version](https://img.shields.io/badge/flask-3.x-green.svg)](https://flask.palletsprojects.com/)
 [![Test Suite](https://img.shields.io/badge/pytest-passing-success.svg)]()
 
 Makro Ortodonti; hasta ve diş hekimi müşteri kayıtlarını, iş emri ve aparey takiplerini, **TRY (₺)**, **EUR (€)** ve **USD ($)** çoklu para birimli fiyatlandırmayı, bilgilendirme amaçlı hesap özetlerini, devreden borç takibini, WhatsApp bildirimlerini ve klinik raporlamayı tek noktadan yöneten Flask tabanlı klinik operasyon yazılımıdır. Uygulamadaki hesap özetleri resmi fatura veya makbuz değildir; e-fatura süreçleri uygulama dışında yürütülür.
+
+---
+
+## 🚀 v3.1.0 Performans İyileştirmeleri, TCMB Kur Entegrasyonu & Yapısal Veri Desteği
+
+- **🇹🇷 TCMB Resmi Kur Servisi Entegrasyonu**: Frankfurter API'sine ek olarak TCMB resmi XML servisi (`tcmb.gov.tr/kurlar/today.xml`) yedek sağlayıcı (fallback) olarak eklendi. Yurt dışı kur servislerinde kesinti olduğunda kurlar TCMB'den otomatik çekilir.
+- **⚡ GET İsteği DB Kilitlenme Çözümü**: `/makbuzlar` sayfasındaki her GET isteğinde tüm veritabanını tarayan ve commit atan `sync_all_missing_makbuzlar()` döngüsü kaldırıldı. Makbuz senkronizasyonu iş emri ekleme/silme anına (event-driven) taşınarak sayfa yüklenmesi hızlandırıldı ve SQLite kilitlenmeleri önlendi.
+- **📦 WorkOrder Yapısal Liste Desteği**: `WorkOrder` modeline `apparatus_list` ve `extra_addons_list` yardımcı mülkleri eklendi. JSON, virgül ve yeni satır ayrıştırılmış veri formatları tek noktadan standartlaştırıldı.
 
 ---
 

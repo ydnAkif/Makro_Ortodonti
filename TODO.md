@@ -1,8 +1,24 @@
 # Makro Ortodonti — Yapılacaklar (TODO) ve Yol Haritası
 
-> **Sürüm**: v2.3.0
+> **Sürüm**: v3.1.0
 > **Mimari Seviye**: A+ (95+)  
-> **Test Durumu**: Pytest birim ve entegrasyon paketiyle doğrulanır | %90+ Coverage hedefi
+> **Test Durumu**: Pytest birim ve entegrasyon paketiyle doğrulanır | %90+ Coverage hedefi (554+ test)
+
+---
+
+## ✅ v3.1.0 Sürümünde Tamamlananlar
+
+- [x] **TCMB Resmi Döviz Kuru Entegrasyonu**: Frankfurter API'sine ilave olarak TCMB'nin resmi `today.xml` servisi yedek kur kaynağı olarak entegre edildi.
+- [x] **GET İsteği DB Kilitlenme & Performans İyileştirmesi**: `/makbuzlar` sayfasındaki her istekte çalışan senkronizasyon döngüsü kaldırılarak SQLite kilitlenmeleri çözüldü ve sayfa açılışı hızlandırıldı.
+- [x] **WorkOrder Yapısal Veri Yardımcıları**: `apparatus_list` ve `extra_addons_list` mülkleri ile JSON ve metin formatlı veri işleme standartlaştırıldı.
+
+---
+
+## ✅ v3.0.0 Sürümünde Tamamlananlar
+
+- [x] **Sadeleşmiş Hesap Özetleri**: Taslak onay süreçleri kaldırıldı, iş emirleri anında bakiyeye yansıtıldı.
+- [x] **Hesap Özeti Terminolojisi**: Tüm arayüz ve çıktılarda belgenin resmi fatura olmadığı netleştirildi.
+- [x] **Devreden KDV Matematiği**: KDV yalnızca ilgili ayın işlerine uygulandı, devreden borca KDV eklenmesi engellendi.
 
 ---
 
