@@ -893,7 +893,7 @@ def test_overpayment_does_not_double_deduct_outstanding(client, app):
         p_after = db.session.get(Party, party_id)
         assert m_after.collected_amount == Decimal("1320.00")
         assert m_after.outstanding_amount == Decimal("0.00")
-        assert p_after.previous_balance == Decimal("320.00")
+        assert p_after.previous_balance_outstanding == Decimal("320.00")
 
     resp_list = client.get("/payments/")
     assert resp_list.status_code == 200
