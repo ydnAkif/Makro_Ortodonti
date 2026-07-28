@@ -13,6 +13,32 @@ from app.models.models import (
     ExchangeRate,
 )
 from conftest import login
+from app.models.models import WorkOrder
+
+
+def _make_doctor(app, name="Dr. Test", phone="+905550000001"):
+    with app.app_context():
+        p = Party(party_type=PartyType.DENTIST, name=name, phone=phone)
+        db.session.add(p)
+        db.session.commit()
+        return p.id
+
+
+def _add_work_order(app, party_id, work_date=None, price=Decimal("500.00")):
+    work_date = work_date or date(2026, 1, 10)
+    with app.app_context():
+        wo = WorkOrder(
+            party_id=party_id,
+            work_date=work_date,
+            apparatus_type="Nance",
+            patient_name="Test Hasta",
+            apparatus_price=price,
+            extra_price=Decimal("0.00"),
+        )
+        wo.recalculate_total()
+        db.session.add(wo)
+        db.session.commit()
+        return wo.id
 
 
 # ── Scheduler purge functions ──────────────────────────────────────────
@@ -495,3 +521,207 @@ class TestSecurityServiceFailHard:
             app.config["ENCRYPTION_KEY"] = ""
             with pytest.raises(RuntimeError, match="ENCRYPTION_KEY"):
                 encrypt_value("test")
+
+
+# ── Invoice _normalize_item validation errors ─────────────────────────
+
+
+class TestNormalizeItemValidation:
+    def test_description_too_long(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="300 karakteri"):
+            _normalize_item({"description": "x" * 301, "quantity": 1, "unit_price_eur": 10})
+
+    def test_quantity_not_int(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="Miktar tam sayı"):
+            _normalize_item({"description": "Test", "quantity": "abc", "unit_price_eur": 10})
+
+    def test_unit_price_not_numeric(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="Birim fiyat sayısal"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": "xyz"})
+
+    def test_vat_rate_not_numeric(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="KDV oranı sayısal"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "vat_rate": "bad"})
+
+    def test_invalid_discount_type(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="İskonto tipi"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "discount_type": "bogus"})
+
+    def test_discount_value_not_numeric(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="İskonto değeri sayısal"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "discount_type": "percent", "discount_value": "bad"})
+
+    def test_discount_negative(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="negatif olamaz"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "discount_type": "amount", "discount_value": -5})
+
+    def test_invalid_item_type(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="Geçersiz fatura kalemi tipi"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "item_type": "bogus"})
+
+    def test_percent_discount_over_100(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="Yüzde iskonto 100"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "discount_type": "percent", "discount_value": 101})
+
+    def test_amount_discount_exceeds_total(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="satır tutarını"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": 10, "discount_type": "amount", "discount_value": 20})
+
+    def test_unit_price_negative(self):
+        from app.services.invoice_service import _normalize_item
+        with pytest.raises(ValueError, match="negatif olamaz"):
+            _normalize_item({"description": "Test", "quantity": 1, "unit_price_eur": -5})
+
+
+# ── format_whatsapp_url branches ─────────────────────────────────────
+
+
+class TestFormatWhatsappUrl:
+    def test_10_digits(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url("5551112233") == "https://wa.me/905551112233"
+
+    def test_11_digits_leading_zero(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url("05551112233") == "https://wa.me/905551112233"
+
+    def test_12_digits_90_prefix(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url("905551112233") == "https://wa.me/905551112233"
+
+    def test_unknown_length(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url("123") == "https://wa.me/123"
+
+    def test_empty(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url("") == "#"
+
+    def test_none(self):
+        from app.services.validation_service import format_whatsapp_url
+        assert format_whatsapp_url(None) == "#"
+
+
+# ── Validation parse_float / parse_date / currency fallback ───────────
+
+
+class TestValidationHelpers:
+    def test_parse_float_invalid(self):
+        from app.services.validation_service import parse_float
+        assert parse_float("not-a-float") is None
+        assert parse_float("1.2.3") is None
+        assert parse_float("") is None
+        assert parse_float(None) is None
+
+    def test_normalize_treatment_invalid_currency(self):
+        from app.services.validation_service import normalize_treatment_fields
+        _, _, _, _, currency = normalize_treatment_fields(
+            "Test", "desc", "ana_islemler", "50", currency="BOGUS"
+        )
+        assert currency == "TL"
+
+    def test_parse_date_valid(self):
+        from app.services.validation_service import parse_date
+        assert parse_date("2026-06-15") == date(2026, 6, 15)
+
+    def test_parse_date_invalid(self):
+        from app.services.validation_service import parse_date
+        assert parse_date("not-a-date") is None
+        assert parse_date("") is None
+        assert parse_date(None) is None
+
+
+# ── Makbuzlar route edge-case flash messages ──────────────────────────
+
+
+class TestMakbuzlarEdgeCases:
+    def test_bulk_send_no_party_ids(self, client, app):
+        login(client, "admin", "admin-pass")
+        response = client.post("/makbuzlar/bulk-send", data={"year": 2026, "month": 6, "party_ids": []}, follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_bulk_send_no_draft_makbuzlar(self, client, app):
+        login(client, "admin", "admin-pass")
+        p = _make_doctor(app, name="Dr. No Draft Send", phone="+905551110061")
+        response = client.post("/makbuzlar/bulk-send", data={"year": 2026, "month": 6, "party_ids": [str(p)]}, follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_bulk_delete_no_party_ids(self, client, app):
+        login(client, "admin", "admin-pass")
+        response = client.post("/makbuzlar/bulk-delete", data={"year": 2026, "month": 6, "party_ids": []}, follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_bulk_delete_no_makbuzlar(self, client, app):
+        login(client, "admin", "admin-pass")
+        p = _make_doctor(app, name="Dr. No Delete", phone="+905551110062")
+        response = client.post("/makbuzlar/bulk-delete", data={"year": 2026, "month": 6, "party_ids": [str(p)]}, follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_bulk_generate_no_party_ids(self, client, app):
+        login(client, "admin", "admin-pass")
+        response = client.post("/makbuzlar/bulk-generate", data={"year": 2026, "month": 6, "party_ids": []}, follow_redirects=False)
+        assert response.status_code == 302
+
+    def test_send_status(self, client, app):
+        login(client, "admin", "admin-pass")
+        response = client.get("/makbuzlar/send-status")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "send_job" in data
+
+
+# ── Makbuzlar view modes ─────────────────────────────────────────────
+
+
+class TestMakbuzlarViewModes:
+    def test_view_year(self, client, app):
+        login(client, "admin", "admin-pass")
+        p = _make_doctor(app, name="Dr. View Year", phone="+905551110051")
+        _add_work_order(app, p, date(2026, 6, 10), 1000)
+        response = client.get("/makbuzlar/?view=year&year=2026")
+        assert response.status_code == 200
+
+    def test_view_day(self, client, app):
+        login(client, "admin", "admin-pass")
+        p = _make_doctor(app, name="Dr. View Day", phone="+905551110052")
+        _add_work_order(app, p, date(2026, 6, 10), 1000)
+        response = client.get("/makbuzlar/?view=day&date=2026-06-10")
+        assert response.status_code == 200
+
+    def test_view_all(self, client, app):
+        login(client, "admin", "admin-pass")
+        p = _make_doctor(app, name="Dr. View All", phone="+905551110053")
+        _add_work_order(app, p, date(2026, 6, 10), 1000)
+        response = client.get("/makbuzlar/?view=all")
+        assert response.status_code == 200
+
+
+# ── Reports helpers ──────────────────────────────────────────────────
+
+
+class TestReportsHelpers:
+    def test_parse_wo_items(self):
+        from app.services.reports_service import _parse_wo_items
+        assert _parse_wo_items(None) == []
+        assert _parse_wo_items("") == []
+        assert _parse_wo_items("not json") == []
+        assert _parse_wo_items("42") == []
+
+    def test_resolve_rate_fallback(self, app):
+        from app.services.reports_service import _resolve_rate
+
+        with app.app_context():
+            db.session.execute(db.delete(ExchangeRate))
+            db.session.commit()
+            rate = _resolve_rate(date(2026, 1, 1), None)
+            assert rate == Decimal("1")

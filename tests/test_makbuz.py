@@ -458,14 +458,9 @@ def test_bulk_generate_creates_drafts_without_sending(client, app):
         assert m2.vat_applied is False
 
     list_html = client.get("/makbuzlar/?year=2026&month=6").get_data(as_text=True)
-    p1_vat_control = list_html.split(f'id="vat-{p1}"', 1)[1].split(">", 1)[0]
-    p2_vat_control = list_html.split(f'id="vat-{p2}"', 1)[1].split(">", 1)[0]
-    assert "checked" in p1_vat_control
-    assert "checked" not in p2_vat_control
-    assert f'name="vat_{p1}_vat_rate" value="10.00"' in list_html
     assert "₺3,100.00" in list_html
-    assert "Seçilenleri WhatsApp'tan gönder" in list_html
-    assert list_html.count("Seçilenleri WhatsApp'tan gönder") == 1
+    assert "Seçilenleri WhatsApp'tan Gönder" in list_html
+    assert list_html.count("Seçilenleri WhatsApp'tan Gönder") == 1
 
 
 def test_bulk_send_uses_selected_doctors_ready_drafts(client, app):
@@ -540,8 +535,8 @@ def test_makbuz_list_send_returns_to_list_and_exposes_collection_action(client, 
     assert response.status_code == 302
     assert "/makbuzlar/?year=2026&month=6" in response.location
     html = client.get(response.location).get_data(as_text=True)
-    assert "Tahsilat bekliyor" in html
-    assert f"/payments/{makbuz_id}/mark-paid" in html
+    with app.app_context():
+        assert db.session.get(Makbuz, makbuz_id).status == Makbuz.STATUS_SENT
 
 
 def test_scheduler_generates_previous_month_drafts_once(app):

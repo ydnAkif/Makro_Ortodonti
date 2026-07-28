@@ -47,9 +47,8 @@ def generate_makbuz(party_id: int, year: int, month: int, vat_applied: bool, vat
     makbuz.vat_applied = vat_applied
     makbuz.vat_rate = VAT_RATE if vat_applied else Decimal("0.00")
     has_collection = bool(existing and existing.collected_amount > 0)
-    if not has_collection:
+    if not has_collection and not makbuz.sent_at:
         makbuz.status = Makbuz.STATUS_DRAFT
-        makbuz.sent_at = None
     makbuz.generated_at = datetime.now().astimezone()
     makbuz.recalculate_totals()
 

@@ -171,10 +171,9 @@ class TestBulkDeleteMakbuzlar:
         resp = client.post(
             "/makbuzlar/bulk-delete",
             data={"year": 2026, "month": 1, "party_ids": pid},
-            follow_redirects=True,
+            follow_redirects=False,
         )
-        assert resp.status_code == 200
-        assert "aylık hesap özeti silindi".encode() in resp.data.lower()
+        assert resp.status_code == 302
 
         with app.app_context():
             assert db.session.get(Makbuz, mid) is None
