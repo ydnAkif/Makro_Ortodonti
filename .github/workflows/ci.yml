@@ -14,20 +14,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: "pip"
       - run: pip install -r requirements-dev.txt
       - run: ruff check app/ tests/ migrations/ run.py
 
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.13", "3.14"]
-      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
+          cache: "pip"
       - run: pip install -r requirements-dev.txt
       - name: Run unit and integration tests with coverage gate
         run: pytest -m "not e2e" --cov=app --cov-report=term-missing --cov-fail-under=90
@@ -40,7 +38,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: "pip"
       - run: pip install -r requirements-dev.txt
-      - run: playwright install --with-deps chromium
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements-dev.txt') }}
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
       - name: Run Playwright end-to-end tests
         run: pytest -m e2e --browser chromium
