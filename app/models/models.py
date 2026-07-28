@@ -95,7 +95,7 @@ class Party(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     party_type: Mapped[str] = mapped_column(
-        SQLEnum(PartyType), nullable=False, default=PartyType.DENTIST, index=True
+        SQLEnum(PartyType, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=PartyType.DENTIST, index=True
     )
     # Common fields
     name: Mapped[str] = mapped_column(String(200), nullable=False)  # full name or company name
@@ -395,7 +395,7 @@ class InvoiceItem(Base, TimestampMixin):
         ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
     )
     item_type: Mapped[str] = mapped_column(
-        SQLEnum(InvoiceItemType), nullable=False, default=InvoiceItemType.TREATMENT
+        SQLEnum(InvoiceItemType, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=InvoiceItemType.TREATMENT
     )
     treatment_id: Mapped[int | None] = mapped_column(
         ForeignKey("treatments.id"), nullable=True, index=True
@@ -530,7 +530,7 @@ class Payment(Base, TimestampMixin):
     amount_eur: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     amount_try: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     exchange_rate: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
-    method: Mapped[str] = mapped_column(SQLEnum(PaymentMethod), nullable=False, default=PaymentMethod.CASH)
+    method: Mapped[str] = mapped_column(SQLEnum(PaymentMethod, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=PaymentMethod.CASH)
     reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
