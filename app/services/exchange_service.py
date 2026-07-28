@@ -16,6 +16,29 @@ _last_auto_check_date: date | None = None
 _shutdown_event = Event()
 
 
+def fetch_tcmb_rates() -> dict[str, Decimal]:
+    """Fetch EUR/TRY and USD/TRY exchange rates from TCMB official XML service."""
+    import xml.etree.ElementTree as ET
+
+    url = "https://www.tcmb.gov.tr/kurlar/today.xml"
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+
+    root = ET.fromstring(resp.content)
+    rates: dict[str, Decimal] = {}
+
+    for currency_elem in root.findall("Currency"):
+        code = currency_elem.get("CurrencyCode")
+        if code in ("EUR", "USD"):
+            buying = currency_elem.findtext("ForexBuying") or currency_elem.findtext("BanknoteBuying")
+            if buying:
+                cleaned = buying.strip().replace(",", ".")
+                if cleaned:
+                    rates[code] = Decimal(cleaned)
+
+    return rates
+
+
 def fetch_eur_try_rate() -> Decimal:
     """Fetch current EUR/TRY rate from public providers with fallback."""
     providers = [
@@ -40,7 +63,15 @@ def fetch_eur_try_rate() -> Decimal:
         except Exception as exc:
             last_error = exc
 
-    raise RuntimeError(f"Failed to fetch EUR/TRY from providers: {last_error}")
+    # TCMB fallback
+    try:
+        tcmb_rates = fetch_tcmb_rates()
+        if "EUR" in tcmb_rates:
+            return tcmb_rates["EUR"]
+    except Exception as exc:
+        last_error = exc
+
+    raise RuntimeError(f"Failed to fetch EUR/TRY from providers and TCMB: {last_error}")
 
 
 def fetch_usd_try_rate() -> Decimal | None:
@@ -63,6 +94,14 @@ def fetch_usd_try_rate() -> Decimal | None:
                 return Decimal(str(data["rates"]["TRY"]))
         except Exception:
             continue
+
+    # TCMB fallback
+    try:
+        tcmb_rates = fetch_tcmb_rates()
+        if "USD" in tcmb_rates:
+            return tcmb_rates["USD"]
+    except Exception:
+        pass
 
     return None
 

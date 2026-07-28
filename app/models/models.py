@@ -564,6 +564,34 @@ class WorkOrder(Base, TimestampMixin):
     def recalculate_total(self) -> None:
         self.total_price = money(self.apparatus_price + self.extra_price)
 
+    @property
+    def apparatus_list(self) -> list[str]:
+        """Return structured list of apparatus types (handles JSON string, comma, or newline)."""
+        if not self.apparatus_type:
+            return []
+        import json
+        try:
+            val = json.loads(self.apparatus_type)
+            if isinstance(val, list):
+                return [str(x).strip() for x in val if str(x).strip()]
+        except Exception:
+            pass
+        return [part.strip() for part in self.apparatus_type.replace("\n", ",").split(",") if part.strip()]
+
+    @property
+    def extra_addons_list(self) -> list[str]:
+        """Return structured list of extra addons (handles JSON string, comma, or newline)."""
+        if not self.extra_addons:
+            return []
+        import json
+        try:
+            val = json.loads(self.extra_addons)
+            if isinstance(val, list):
+                return [str(x).strip() for x in val if str(x).strip()]
+        except Exception:
+            pass
+        return [part.strip() for part in self.extra_addons.replace("\n", ",").split(",") if part.strip()]
+
     def __repr__(self) -> str:
         return f"<WorkOrder {self.patient_name} ({self.apparatus_type}) ₺{self.total_price:.2f}>"
 
