@@ -1259,26 +1259,6 @@ textarea.form-control {
     border-color: rgba(57, 191, 179, 0.25);
 }
 
-.table-pill {
-    display: inline-flex;
-    min-height: 28px;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.table-pill--status {
-    min-width: 6.25rem;
-}
-
-.table-pill--party {
-    min-width: 7.25rem;
-}
-
-.table-pill--category {
-    min-width: 8rem;
-}
-
 .bg-warning {
     background-color: var(--amber-500) !important;
 }

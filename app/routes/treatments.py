@@ -9,7 +9,6 @@ from app.extensions import db
 from app.models.models import Treatment, TreatmentCategory
 from app.authz import permissions_required
 from app.services.validation_service import (
-    TREATMENT_CATEGORY_ALIASES,
     neutralize_formula_prefix,
     normalize_treatment_fields,
 )
@@ -135,17 +134,6 @@ def delete_treatment(treatment_id):
     db.session.commit()
     flash(f"{treatment.name} silindi.", "warning")
     return redirect(url_for("treatments.list_treatments"))
-
-
-CATEGORY_MAP = TREATMENT_CATEGORY_ALIASES
-
-CATEGORY_LABELS_REV = {
-    "ana_islemler": "ana_islemler", "ana işlemler": "ana_islemler",
-    "ana islemler": "ana_islemler", "ana": "ana_islemler",
-    "ekstra_islemler": "ekstra_islemler", "ekstra işlemler": "ekstra_islemler",
-    "ekstra islemler": "ekstra_islemler", "ekstra": "ekstra_islemler",
-}
-
 
 @treatments_bp.route("/import", methods=["GET", "POST"])
 @login_required

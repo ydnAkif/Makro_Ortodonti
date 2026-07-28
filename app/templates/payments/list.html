@@ -156,9 +156,6 @@
                                 <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=entry.id) }}" class="d-inline" data-confirm="Bu tahsilat hareketi silinsin mi? Kalan borç yeniden hesaplanacaktır.">
                                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Sil</button>
                                 </form>
-                                <form method="POST" action="{{ url_for('payments.unmark_paid', makbuz_id=m.id) }}" class="d-none">
-                                    <button type="submit">Tümünü geri al</button>
-                                </form>
                             </td>
                         </tr>
                         {% endfor %}

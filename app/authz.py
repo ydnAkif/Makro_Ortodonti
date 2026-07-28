@@ -14,7 +14,7 @@ STAFF_PERMISSIONS = frozenset({
     "reports.view", "messaging.use",
 })
 # Deliberately admin-only, not part of STAFF_PERMISSIONS above: reversing a
-# makbuz's paid status (payments.unmark_paid) and deleting an individual
+# makbuz's paid status (billing.cancel_makbuz) and deleting an individual
 # collection entry (payments.delete_payment) both destroy financial history
 # that a receptionist/bookkeeper role shouldn't be able to erase alone —
 # see TODO.md's v2.0 "staff role restrictions" item.
@@ -100,22 +100,3 @@ def api_permissions_required(*permissions: str):
     return decorator
 
 
-def roles_required(*roles: str):
-    """Restrict endpoint access to users with one of the given roles."""
-
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapped(*args, **kwargs):
-            if not current_user.is_authenticated:
-                return redirect(url_for("auth.login"))
-
-            user_role = getattr(current_user, "role", None)
-            if user_role not in roles:
-                flash("Bu işlem için yetkiniz bulunmuyor.", "danger")
-                return redirect(url_for("dashboard.index"))
-
-            return view_func(*args, **kwargs)
-
-        return wrapped
-
-    return decorator

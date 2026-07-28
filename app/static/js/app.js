@@ -249,7 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
         var deleteModal = new bootstrap.Modal(deleteModalEl);
         var pendingForm = null;
         var pendingSubmitter = null;
-        var deleteMessage = document.getElementById('confirmDeleteMessage');
 
         function prepareConfirmModal(el) {
             var msg = el.getAttribute('data-confirm') || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';

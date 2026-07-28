@@ -388,11 +388,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return [{id: 0, name: trimmed, price: 0, currency: 'TL'}];
     }
 
-    var existingApparatus = '{{ work_order.apparatus_type|safe if work_order and work_order.apparatus_type else "" }}';
+    var existingApparatus = {{ (work_order.apparatus_type if work_order and work_order.apparatus_type else "")|tojson }};
     selectedApparatus = loadExistingItems(existingApparatus, anaTreatments);
     if (selectedApparatus.length) { renderApparatusTags(); syncApparatusHidden(); }
 
-    var existingExtra = '{{ work_order.extra_addons|safe if work_order and work_order.extra_addons else "" }}';
+    var existingExtra = {{ (work_order.extra_addons if work_order and work_order.extra_addons else "")|tojson }};
     selectedExtras = loadExistingItems(existingExtra, ekstraTreatments);
     if (selectedExtras.length) { renderExtraTags(); syncExtrasHidden(); }
 

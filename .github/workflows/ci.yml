@@ -46,8 +46,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('requirements-dev.txt') }}
+      - name: Install Playwright system deps
+        run: playwright install-deps chromium
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: playwright install --with-deps chromium
+        run: playwright install chromium
       - name: Run Playwright end-to-end tests
         run: pytest -m e2e --browser chromium

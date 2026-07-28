@@ -19,9 +19,45 @@ import pytest
 from conftest import login
 
 
+def _make_invoice(session, party_id, items, invoice_date=None, due_date=None):
+    from app.models.models import Invoice, InvoiceItem, InvoiceItemType
+    invoice_date = invoice_date or date.today()
+    invoice = Invoice(
+        party_id=party_id,
+        invoice_number=f"MKR-COV-{party_id}-{session.query(Invoice).count() + 1:04d}",
+        invoice_date=invoice_date,
+        due_date=due_date,
+        exchange_rate=40.0,
+    )
+    session.add(invoice)
+    session.flush()
+
+    for item_data in items:
+        unit_eur = Decimal(str(item_data.get("unit_price_eur", 50.0)))
+        qty = item_data.get("quantity", 1)
+        vat = Decimal(str(item_data.get("vat_rate", 0)))
+        item = InvoiceItem(
+            invoice_id=invoice.id,
+            item_type=item_data.get("item_type", InvoiceItemType.TREATMENT),
+            treatment_id=item_data.get("treatment_id"),
+            description=item_data.get("description", "Test Item"),
+            quantity=qty,
+            unit_price_eur=unit_eur,
+            unit_price_try=unit_eur * Decimal("40.0"),
+            vat_rate=vat,
+        )
+        session.add(item)
+
+    session.flush()
+    invoice.recalculate_totals()
+    session.commit()
+    return invoice
+
+
 # ============================================================
 # database.py (0% → target 80%+)
 # ============================================================
+
 
 class TestDatabaseMigration:
     def test_migrate_patients_creates_party_for_unlinked(self, client, app):
@@ -532,14 +568,13 @@ class TestWhatsAppService:
     def test_send_invoice_message_party_phone(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         from app.services.whatsapp_service import WhatsAppService
 
         with app.app_context():
             party = db.session.execute(
                 db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
             ).scalar_one()
-            invoice = InvoiceService.create_invoice(
+            invoice = _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
@@ -553,14 +588,13 @@ class TestWhatsAppService:
     def test_send_invoice_message_no_phone(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         from app.services.whatsapp_service import WhatsAppService
 
         with app.app_context():
             party = Party(party_type=PartyType.COMPANY_CUSTOMER, name="No Phone Corp")
             db.session.add(party)
             db.session.flush()
-            invoice = InvoiceService.create_invoice(
+            invoice = _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
@@ -739,20 +773,21 @@ class TestPrivacyRoutes:
 
     def test_anonymize_409_with_active_invoices(self, client, app):
         from app.extensions import db
-        from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
+        from app.models.models import Party, PartyType, Makbuz
 
         login(client, "admin", "admin-pass")
         with app.app_context():
             party = db.session.execute(
                 db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
             ).scalar_one()
-            InvoiceService.create_invoice(
-                session=db.session,
+            makbuz = Makbuz(
                 party_id=party.id,
-                items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
-                invoice_date=date.today(),
+                year=2026,
+                month=1,
+                status="draft",
             )
+            db.session.add(makbuz)
+            db.session.commit()
             pid = party.id
 
         response = client.post(f"/privacy/parties/{pid}/anonymize", content_type="application/json")
@@ -774,7 +809,9 @@ class TestPrivacyRoutes:
         assert response.content_type == "application/json"
         data = response.get_json()
         assert "party" in data
-        assert "invoices" in data
+        assert "makbuzlar" in data
+        assert "work_orders" in data
+
 
 
 # ============================================================
@@ -793,14 +830,13 @@ class TestEmailService:
     def test_send_email_no_recipient(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         from app.services.email_service import send_invoice_email
 
         with app.app_context():
             party = Party(party_type=PartyType.COMPANY_CUSTOMER, name="No Email Co")
             db.session.add(party)
             db.session.flush()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
@@ -812,7 +848,6 @@ class TestEmailService:
     def test_send_email_smtp_not_configured(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType, Settings
-        from app.models.invoice_service import InvoiceService
         from app.services.email_service import send_invoice_email
 
         with app.app_context():
@@ -825,7 +860,7 @@ class TestEmailService:
                 s.value = ""
             db.session.commit()
 
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
@@ -838,7 +873,6 @@ class TestEmailService:
     def test_send_email_smtp_connection_error(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType, Settings
-        from app.models.invoice_service import InvoiceService
         from app.services.email_service import send_invoice_email
 
         with app.app_context():
@@ -851,7 +885,7 @@ class TestEmailService:
             party = db.session.execute(
                 db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
             ).scalar_one()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{"item_type": "service", "description": "Test", "quantity": 1, "unit_price_eur": 100}],
@@ -868,14 +902,6 @@ class TestEmailService:
 # ============================================================
 
 class TestValidationService:
-    def test_parse_float_valid(self):
-        from app.services.validation_service import parse_float
-        assert parse_float("") is None
-
-    def test_parse_float_empty(self):
-        from app.services.validation_service import parse_float
-        assert parse_float("") is None
-        assert parse_float(None) is None
 
     def test_parse_decimal_valid(self):
         from app.services.validation_service import parse_decimal
@@ -1221,13 +1247,6 @@ class TestModelsExtra:
         from app.models.models import money
         assert money(100) == Decimal("100.00")
 
-    def test_rate_decimal_none(self):
-        from app.models.models import rate_decimal
-        assert rate_decimal(None) == Decimal("0.0000")
-
-    def test_rate_decimal_value(self):
-        from app.models.models import rate_decimal
-        assert rate_decimal(38.5) == Decimal("38.5000")
 
     def test_party_repr(self, client, app):
         from app.extensions import db
@@ -1256,10 +1275,9 @@ class TestModelsExtra:
     def test_invoice_repr(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session, party_id=party.id,
                 items=[{"item_type": "service", "description": "Repr Test", "quantity": 1, "unit_price_eur": 100}],
                 invoice_date=date.today(),
@@ -1269,10 +1287,9 @@ class TestModelsExtra:
     def test_invoice_item_repr(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session, party_id=party.id,
                 items=[{"item_type": "service", "description": "Item Repr", "quantity": 2, "unit_price_eur": 50}],
                 invoice_date=date.today(),
@@ -1326,10 +1343,9 @@ class TestModelsExtra:
     def test_invoice_category_mixed(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session, party_id=party.id,
                 items=[
                     {"item_type": "service", "description": "Svc", "quantity": 1, "unit_price_eur": 100},
@@ -1373,40 +1389,14 @@ class TestModelsExtra:
 # invoice_service — extra coverage
 # ============================================================
 
-class TestInvoiceServiceExtra:
-    def test_create_invoice_from_treatments(self, client, app):
-        from app.extensions import db
-        from app.models.models import Party, PartyType, PatientTreatment
-        from app.models.invoice_service import InvoiceService
-
-        with app.app_context():
-            party = db.session.execute(
-                db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
-            ).scalar_one()
-            pt = db.session.execute(db.select(PatientTreatment).limit(1)).scalar_one()
-            inv = InvoiceService.create_invoice_from_treatments(
-                session=db.session,
-                party_id=party.id,
-                treatment_ids=[pt.id],
-                invoice_date=date.today(),
-            )
-            assert inv.total_eur > 0
-            assert len(inv.items) == 1
-
-
-# ============================================================
-# pdf_service — extra coverage
-# ============================================================
-
 class TestPdfServiceExtra:
     def test_pdf_with_due_date(self, client, app):
         from app.extensions import db
         from app.models.models import Party, PartyType
-        from app.models.invoice_service import InvoiceService
         from app.services.pdf_service import generate_invoice_pdf
         with app.app_context():
             party = db.session.execute(db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)).scalar_one()
-            inv = InvoiceService.create_invoice(
+            inv = _make_invoice(
                 session=db.session, party_id=party.id,
                 items=[{"item_type": "service", "description": "PDF Test", "quantity": 1, "unit_price_eur": 100}],
                 invoice_date=date.today(),

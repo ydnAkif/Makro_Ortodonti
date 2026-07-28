@@ -144,15 +144,6 @@ def parse_date(date_str: str) -> date | None:
     except ValueError:
         return None
 
-def parse_float(val_str: str) -> float | None:
-    """Safely parse a string value to float, returning None if malformed or empty."""
-    if not val_str:
-        return None
-    try:
-        return float(str(val_str).strip().replace(",", "."))
-    except (ValueError, TypeError):
-        return None
-
 def parse_decimal(val_str: str, scale: str = "0.01") -> Decimal | None:
     """Parse user-entered decimal values without binary floating-point conversion."""
     if not val_str:

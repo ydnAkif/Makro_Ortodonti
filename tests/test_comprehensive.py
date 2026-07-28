@@ -9,12 +9,46 @@ import json
 import pytest
 
 from app.extensions import db
-from app.models.invoice_service import InvoiceService
 from app.models.models import (
-    ExchangeRate, Invoice, Party, PartyType, Payment, PaymentMethod,
+    ExchangeRate, Invoice, InvoiceItem, InvoiceItemType, Party, PartyType, Payment, PaymentMethod,
     Settings, Treatment, WorkOrder
 )
 from conftest import login
+
+
+def _make_invoice(session, party_id, items, invoice_date=None, due_date=None):
+    invoice_date = invoice_date or date.today()
+    invoice = Invoice(
+        party_id=party_id,
+        invoice_number=f"MKR-TEST-{party_id}-{session.query(Invoice).count() + 1:04d}",
+        invoice_date=invoice_date,
+        due_date=due_date,
+        exchange_rate=40.0,
+    )
+    session.add(invoice)
+    session.flush()
+
+    for item_data in items:
+        unit_eur = Decimal(str(item_data.get("unit_price_eur", 50.0)))
+        qty = item_data.get("quantity", 1)
+        vat = Decimal(str(item_data.get("vat_rate", 0)))
+        item = InvoiceItem(
+            invoice_id=invoice.id,
+            item_type=item_data.get("item_type", InvoiceItemType.TREATMENT),
+            treatment_id=item_data.get("treatment_id"),
+            description=item_data.get("description", "Test Item"),
+            quantity=qty,
+            unit_price_eur=unit_eur,
+            unit_price_try=unit_eur * Decimal("40.0"),
+            vat_rate=vat,
+        )
+        session.add(item)
+
+    session.flush()
+    invoice.recalculate_totals()
+    session.commit()
+    return invoice
+
 
 
 # ==================== AUTH ====================
@@ -500,7 +534,7 @@ def test_email_service_party_only(client, app):
         party = db.session.execute(
             db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
         ).scalar_one()
-        invoice = InvoiceService.create_invoice(
+        invoice = _make_invoice(
             session=db.session,
             party_id=party.id,
             items=[{"item_type": "service", "description": "Email Test", "quantity": 1, "unit_price_eur": 100}],
@@ -520,7 +554,7 @@ def test_whatsapp_service_party_only(client, app):
         party = db.session.execute(
             db.select(Party).where(Party.party_type == PartyType.DENTIST).limit(1)
         ).scalar_one()
-        invoice = InvoiceService.create_invoice(
+        invoice = _make_invoice(
             session=db.session,
             party_id=party.id,
             items=[{"item_type": "service", "description": "WA Test", "quantity": 1, "unit_price_eur": 100}],
@@ -637,7 +671,7 @@ def test_reports_use_payments_for_collections_without_double_counting(client, ap
         treatment = db.session.execute(
             db.select(Treatment).where(Treatment.name == "Consultation")
         ).scalar_one()
-        invoice = InvoiceService.create_invoice(
+        invoice = _make_invoice(
             session=db.session,
             party_id=party.id,
             items=[{
@@ -722,7 +756,7 @@ def test_reports_aging_report(client, app):
             date.today() - timedelta(days=75),
         ]
         for i, due_date in enumerate(due_dates):
-            InvoiceService.create_invoice(
+            _make_invoice(
                 session=db.session,
                 party_id=party.id,
                 items=[{

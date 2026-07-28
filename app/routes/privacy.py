@@ -8,7 +8,7 @@ from flask_login import login_required
 
 from app.authz import permissions_required
 from app.extensions import db
-from app.models.models import AuditLog, Invoice, Party
+from app.models.models import AuditLog, Makbuz, Party, WorkOrder
 
 
 privacy_bp = Blueprint("privacy", __name__)
@@ -31,23 +31,36 @@ def audit_index():
 @permissions_required("privacy.export")
 def export_party(party_id: int):
     party = db.get_or_404(Party, party_id)
-    invoices = db.session.execute(db.select(Invoice).where(Invoice.party_id == party.id)).scalars().all()
+    work_orders = db.session.execute(
+        db.select(WorkOrder).where(WorkOrder.party_id == party.id)
+    ).scalars().all()
+    makbuzlar = db.session.execute(
+        db.select(Makbuz).where(Makbuz.party_id == party.id)
+    ).scalars().all()
     payload = {
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "party": {column.name: getattr(party, column.name) for column in Party.__table__.columns},
-        "invoices": [
+        "work_orders": [
             {
-                "invoice_number": invoice.invoice_number,
-                "invoice_date": invoice.invoice_date,
-                "status": invoice.status,
-                "total_eur": invoice.total_eur,
-                "total_try": invoice.total_try,
-                "payments": [
-                    {"date": p.payment_date, "amount_eur": p.amount_eur, "amount_try": p.amount_try, "method": p.method}
-                    for p in invoice.payments
-                ],
+                "id": wo.id,
+                "patient_name": wo.patient_name,
+                "apparatus_type": wo.apparatus_type,
+                "order_date": wo.order_date,
+                "delivery_date": wo.delivery_date,
+                "price_eur": wo.price_eur,
             }
-            for invoice in invoices
+            for wo in work_orders
+        ],
+        "makbuzlar": [
+            {
+                "id": m.id,
+                "period_year": m.period_year,
+                "period_month": m.period_month,
+                "status": m.status,
+                "total_eur": m.total_eur,
+                "total_try": m.total_try,
+            }
+            for m in makbuzlar
         ],
     }
     body = json.dumps(payload, default=str, ensure_ascii=False, indent=2)
@@ -61,12 +74,13 @@ def export_party(party_id: int):
 @permissions_required("privacy.anonymize")
 def anonymize_party(party_id: int):
     party = db.get_or_404(Party, party_id)
-    if any(not invoice.is_deleted for invoice in party.invoices):
+    unpaid = db.session.execute(
+        db.select(Makbuz).where(Makbuz.party_id == party.id, Makbuz.status != "paid")
+    ).scalars().first()
+    if unpaid:
         abort(409, "Finansal kayıtları bulunan kişi doğrudan anonimleştirilemez; saklama süresini doğrulayın.")
     token = f"ANON-{party.id}"
     party.name = token
-    party.first_name = "Anonim"
-    party.last_name = str(party.id)
     party.phone = None
     party.email = None
     party.address = None
@@ -78,3 +92,4 @@ def anonymize_party(party_id: int):
     party.is_active = False
     db.session.commit()
     return {"ok": True, "party_id": party.id}
+

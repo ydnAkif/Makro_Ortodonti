@@ -4,7 +4,7 @@ import threading
 import requests
 from datetime import date
 from decimal import Decimal
-from threading import Event, Lock
+from threading import Lock
 
 from app.extensions import db
 from app.models.models import ExchangeRate
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 _auto_check_lock = Lock()
 _last_auto_check_date: date | None = None
-_shutdown_event = Event()
 
 
 def fetch_tcmb_rates() -> dict[str, Decimal]:

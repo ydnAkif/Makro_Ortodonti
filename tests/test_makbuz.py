@@ -625,22 +625,6 @@ def test_makbuz_detail_renders_catalog_item_names_not_raw_json(client, app):
     assert "Activator (FKO)" in html
 
 
-def test_format_items_parses_catalog_json_and_falls_back_to_plain_text():
-    from app.services.makbuz_pdf_service import _format_items
-
-    catalog_json = json.dumps([{"id": 31, "name": "Activator (FKO)", "price": 2500, "currency": "TL"}])
-    assert _format_items(catalog_json) == "Activator (FKO) (₺2,500.00)"
-
-    multi_json = json.dumps([
-        {"id": 1, "name": "A", "price": 10, "currency": "USD"},
-        {"id": 2, "name": "B", "price": 20, "currency": "TL"},
-    ])
-    assert _format_items(multi_json) == "A ($10.00), B (₺20.00)"
-
-    assert _format_items("Lingual Ark") == "Lingual Ark"
-    assert _format_items(None) == ""
-    assert _format_items("") == ""
-
 
 def test_whatsapp_message_includes_party_carried_forward_balance(app):
     from app.services.whatsapp_service import WhatsAppService

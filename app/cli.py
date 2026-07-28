@@ -39,7 +39,7 @@ def reset_password_command(username, password):
     """Reset the password for a user (defaults to admin)."""
     from app.extensions import db
     from app.models.models import User
-    from werkzeug.security import generate_password_hash
+    import bcrypt
 
     user = db.session.execute(
         db.select(User).where(User.username == username)
@@ -49,7 +49,7 @@ def reset_password_command(username, password):
         click.echo(f"Hata: '{username}' adında bir kullanıcı bulunamadı.", err=True)
         return
 
-    user.password_hash = generate_password_hash(password)
+    user.password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     db.session.commit()
     click.echo(f"Başarılı: '{username}' kullanıcısının şifresi güncellendi.")
 

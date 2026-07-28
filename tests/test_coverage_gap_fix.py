@@ -615,14 +615,6 @@ class TestFormatWhatsappUrl:
 # ── Validation parse_float / parse_date / currency fallback ───────────
 
 
-class TestValidationHelpers:
-    def test_parse_float_invalid(self):
-        from app.services.validation_service import parse_float
-        assert parse_float("not-a-float") is None
-        assert parse_float("1.2.3") is None
-        assert parse_float("") is None
-        assert parse_float(None) is None
-
     def test_normalize_treatment_invalid_currency(self):
         from app.services.validation_service import normalize_treatment_fields
         _, _, _, _, currency = normalize_treatment_fields(

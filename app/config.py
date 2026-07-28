@@ -7,7 +7,6 @@ load_dotenv()
 
 
 DEFAULT_DEV_SECRET = "makro-orto-denti-dev-key-change-in-production"
-PLACEHOLDER_SECRET = "replace-with-a-long-random-secret"
 
 
 def is_insecure_secret(value: object) -> bool:

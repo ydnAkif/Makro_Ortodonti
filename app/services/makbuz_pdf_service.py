@@ -8,31 +8,6 @@ from app.services.validation_service import normalize_optional_text
 CURRENCY_SYMBOLS = {"TL": "₺", "EUR": "€", "USD": "$"}
 
 
-def _format_items(raw: str | None) -> str:
-    """Render a WorkOrder apparatus_type/extra_addons field for display.
-
-    The field stores either a JSON array of {name, price, currency} objects
-    (selected from the treatment catalog) or, for legacy rows, a plain
-    description string.
-    """
-    raw = normalize_optional_text(raw)
-    if not raw:
-        return ""
-    try:
-        items = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return raw
-    if not isinstance(items, list) or not items:
-        return raw
-    parts = []
-    for item in items:
-        if isinstance(item, dict):
-            symbol = CURRENCY_SYMBOLS.get(item.get("currency", "TL"), "₺")
-            parts.append(f"{item.get('name', '')} ({symbol}{float(item.get('price', 0)):,.2f})")
-        else:
-            parts.append(str(item))
-    return ", ".join(parts)
-
 
 def _item_lines(raw: str | None, bullet: str = "•") -> list[str]:
     """Same source data as _format_items, but one line per item for the PDF table."""
