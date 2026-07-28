@@ -1,6 +1,7 @@
-{% extends "base.html" %} {% import "components/macros.html" as macros %} {%
-block title %}{{ party.display_name }} - {{ clinic_name }}{% endblock %} {%
-block content %}
+{% extends "base.html" %}
+{% import "components/macros.html" as macros %}
+{% block title %}{{ party.display_name }} - {{ clinic_name }}{% endblock %}
+{% block content %}
 <div class="mb-4">
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -124,30 +125,7 @@ block content %}
           <span class="fw-bold">Genel Toplam:</span>
           <h4 class="mb-0 fw-bold">₺{{ "{:,.2f}".format(total_with_vat + devreden_total) }}</h4>
         </div>
-        
-        {% if False and devreden_total > 0 %}
-        <div class="mt-3 p-2 rounded bg-light border">
-          {% if previous_periods_debt > 0 %}
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>Önceki Dönemler Borcu:</span>
-            <span>₺{{ "{:,.2f}".format(previous_periods_debt) }}</span>
-          </div>
-          {% endif %} {% if party.previous_balance_outstanding > 0 %}
-          <div class="d-flex justify-content-between small text-muted mb-1">
-            <span>Önceden Devreden Borç:</span>
-            <span>₺{{ "{:,.2f}".format(party.previous_balance_outstanding) }}</span>
-          </div>
-          {% endif %}
-          <div
-            class="d-flex justify-content-between align-items-center pt-1 border-top mt-1"
-          >
-            <span class="small fw-bold">Genel Toplam (devreden dahil):</span>
-            <strong class="fs-6"
-              >₺{{ "{:,.2f}".format(total_with_vat + devreden_total) }}</strong
-            >
-          </div>
-        </div>
-        {% endif %} {% else %}
+        {% else %}
         <p class="small text-muted mb-2">{{ year_work_order_count }} iş emri</p>
         <table class="table table-sm mb-0">
           <thead>
@@ -644,26 +622,6 @@ block content %}
           }
         }
       });
-    });
-
-    document.querySelectorAll(".apparatus-display").forEach(function (el) {
-      const text = el.textContent.trim();
-      if (text.startsWith("[")) {
-        try {
-          const arr = JSON.parse(text);
-          if (Array.isArray(arr)) {
-            el.innerHTML = arr
-              .map(function (item) {
-                return (
-                  '<span class="badge badge-soft-aqua me-1">' +
-                  (item.name || item) +
-                  "</span>"
-                );
-              })
-              .join(" ");
-          }
-        } catch (e) {}
-      }
     });
   });
 </script>

@@ -468,44 +468,6 @@ class WhatsAppService:
             return {"success": False, "message": f"Belge gönderim hatası: {str(e)}"}
 
     @classmethod
-    def send_invoice_message(cls, invoice) -> dict:
-        """Send invoice notification to customer via WhatsApp."""
-        # Support both party and legacy patient invoices
-        phone = None
-        name = None
-        if invoice.party and invoice.party.phone:
-            phone = invoice.party.phone
-            name = invoice.party.display_name
-        elif invoice.patient and invoice.patient.phone:
-            phone = invoice.patient.phone
-            name = invoice.patient.full_name
-
-        if not phone:
-            return {"success": False, "message": "Müşterinin telefon numarası bulunmuyor."}
-
-        status_tr = {
-            "pending": "Bekliyor",
-            "paid": "Ödendi",
-            "overdue": "Gecikmiş",
-            "cancelled": "İptal",
-        }
-
-        message = f"""Sayın {name},
-
-{invoice.invoice_date.strftime('%d.%m.%Y')} tarihli {invoice.invoice_number} numaralı faturanız hazırlanmıştır.
-
-Toplam Tutar: ₺{invoice.total_try:,.2f} (€{invoice.total_eur:,.2f})
-Durum: {status_tr.get(invoice.status, invoice.status)}
-{"Son Ödeme: " + invoice.due_date.strftime('%d.%m.%Y') if invoice.due_date else ""}
-
-Faturanız ekte gönderilmiştir.
-
-Saygılarımızla,
-Makro Ortodonti"""
-
-        return cls.send_message(phone, message)
-
-    @classmethod
     def send_makbuz_message(cls, makbuz, pdf_bytes: bytes) -> dict:
         """Send a monthly doctor receipt (özet metin + PDF) via WhatsApp."""
         party = makbuz.party
@@ -588,9 +550,20 @@ Makro Ortodonti"""
         return cls.send_document(party.phone, pdf_bytes, filename=filename, caption=f"{period} Hesap Özeti")
 
     @classmethod
-    def send_reminder(cls, patient, message: str) -> dict:
-        """Send a custom reminder message to a patient."""
-        if not patient.phone:
-            return {"success": False, "message": "Hastanın telefon numarası bulunmuyor."}
+    def send_invoice_message(cls, invoice) -> dict:
+        """Legacy helper for sending invoice notification message."""
+        phone = invoice.party.phone if (invoice.party and invoice.party.phone) else (invoice.patient.phone if (invoice.patient and invoice.patient.phone) else None)
+        if not phone:
+            return {"success": False, "message": "Telefon numarası bulunamadı."}
+        name = invoice.party.display_name if invoice.party else (invoice.patient.full_name if invoice.patient else "")
+        due_str = f"\nSon Ödeme: {invoice.due_date.strftime('%d.%m.%Y')}" if getattr(invoice, 'due_date', None) else ""
+        msg = f"Sayın {name},\n{invoice.invoice_number} numaralı faturanız ({invoice.invoice_date.strftime('%d.%m.%Y')}) tutarı: ₺{invoice.total_try:,.2f}{due_str}."
+        return cls.send_message(phone, msg)
 
-        return cls.send_message(patient.phone, message)
+    @classmethod
+    def send_reminder(cls, recipient, text: str) -> dict:
+        """Legacy helper for sending reminder message."""
+        phone = getattr(recipient, "phone", None)
+        if not phone:
+            return {"success": False, "message": "Telefon numarası bulunamadı."}
+        return cls.send_message(phone, text)
